@@ -1,14 +1,14 @@
-# swr-store
+# compostate
 
-> Reactive stores for data-fetching with stale-while-revalidate strategy.
+> Composable and reactive state management library
 
 ## Packages
 
 | Package | Version | Example | Notes |
 | --- | --- | --- | --- |
-| [`swr-store`](https://github.com/lxsmnsyc/swr-store/tree/main/packages/swr-store) | [![NPM](https://img.shields.io/npm/v/swr-store.svg)](https://www.npmjs.com/package/swr-store) | | |
-| [`react-swr-store`](https://github.com/lxsmnsyc/swr-store/tree/main/packages/react-swr-store) | [![NPM](https://img.shields.io/npm/v/react-swr-store.svg)](https://www.npmjs.com/package/react-swr-store) | [![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-blue?style=flat-square&logo=codesandbox)](https://codesandbox.io/s/github/LXSMNSYC/swr-store/tree/main/examples/react-swr-store) | React demo |
-| [`preact-swr-store`](https://github.com/lxsmnsyc/swr-store/tree/main/packages/preact-swr-store) | [![NPM](https://img.shields.io/npm/v/react-swr-store.svg)](https://www.npmjs.com/package/preact-swr-store) | [![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-blue?style=flat-square&logo=codesandbox)](https://codesandbox.io/s/github/LXSMNSYC/swr-store/tree/main/examples/preact-swr-store) | React demo |
+| [`compostate`](https://github.com/lxsmnsyc/compostate/tree/main/packages/compostate) | [![NPM](https://img.shields.io/npm/v/compostate.svg)](https://www.npmjs.com/package/compostate) | | |
+| [`react-compostate`](https://github.com/lxsmnsyc/compostate/tree/main/packages/react-compostate) | [![NPM](https://img.shields.io/npm/v/react-compostate.svg)](https://www.npmjs.com/package/react-compostate) | [![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-blue?style=flat-square&logo=codesandbox)](https://codesandbox.io/s/github/LXSMNSYC/compostate/tree/main/examples/react-compostate) | React demo |
+| [`preact-compostate`](https://github.com/lxsmnsyc/compostate/tree/main/packages/preact-compostate) | [![NPM](https://img.shields.io/npm/v/react-compostate.svg)](https://www.npmjs.com/package/preact-compostate) | [![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-blue?style=flat-square&logo=codesandbox)](https://codesandbox.io/s/github/LXSMNSYC/compostate/tree/main/examples/preact-compostate) | React demo |
 
 ## License
 
