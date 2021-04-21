@@ -26,5 +26,21 @@
  * @copyright Alexis Munsayac 2021
  */
 
-export * from './types';
-export * from './core';
+export type StateComputation<T> = () => T;
+export type StateCleanup<T> = (value: T) => void;
+
+export type EffectUnsubscribe = () => void;
+export type EffectCleanup = undefined | void | EffectUnsubscribe;
+
+export type StateKind = 'state' | 'effect' | 'readonly';
+
+export interface Effect {
+  readonly key?: string;
+  readonly setup: () => EffectCleanup;
+}
+
+export interface StateOptions<T> {
+  readonly key?: string;
+  readonly value: StateComputation<T>;
+  readonly cleanup?: StateCleanup<T>;
+}

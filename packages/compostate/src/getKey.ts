@@ -26,5 +26,19 @@
  * @copyright Alexis Munsayac 2021
  */
 
-export * from './types';
-export * from './core';
+let index = 0;
+
+function createKey(prefix: string): string {
+  const count = index;
+  index += 1;
+  return `${prefix}-${count}`;
+}
+
+export default function getKey(prefix: string, key?: string): string {
+  // Check if there's a key
+  if (key) {
+    return key;
+  }
+
+  return createKey(prefix);
+}

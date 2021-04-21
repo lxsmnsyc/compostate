@@ -25,6 +25,29 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
+import React, { FC } from 'react';
+import { useScopedModelExists } from 'react-scoped-model';
+import { StoreAdapterRoot } from 'react-store-adapter';
+import CompostateCore from './CompostateCore';
 
-export * from './types';
-export * from './core';
+const CompostateRoot: FC = ({ children }) => {
+  const context = useScopedModelExists(CompostateCore);
+
+  if (context) {
+    return <>{children}</>;
+  }
+
+  return (
+    <StoreAdapterRoot>
+      <CompostateCore.Provider>
+        {children}
+      </CompostateCore.Provider>
+    </StoreAdapterRoot>
+  );
+};
+
+if (process.env.NODE_ENV !== 'production') {
+  CompostateRoot.displayName = 'CompostateRoot';
+}
+
+export default CompostateRoot;

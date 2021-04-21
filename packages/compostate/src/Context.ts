@@ -25,6 +25,19 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
+export default class Context<T> {
+  private current: T | undefined;
 
-export * from './types';
-export * from './core';
+  push(value: T): () => T {
+    const parent = this.current;
+    this.current = value;
+    return () => {
+      this.current = parent;
+      return value;
+    };
+  }
+
+  getContext(): T | undefined {
+    return this.current;
+  }
+}

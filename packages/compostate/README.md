@@ -53,11 +53,11 @@ effect(() => {
 
 ### Reactive side-effects
 
-### Automatic dependency tracking
-
 ### State and side-effects scoping
 
 ### Automatic cleanup
+
+### Batching
 
 ## License
 

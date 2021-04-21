@@ -13,5 +13,6 @@ module.exports = {
       "functions": false,
       "classes": true,
     }],
+    "max-classes-per-file": "off"
   }
 };

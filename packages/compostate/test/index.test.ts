@@ -1,14 +1,7 @@
 import {
-  destroy,
   effect,
-  init,
-  reset,
   state,
 } from '../src';
-
-function noop<T>(value: T): T {
-  return value;
-}
 
 describe('get', () => {
   it('should receive the initial state of the state', () => {
@@ -62,7 +55,7 @@ describe('reset', () => {
     expect(reference.value).toBe(expectedA);
     reference.value = expectedB;
     expect(reference.value).toBe(expectedB);
-    reset(reference);
+    reference.reset();
     expect(reference.value).toBe(expectedA);
   });
   it('should reset the dependent state', () => {
@@ -76,7 +69,7 @@ describe('reset', () => {
     expect(derived.value).toBe(expectedA);
     reference.value = expectedB;
     expect(derived.value).toBe(expectedB);
-    reset(reference);
+    reference.reset();
     expect(derived.value).toBe(expectedA);
   });
   it('should destroy internal state on state reset', () => {
@@ -90,7 +83,7 @@ describe('reset', () => {
         destroyed = true;
       });
 
-      init(internal);
+      internal.reset();
 
       return expectedA;
     });
@@ -98,7 +91,7 @@ describe('reset', () => {
     expect(reference.value).toBe(expectedA);
     reference.value = expectedB;
     expect(reference.value).toBe(expectedB);
-    reset(reference);
+    reference.reset();
     expect(reference.value).toBe(expectedA);
     expect(destroyed).toBe(true);
   });
@@ -115,7 +108,7 @@ describe('reset', () => {
         destroyed += 1;
       });
 
-      init(internal);
+      internal.reset();
 
       return reference.value;
     });
@@ -123,7 +116,7 @@ describe('reset', () => {
     expect(derived.value).toBe(expectedA);
     reference.value = expectedB;
     expect(derived.value).toBe(expectedB);
-    reset(reference);
+    reference.reset();
     expect(derived.value).toBe(expectedA);
     // 2 times, one for set, one for reset
     expect(destroyed).toBe(2);
@@ -138,7 +131,7 @@ describe('destroy', () => {
     });
 
     expect(destroyed).toBe(false);
-    destroy(reference);
+    reference.destroy();
     expect(destroyed).toBe(false);
   });
   it('should destroy the state if state is initialized.', () => {
@@ -148,9 +141,9 @@ describe('destroy', () => {
       destroyed = true;
     });
 
-    init(reference);
+    reference.reset();
     expect(destroyed).toBe(false);
-    destroy(reference);
+    reference.destroy();
     expect(destroyed).toBe(true);
   });
   it('should fail to destroy the derived state if derived state isn\'t initialized.', () => {
@@ -163,7 +156,7 @@ describe('destroy', () => {
     });
 
     expect(destroyed).toBe(false);
-    destroy(reference);
+    reference.destroy();
     expect(destroyed).toBe(false);
   });
   it('should throw an error if state is attempted to be destroyed and derived is initialized.', () => {
@@ -175,9 +168,9 @@ describe('destroy', () => {
       destroyed = true;
     });
 
-    init(derived);
+    derived.reset();
     expect(destroyed).toBe(false);
-    expect(() => destroy(reference)).toThrow();
+    expect(() => reference.destroy()).toThrow();
   });
   it('should destroy the derived state in cascade mode', () => {
     let destroyed = false;
@@ -188,9 +181,9 @@ describe('destroy', () => {
       destroyed = true;
     });
 
-    init(derived);
+    derived.reset();
     expect(destroyed).toBe(false);
-    destroy(reference, true);
+    reference.destroy(true);
     expect(destroyed).toBe(true);
   });
 });
@@ -202,7 +195,7 @@ describe('effect', () => {
     let called = 0;
 
     effect(() => {
-      noop(reference.value);
+      reference.watch();
       called += 1;
     });
 
@@ -218,7 +211,7 @@ describe('effect', () => {
     let called = 0;
 
     effect(() => {
-      noop(derived.value);
+      derived.watch();
       called += 1;
     });
 
@@ -246,7 +239,7 @@ describe('effect', () => {
         destroyed = true;
       });
 
-      init(internal);
+      internal.reset();
     });
 
     expect(destroyed).toBe(false);
