@@ -27,10 +27,7 @@
  */
 import {
   effect,
-  state,
   State,
-  BatchedEffects,
-  batchEffects,
 } from 'compostate';
 import {
   useConstant,
@@ -41,7 +38,6 @@ import {
   useScopedModelExists,
 } from 'react-scoped-model';
 import { createStoreAdapter, StoreAdapter } from 'react-store-adapter';
-import { useEffect, useState } from 'react';
 
 export interface CompostateCoreContext {
   get: <S, >(state: State<S>) => StoreAdapter<S>;
@@ -52,18 +48,6 @@ const CompostateCore = createNullaryModel(() => {
     new Map<string, StoreAdapter<any>>()
   ));
 
-  const effects = useConstant(() => (
-    new Map<string, BatchedEffects>()
-  ));
-
-  const [flush, setFlush] = useState([]);
-
-  useEffect(() => {
-    effects.forEach((value) => {
-      value.flush();
-    });
-  }, [flush, effects]);
-
   return useConstant<CompostateCoreContext>(() => ({
     get: <S, >(reference: State<S>): StoreAdapter<S> => {
       const store = stores.get(reference.key);
@@ -72,30 +56,17 @@ const CompostateCore = createNullaryModel(() => {
         return store as StoreAdapter<S>;
       }
 
-      let computed: State<S>;
-
-      const batchedEffect = batchEffects(() => {
-        computed = state(() => reference.value, reference.cleanup);
-      });
-
-      const unsubscribe = batchedEffect.subscribe(() => {
-        setFlush([]);
-      });
-
       const newStore = createStoreAdapter({
-        read: () => computed.value,
+        read: () => reference.value,
         subscribe: (callback) => effect(() => {
-          computed.watch();
+          reference.watch();
           callback();
         }),
         onCleanup: () => {
-          unsubscribe();
-          effects.delete(reference.key);
           stores.delete(reference.key);
         },
       });
 
-      effects.set(reference.key, batchedEffect);
       stores.set(reference.key, newStore);
 
       return newStore;
