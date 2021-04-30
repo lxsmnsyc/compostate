@@ -1,25 +1,25 @@
-# react-compostate
+# preact-compostate
 
-> React bindings for `compostate`
+> Preact bindings for `compostate`
 
-[![NPM](https://img.shields.io/npm/v/react-compostate.svg)](https://www.npmjs.com/package/react-compostate) [![JavaScript Style Guide](https://badgen.net/badge/code%20style/airbnb/ff5a5f?icon=airbnb)](https://github.com/airbnb/javascript)[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-blue?style=flat-square&logo=codesandbox)](https://codesandbox.io/s/github/LXSMNSYC/compostate/tree/main/examples/react-compostate-vite)
+[![NPM](https://img.shields.io/npm/v/preact-compostate.svg)](https://www.npmjs.com/package/preact-compostate) [![JavaScript Style Guide](https://badgen.net/badge/code%20style/airbnb/ff5a5f?icon=airbnb)](https://github.com/airbnb/javascript)[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-blue?style=flat-square&logo=codesandbox)](https://codesandbox.io/s/github/LXSMNSYC/compostate/tree/main/examples/preact-compostate-vite)
 
 ## Install
 
 ```bash
-npm install --save compostate react-compostate
+npm install --save compostate preact-compostate
 ```
 
 ```bash
-yarn add compostate react-compostate
+yarn add compostate preact-compostate
 ```
 
 ## Usage
 
 ```tsx
+import { effect, state } from 'preact-compostate';
 import React from 'react';
-import { effect, state } from 'compostate';
-import { CompostateRoot, useCompostate } from 'react-compostate';
+import { CompostateRoot, useCompostateSetup } from 'preact-compostate';
 
 const count = state(() => 0);
 
@@ -58,8 +58,6 @@ function App(): JSX.Element {
     </CompostateRoot>
   );
 }
-
-export default App;
 ```
 
 ## License

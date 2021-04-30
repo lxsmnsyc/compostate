@@ -1,6 +1,5 @@
-import React from 'react';
 import { effect, state } from 'compostate';
-import { CompostateRoot, useCompostate } from 'react-compostate';
+import { CompostateRoot, useCompostate } from 'preact-compostate';
 
 const count = state(() => 0);
 
