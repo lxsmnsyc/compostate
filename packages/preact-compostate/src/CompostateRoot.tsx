@@ -25,17 +25,30 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { State } from 'compostate';
-import { useDebugValue } from 'react';
-import { useStoreAdapter } from 'react-store-adapter';
-import { useCompostateCore, useCompostateRestriction } from '../CompostateCore';
+/** @jsx h */
+import { h, Fragment, FunctionComponent } from 'preact';
+import { useScopedModelExists } from 'preact-scoped-model';
+import { StoreAdapterRoot } from 'preact-store-adapter';
+import CompostateCore from './CompostateCore';
 
-export default function useCompostate<S>(state: State<S>): S {
-  useCompostateRestriction();
+const CompostateRoot: FunctionComponent = ({ children }) => {
+  const context = useScopedModelExists(CompostateCore);
 
-  const value = useStoreAdapter(useCompostateCore().get(state));
+  if (context) {
+    return <>{children}</>;
+  }
 
-  useDebugValue(value);
+  return (
+    <StoreAdapterRoot>
+      <CompostateCore.Provider>
+        {children}
+      </CompostateCore.Provider>
+    </StoreAdapterRoot>
+  );
+};
 
-  return value;
+if (process.env.NODE_ENV !== 'production') {
+  CompostateRoot.displayName = 'CompostateRoot';
 }
+
+export default CompostateRoot;

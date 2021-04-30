@@ -1,5 +1,6 @@
-import React from 'react';
-import { render, act } from '@testing-library/react';
+/** @jsx h */
+import { h } from 'preact';
+import { render, act } from '@testing-library/preact';
 import { state } from 'compostate';
 
 import { CompostateRoot, useCompostate } from '../src';
@@ -49,7 +50,7 @@ describe('useCompostate', () => {
 
     expect(result.getByTitle('example')).toContainHTML(expected);
   });
-  it('should receive the updated state', () => {
+  it('should receive the updated state', async () => {
     const example = state(() => 'Initial');
 
     function Consumer(): JSX.Element {
@@ -66,7 +67,7 @@ describe('useCompostate', () => {
 
     expect(result.getByTitle('example')).toContainHTML('Initial');
     example.value = 'Updated';
-    act(() => {
+    await act(() => {
       jest.runAllTimers();
     });
     expect(result.getByTitle('example')).toContainHTML('Updated');
