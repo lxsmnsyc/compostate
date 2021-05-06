@@ -1,5 +1,5 @@
 {
-  "name": "lenstate-workspace",
+  "name": "compostate-workspace",
   "private": true,
   "workspaces": [
     "packages/*",
@@ -27,11 +27,11 @@
   "author": "Alexis Munsayac <alexis.munsayac@gmail.com>",
   "license": "MIT",
   "repository": {
-    "url": "https://github.com/lxsmnsyc/lenstate.git",
+    "url": "https://github.com/lxsmnsyc/compostate.git",
     "type": "git"
   },
-  "homepage": "https://github.com/lxsmnsyc/lenstate",
+  "homepage": "https://github.com/lxsmnsyc/compostate",
   "bugs": {
-    "url": "https://github.com/lxsmnsyc/lenstate/issues"
+    "url": "https://github.com/lxsmnsyc/compostate/issues"
   }
 }
