@@ -13,10 +13,10 @@
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.0.0",
-    "eslint": "^7.25.0",
+    "eslint": "^7.28.0",
     "eslint-config-lxsmnsyc": "^0.2.1",
-    "typescript": "^4.2.4",
-    "vite": "^2.2.4"
+    "typescript": "^4.3.2",
+    "vite": "^2.3.7"
   },
   "private": true,
   "publishConfig": {
