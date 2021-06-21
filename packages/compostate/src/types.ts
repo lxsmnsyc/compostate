@@ -37,10 +37,12 @@ export type StateKind = 'state' | 'effect' | 'readonly';
 export interface Effect {
   readonly key?: string;
   readonly setup: () => EffectCleanup;
+  readonly isolate?: boolean;
 }
 
 export interface StateOptions<T> {
   readonly key?: string;
   readonly value: StateComputation<T>;
   readonly cleanup?: StateCleanup<T>;
+  readonly isolate?: boolean;
 }

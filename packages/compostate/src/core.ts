@@ -107,11 +107,14 @@ export class State<T> {
 
   private context?: TrackingContext<any>;
 
-  constructor(prefix: StateKind, { key, value, cleanup }: StateOptions<T>) {
+  private isolate?: boolean;
+
+  constructor(prefix: StateKind, { key, value, cleanup, isolate }: StateOptions<T>) {
     this.kind = prefix;
     this.key = getKey(prefix, key);
     this.computation = value;
     this.cleanup = cleanup;
+    this.isolate = isolate;
     this.context = TRACKING.getContext();
   }
 
@@ -124,7 +127,7 @@ export class State<T> {
     children: Links,
     map: InstanceMap,
   ): T {
-    const effect = EFFECT.getContext();
+    const effect = this.isolate ? undefined : EFFECT.getContext();
     const pop = TRACKING.push({
       parent: this,
       dependencies,
@@ -227,7 +230,7 @@ export class State<T> {
     new Set(instance.dependents).forEach((dependent) => {
       // Move pending effect to batching updates
       const batchingUpdates = UPDATE.getContext();
-      if (batchingUpdates) {
+      if (batchingUpdates && !this.isolate) {
         batchingUpdates.add(dependent);
       } else {
         dependent.reset();
@@ -287,7 +290,7 @@ export class State<T> {
 function ref<T>(prefix: StateKind, options: StateOptions<T>): State<T> {
   const reference: State<T> = new State(prefix, options);
   const context = TRACKING.getContext();
-  if (context) {
+  if (context && !options.isolate) {
     context.children.add(reference);
   }
   return reference;
@@ -351,6 +354,7 @@ export function effect(options: Effect | Effect['setup']): EffectUnsubscribe {
         currentCleanup();
       }
     },
+    isolate: config.isolate,
   });
 
   reference.reset();
