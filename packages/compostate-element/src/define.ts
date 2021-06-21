@@ -48,9 +48,13 @@ export default function define<RenderResult, Props extends string>(
     constructor() {
       super();
 
-      // Just to ensure the type
+      // Create a shallow object of state from
+      // the defined properties.
       this.props = Object.fromEntries(currentProps.map((prop) => (
         [prop, state<string | undefined>({
+          // In case that the element is created inside
+          // an unknown effect, keep this state
+          // from getting tracked.
           isolate: true,
           value: () => undefined
         })]
@@ -63,8 +67,12 @@ export default function define<RenderResult, Props extends string>(
 
     connectedCallback() {
       this.lifecycle = effect({
+        // Isolate so that the lifecycle of
+        // this effect is not synchronously
+        // tracked by a parent effect.
         isolate: true,
         setup: () => {
+          // Create a context for composition
           this.context = createContext();
           const popContext = pushContext(this.context);
           const result = options.setup(this.props);
@@ -72,28 +80,45 @@ export default function define<RenderResult, Props extends string>(
 
           let mounted = false;
 
+          // The effect is separated so that
+          // observed values in the render function
+          // do not update nor re-evaluate the setup
+          // function
           effect(() => {
             const nodes = result();
 
+            // Render the result to the root
             render(this.root, nodes);
+
+            // If the element has been mounted before
+            // the re-render is an update call, we
+            // run the onUpdated hooks.
             if (mounted && this.context) {
               runContext(this.context, 'updated');
             }
+
+            // Mark the element as mounted.
             mounted = true;
           });
         },
       });
 
+      // Run onConnected hooks
       if (this.context) {
         runContext(this.context, 'connected');
       }
     }
 
     disconnectedCallback() {
+      // Run onDisconnected hooks
       if (this.context) {
         runContext(this.context, 'disconnected');
+
+        // Remove context
         this.context = undefined;
       }
+
+      // If there's a lifecycle, make sure to clean it
       if (this.lifecycle) {
         this.lifecycle();
         this.lifecycle = undefined;
