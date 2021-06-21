@@ -36,13 +36,18 @@ define({
   setup() {
     const count = state(() => 0);
 
-    function onClick() {
+    function increment() {
       count.value += 1;
+    }
+
+    function decrement() {
+      count.value -= 1;
     }
 
     return () => (
       html`
-        <button @click=${onClick}>Increment</button>
+        <button @click=${increment}>Increment</button>
+        <button @click=${decrement}>Decrement</button>
         <counter-title value="${count.value}"></counter-title>
       `
     );
