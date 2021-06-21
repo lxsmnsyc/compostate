@@ -26,8 +26,15 @@ export interface Component<RenderResult, Props extends string> {
 }
 
 export default function define<RenderResult, Props extends string>(
-  options: Component<RenderResult, Props>,
+  options: Component<RenderResult, Props> | ComponentSetup<RenderResult, Props>,
 ): void {
+  if (typeof options === 'function') {
+    return define({
+      name: kebabify(options.name),
+      setup: options,
+    });
+  }
+
   const { props, name } = options;
 
   const currentProps = props ?? [];

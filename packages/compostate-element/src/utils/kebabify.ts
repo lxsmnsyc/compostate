@@ -1,3 +1,6 @@
 export default function kebabify(str: string): string {
-  return str.replace(/[A-Z\u00C0-\u00D6\u00D8-\u00DE]/g, (match) => `-${match.toLowerCase()}`);
+  return str.replace(/([A-Z])([A-Z])/g, '$1-$2')
+    .replace(/([a-z])([A-Z])/g, '$1-$2')
+    .replace(/[\s_]+/g, '-')            
+    .toLowerCase();
 }

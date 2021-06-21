@@ -1,18 +1,9 @@
 import { state, effect } from "compostate";
-import { setRenderer, define, onErrorCaptured } from "compostate-element";
+import { setRenderer, define } from "compostate-element";
 import { render, html } from "lit-html";
 
 setRenderer((root, result) => {
   render(result, root);
-});
-
-define({
-  name: 'custom-error',
-  setup() {
-    return () => {
-      throw new Error('render-time error!');
-    };
-  },
 });
 
 define({
@@ -31,41 +22,30 @@ define({
   },
 });
 
-define({
-  name: 'counter-button',
-  setup() {
-    const count = state(() => 0);
+define(function CounterButton() {
+  const count = state(() => 0);
 
-    function increment() {
-      count.value += 1;
-    }
+  function increment() {
+    count.value += 1;
+  }
 
-    function decrement() {
-      count.value -= 1;
-    }
+  function decrement() {
+    count.value -= 1;
+  }
 
-    return () => (
-      html`
-        <button @click=${increment}>Increment</button>
-        <button @click=${decrement}>Decrement</button>
-        <counter-title value="${count.value}"></counter-title>
-      `
-    );
-  },
+  return () => (
+    html`
+      <button @click=${increment}>Increment</button>
+      <button @click=${decrement}>Decrement</button>
+      <counter-title value="${count.value}"></counter-title>
+    `
+  );
 });
 
-define({
-  name: 'custom-app',
-  setup() {
-    onErrorCaptured((error) => {
-      console.log('Received error!', error);
-    });
-
-    return () => (
-      html`
-        <counter-button></counter-button>
-        <custom-error></custom-error>
-      `
-    );
-  },
+define(function CustomApp() {
+  return () => (
+    html`
+      <counter-button></counter-button>
+    `
+  );
 });
