@@ -84,15 +84,25 @@ export class BatchedEffects {
 
 const GLOBAL_INSTANCE_MAP = new Map<string, Instance<any>>();
 
+// For tracking updates
 const TRACKING = new Context<TrackingContext<any>>();
+
+// For batching/merging updates
 const UPDATE = new Context<Links>();
+
+// For batching/scheduling effects
 const EFFECT = new Context<BatchedEffects>();
 
 interface TrackingContext<T> {
+  // The parent reference
   parent: State<T>;
+  // The list of references tracking this reference
   dependencies: Links;
+  // The references created within this context
   children: Links;
+  // The instances map for the children references
   map: InstanceMap;
+  // The effect batcher
   effect?: BatchedEffects;
 }
 
@@ -127,6 +137,8 @@ export class State<T> {
     children: Links,
     map: InstanceMap,
   ): T {
+    // If this reference is isolated, prevent it from
+    // getting batched from a batchEffects call
     const effect = this.isolate ? undefined : EFFECT.getContext();
     const pop = TRACKING.push({
       parent: this,
@@ -180,15 +192,20 @@ export class State<T> {
         instance.dependents.delete(this);
       }
     });
+    // We destroy any references that are created in this reference
+    // This is to make sure that effects and states are properly cleaned up.
     new Set(children).forEach((child) => {
       child.destroy(true);
     });
   }
 
   private batchEffectInternal(action: () => void) {
+    // Only track effects
     if (this.kind === 'effect') {
       const currentBatcher = this.context?.effect;
 
+      // If there's a parent batch effect, we move this
+      // effect call to the batcher
       if (currentBatcher) {
         currentBatcher.add(action);
         return;
@@ -213,22 +230,30 @@ export class State<T> {
 
   get value(): T {
     const instance = this.getInstance();
+    // Track the instance
     this.watch();
     return instance.value;
   }
 
   set value(value: T) {
+    // readonly states are not allowed to have
+    // their state get modified.
     if (this.kind === 'readonly' && !this.writeable) {
       throw new Error('Attempt to update a readonly state.');
     }
     const instance = this.getInstance();
 
+    // Cleanup previous value.
     this.cleanup?.(instance.value);
 
+    // Assign new value
     instance.value = value;
 
+    // Notify all dependent references of the change
     new Set(instance.dependents).forEach((dependent) => {
-      // Move pending effect to batching updates
+      // If there's a parent batch updates and
+      // the reference isn't isolated, we move this
+      // update call to the batcher
       const batchingUpdates = UPDATE.getContext();
       if (batchingUpdates && !this.isolate) {
         batchingUpdates.add(dependent);
@@ -239,6 +264,9 @@ export class State<T> {
   }
 
   reset(): void {
+    // Since effect takes advantage of the computation phase
+    // and reset re-runs the computation phase, we make
+    // sure that effects are batched first.
     this.batchEffectInternal(() => {
       const instance = this.getRawInstance();
 
@@ -249,6 +277,8 @@ export class State<T> {
         const children: Links = new Set();
         const map: InstanceMap = new Map();
 
+        // We re-enable writeable so that readonly
+        // states are able to recompute.
         // eslint-disable-next-line no-param-reassign
         this.writeable = true;
         this.value = this.compute(dependencies, children, map);
@@ -266,6 +296,8 @@ export class State<T> {
     const instance = this.getRawInstance();
 
     if (instance) {
+      // In cascade, we destroy not only this reference
+      // but also the dependent references.
       if (cascade) {
         this.cleanup?.(instance.value);
 
@@ -276,6 +308,8 @@ export class State<T> {
         });
 
         this.getMap().delete(this.key);
+      // Otherwise, we destroy this reference
+      // only if there are no dependent references.
       } else if (instance.dependents.size === 0) {
         this.cleanup?.(instance.value);
         this.detach(instance.dependencies, instance.children);
@@ -288,7 +322,11 @@ export class State<T> {
 }
 
 function ref<T>(prefix: StateKind, options: StateOptions<T>): State<T> {
+  // Create state instance
   const reference: State<T> = new State(prefix, options);
+
+  // If the reference isn't isolated, and there's a tracking reference
+  // we link this reference to the tracking reference.
   const context = TRACKING.getContext();
   if (context && !options.isolate) {
     context.children.add(reference);
