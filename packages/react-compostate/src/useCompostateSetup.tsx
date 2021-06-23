@@ -40,17 +40,36 @@ export default function useCompostateSetup<Props extends Record<string, any>, T>
     const propObject = createPropObject(props);
     const context = createCompositionContext();
     const popContext = pushCompositionContext(context);
-    const render = setup(propObject);
+    // const render = setup(propObject);
+    let render: (() => T) | undefined;
+
+    const lifecycle = effect({
+      isolate: true,
+      setup() {
+        render = setup(propObject);
+      },
+    });
+
     popContext();
+
+    if (typeof render !== 'function') {
+      throw new Error(`
+render is not a function. This maybe because the setup effect did not run
+or the setup returned a value that's not a function.
+`);
+    }
 
     return {
       propObject,
       context,
       render,
+      lifecycle,
     };
   });
 
   const result = useReactiveRef(() => currentState.render());
+
+  useEffect(() => currentState.lifecycle, [currentState]);
 
   useEffect(() => effect({
     isolate: true,
