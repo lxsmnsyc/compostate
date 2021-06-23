@@ -49,39 +49,6 @@ interface Instance<T> {
 
 type InstanceMap = Map<string, Instance<any>>;
 
-export class BatchedEffects {
-  private effects = new Set<() => void>();
-
-  private pending = true;
-
-  private listeners = new Set<() => void>();
-
-  add(reference: () => void): void {
-    if (!this.pending) {
-      this.pending = true;
-      new Set(this.listeners).forEach((listener) => {
-        listener();
-      });
-    }
-    this.effects.add(reference);
-  }
-
-  flush(): void {
-    new Set(this.effects).forEach((effect) => {
-      effect();
-    });
-    this.effects.clear();
-    this.pending = false;
-  }
-
-  subscribe(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-}
-
 const GLOBAL_INSTANCE_MAP = new Map<string, Instance<any>>();
 
 // For tracking updates
@@ -89,9 +56,6 @@ const TRACKING = new Context<TrackingContext<any>>();
 
 // For batching/merging updates
 const UPDATE = new Context<Links>();
-
-// For batching/scheduling effects
-const EFFECT = new Context<BatchedEffects>();
 
 interface TrackingContext<T> {
   // The parent reference
@@ -102,8 +66,6 @@ interface TrackingContext<T> {
   children: Links;
   // The instances map for the children references
   map: InstanceMap;
-  // The effect batcher
-  effect?: BatchedEffects;
 }
 
 export class State<T> {
@@ -119,7 +81,12 @@ export class State<T> {
 
   private isolate?: boolean;
 
-  constructor(prefix: StateKind, { key, value, cleanup, isolate }: StateOptions<T>) {
+  constructor(
+    prefix: StateKind,
+    {
+      key, value, cleanup, isolate,
+    }: StateOptions<T>,
+  ) {
     this.kind = prefix;
     this.key = getKey(prefix, key);
     this.computation = value;
@@ -137,15 +104,11 @@ export class State<T> {
     children: Links,
     map: InstanceMap,
   ): T {
-    // If this reference is isolated, prevent it from
-    // getting batched from a batchEffects call
-    const effect = this.isolate ? undefined : EFFECT.getContext();
     const pop = TRACKING.push({
       parent: this,
       dependencies,
       children,
       map,
-      effect,
     });
     const value = this.computation();
     pop();
@@ -199,21 +162,6 @@ export class State<T> {
     });
   }
 
-  private batchEffectInternal(action: () => void) {
-    // Only track effects
-    if (this.kind === 'effect') {
-      const currentBatcher = this.context?.effect;
-
-      // If there's a parent batch effect, we move this
-      // effect call to the batcher
-      if (currentBatcher) {
-        currentBatcher.add(action);
-        return;
-      }
-    }
-    action();
-  }
-
   private track(instance: Instance<T>): void {
     const context = TRACKING.getContext();
     if (context && context.parent !== this) {
@@ -264,32 +212,27 @@ export class State<T> {
   }
 
   reset(): void {
-    // Since effect takes advantage of the computation phase
-    // and reset re-runs the computation phase, we make
-    // sure that effects are batched first.
-    this.batchEffectInternal(() => {
-      const instance = this.getRawInstance();
+    const instance = this.getRawInstance();
 
-      if (instance) {
-        this.detach(instance.dependencies, instance.children);
+    if (instance) {
+      this.detach(instance.dependencies, instance.children);
 
-        const dependencies: Links = new Set();
-        const children: Links = new Set();
-        const map: InstanceMap = new Map();
+      const dependencies: Links = new Set();
+      const children: Links = new Set();
+      const map: InstanceMap = new Map();
 
-        // We re-enable writeable so that readonly
-        // states are able to recompute.
-        // eslint-disable-next-line no-param-reassign
-        this.writeable = true;
-        this.value = this.compute(dependencies, children, map);
-        this.writeable = false;
+      // We re-enable writeable so that readonly
+      // states are able to recompute.
+      // eslint-disable-next-line no-param-reassign
+      this.writeable = true;
+      this.value = this.compute(dependencies, children, map);
+      this.writeable = false;
 
-        instance.dependencies = dependencies;
-        instance.children = children;
-      } else {
-        this.getInstance();
-      }
-    });
+      instance.dependencies = dependencies;
+      instance.children = children;
+    } else {
+      this.getInstance();
+    }
   }
 
   destroy(cascade = false): void {
@@ -352,12 +295,6 @@ export function state<T>(
       }
       : options
   ));
-}
-
-export function batchEffects(callback: () => void): BatchedEffects {
-  const pop = EFFECT.push(new BatchedEffects());
-  callback();
-  return pop();
 }
 
 export function batchUpdates(callback: () => void): void {
