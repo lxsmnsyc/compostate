@@ -1,5 +1,10 @@
 import { useDebugValue, useEffect, useRef } from 'react';
-import { effect, state, State } from 'compostate';
+import {
+  effect,
+  isolate,
+  state,
+  State,
+} from 'compostate';
 import {
   useConstant,
   useReactiveRef,
@@ -20,10 +25,11 @@ function createPropObject<Props extends Record<string, any>>(
   const propEntries = Object.entries(props);
   const propStates = propEntries.map(([key, value]) => [
     key,
-    state({
-      isolate: true,
-      value: () => value,
-    }),
+    isolate(() => (
+      state({
+        value: () => value,
+      })
+    )),
   ]);
   return Object.fromEntries(propStates) as PropObject<Props>;
 }
@@ -40,15 +46,13 @@ export default function useCompostateSetup<Props extends Record<string, any>, T>
     const propObject = createPropObject(props);
     const context = createCompositionContext();
     const popContext = pushCompositionContext(context);
-    // const render = setup(propObject);
     let render: (() => T) | undefined;
 
-    const lifecycle = effect({
-      isolate: true,
-      setup() {
+    const lifecycle = isolate(() => (
+      effect(() => {
         render = setup(propObject);
-      },
-    });
+      })
+    ));
 
     popContext();
 
@@ -71,23 +75,25 @@ or the setup returned a value that's not a function.
 
   useEffect(() => currentState.lifecycle, [currentState]);
 
-  useEffect(() => effect({
-    isolate: true,
-    setup() {
-      result.current = currentState.render();
-    },
-  }), [result, currentState]);
+  useEffect(() => (
+    isolate(() => (
+      effect(() => {
+        result.current = currentState.render();
+      })
+    ))
+  ), [result, currentState]);
 
-  useEffect(() => effect({
-    isolate: true,
-    setup() {
-      runCompositionContext(
-        currentState.context,
-        'effect',
-        [],
-      );
-    },
-  }), [currentState]);
+  useEffect(() => (
+    isolate(() => (
+      effect(() => {
+        runCompositionContext(
+          currentState.context,
+          'effect',
+          [],
+        );
+      })
+    ))
+  ), [currentState]);
 
   useEffect(() => {
     runCompositionContext(
