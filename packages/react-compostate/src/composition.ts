@@ -1,5 +1,4 @@
 import { effect } from 'compostate';
-import { ErrorInfo } from 'react';
 
 export type EffectCleanup = () => void;
 export type EffectResult = EffectCleanup | void | undefined;
@@ -9,7 +8,6 @@ interface CompositionContextMethods {
   mounted(): void;
   unmounted(): void;
   updated(): void;
-  errorCaptured(error: Error, errorInfo: ErrorInfo): void;
   effect(): void;
 }
 
@@ -24,7 +22,6 @@ export function createCompositionContext(): CompositionContext {
     mounted: [],
     unmounted: [],
     updated: [],
-    errorCaptured: [],
     effect: [],
   };
 }
@@ -96,18 +93,6 @@ export function onUpdated(callback: CompositionContextMethods['updated']): void 
 Invalid call for 'onUpdated'.
 
 The 'onUpdated' hook should only be called in Component setups.
-`);
-  }
-}
-
-export function onErrorCaptured(callback: CompositionContextMethods['errorCaptured']): void {
-  if (CURRENT_CONTEXT) {
-    CURRENT_CONTEXT.errorCaptured.push(callback);
-  } else {
-    throw new Error(`
-Invalid call for 'onErrorCaptured'.
-
-The 'onErrorCaptured' hook should only be called in Component setups.
 `);
   }
 }
