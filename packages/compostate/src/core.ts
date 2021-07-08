@@ -57,6 +57,8 @@ const TRACKING = new Context<TrackingContext<any>>();
 // For batching/merging updates
 const UPDATE = new Context<Links>();
 
+const ISOLATE = new Context<boolean>();
+
 interface TrackingContext<T> {
   // The parent reference
   parent: State<T>;
@@ -79,19 +81,16 @@ export class State<T> {
 
   private context?: TrackingContext<any>;
 
-  private isolate?: boolean;
-
   constructor(
     prefix: StateKind,
     {
-      key, value, cleanup, isolate,
+      key, value, cleanup,
     }: StateOptions<T>,
   ) {
     this.kind = prefix;
     this.key = getKey(prefix, key);
     this.computation = value;
     this.cleanup = cleanup;
-    this.isolate = isolate;
     this.context = TRACKING.getContext();
   }
 
@@ -104,14 +103,16 @@ export class State<T> {
     children: Links,
     map: InstanceMap,
   ): T {
-    const pop = TRACKING.push({
+    const popTracking = TRACKING.push({
       parent: this,
       dependencies,
       children,
       map,
     });
+    const popIsolation = ISOLATE.push(false);
     const value = this.computation();
-    pop();
+    popIsolation();
+    popTracking();
 
     return value;
   }
@@ -171,7 +172,10 @@ export class State<T> {
   }
 
   watch(): void {
-    this.track(this.getInstance());
+    const shouldIsolate = ISOLATE.getContext();
+    if (!shouldIsolate) {
+      this.track(this.getInstance());
+    }
   }
 
   private writeable = false;
@@ -203,7 +207,8 @@ export class State<T> {
       // the reference isn't isolated, we move this
       // update call to the batcher
       const batchingUpdates = UPDATE.getContext();
-      if (batchingUpdates && !this.isolate) {
+      const shouldIsolate = ISOLATE.getContext();
+      if (batchingUpdates && !shouldIsolate) {
         batchingUpdates.add(dependent);
       } else {
         dependent.reset();
@@ -271,7 +276,8 @@ function ref<T>(prefix: StateKind, options: StateOptions<T>): State<T> {
   // If the reference isn't isolated, and there's a tracking reference
   // we link this reference to the tracking reference.
   const context = TRACKING.getContext();
-  if (context && !options.isolate) {
+  const shouldIsolate = ISOLATE.getContext();
+  if (context && !shouldIsolate) {
     context.children.add(reference);
   }
   return reference;
@@ -305,6 +311,13 @@ export function batchUpdates(callback: () => void): void {
   });
 }
 
+export function isolate<T>(callback: () => T): T {
+  const pop = ISOLATE.push(true);
+  const result = callback();
+  pop();
+  return result;
+}
+
 /**
  * Create reactive side-effects.
  */
@@ -329,7 +342,6 @@ export function effect(options: Effect | Effect['setup']): EffectUnsubscribe {
         currentCleanup();
       }
     },
-    isolate: config.isolate,
   });
 
   reference.reset();
