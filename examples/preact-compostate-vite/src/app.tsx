@@ -20,13 +20,13 @@ function InnerApp(): JSX.Element {
 
   return (
     <>
-      <h1>{`Count: ${value}`}</h1>
       <button type="button" onClick={increment}>
         Increment
       </button>
       <button type="button" onClick={decrement}>
         Decrement
       </button>
+      <h1>{`Count: ${value}`}</h1>
     </>
   );
 }
@@ -34,6 +34,10 @@ function InnerApp(): JSX.Element {
 function App(): JSX.Element {
   return (
     <CompostateRoot>
+      <h1>
+        {'With '}
+        <code>useCompostate</code>
+      </h1>
       <InnerApp />
     </CompostateRoot>
   );
