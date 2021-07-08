@@ -28,7 +28,7 @@
 import { State } from 'compostate';
 import { useDebugValue } from 'preact/hooks';
 import { useStoreAdapter } from 'preact-store-adapter';
-import { useCompostateCore, useCompostateRestriction } from '../CompostateCore';
+import { useCompostateCore, useCompostateRestriction } from './CompostateCore';
 
 export default function useCompostate<S>(state: State<S>): S {
   useCompostateRestriction();
