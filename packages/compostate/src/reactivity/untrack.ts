@@ -25,22 +25,15 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
+import { TRACKING, BATCHING, EFFECT } from './contexts';
 
-export type StateComputation<T> = () => T;
-export type StateCleanup<T> = (value: T) => void;
-
-export type EffectUnsubscribe = () => void;
-export type EffectCleanup = undefined | void | EffectUnsubscribe;
-
-export type StateKind = 'state' | 'effect' | 'readonly';
-
-export interface Effect {
-  readonly key?: string;
-  readonly setup: () => EffectCleanup;
-}
-
-export interface StateOptions<T> {
-  readonly key?: string;
-  readonly value: StateComputation<T>;
-  readonly cleanup?: StateCleanup<T>;
+export default function untrack<T>(callback: () => T): T {
+  const popTracking = TRACKING.push(undefined);
+  const popBatching = BATCHING.push(undefined);
+  const popEffect = EFFECT.push(undefined);
+  const value = callback();
+  popEffect();
+  popBatching();
+  popTracking();
+  return value;
 }

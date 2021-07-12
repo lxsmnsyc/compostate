@@ -1,9 +1,8 @@
 import { useDebugValue, useEffect, useRef } from 'preact/hooks';
 import {
   effect,
-  isolate,
-  state,
-  State,
+  reactive,
+  untrack,
 } from 'compostate';
 import {
   useConstant,
@@ -15,27 +14,16 @@ import {
   runCompositionContext,
 } from './composition';
 
-export type PropObject<Props extends Record<string, any>> = {
-  [key in keyof Props]: State<Props[key]>;
-};
-
 function createPropObject<Props extends Record<string, any>>(
   props: Props,
-): PropObject<Props> {
-  const propEntries = Object.entries(props);
-  const propStates = propEntries.map(([key, value]) => [
-    key,
-    isolate(() => (
-      state({
-        value: () => value,
-      })
-    )),
-  ]);
-  return Object.fromEntries(propStates) as PropObject<Props>;
+): Props {
+  return reactive({
+    ...props,
+  });
 }
 
 export type CompostateSetup<Props extends Record<string, any>, T> = (
-  (props: PropObject<Props>) => () => T
+  (props: Props) => () => T
 );
 
 export default function useCompostateSetup<Props extends Record<string, any>, T>(
@@ -48,7 +36,7 @@ export default function useCompostateSetup<Props extends Record<string, any>, T>
     const popContext = pushCompositionContext(context);
     let render: (() => T) | undefined;
 
-    const lifecycle = isolate(() => (
+    const lifecycle = untrack(() => (
       effect(() => {
         render = setup(propObject);
       })
@@ -76,7 +64,7 @@ or the setup returned a value that's not a function.
   useEffect(() => currentState.lifecycle, [currentState]);
 
   useEffect(() => (
-    isolate(() => (
+    untrack(() => (
       effect(() => {
         result.current = currentState.render();
       })
@@ -84,7 +72,7 @@ or the setup returned a value that's not a function.
   ), [result, currentState]);
 
   useEffect(() => (
-    isolate(() => (
+    untrack(() => (
       effect(() => {
         runCompositionContext(
           currentState.context,
@@ -126,12 +114,7 @@ or the setup returned a value that's not a function.
 
   useEffect(() => {
     Object.entries(props).forEach(([key, value]) => {
-      const propState = currentState.propObject[key];
-      if (propState) {
-        propState.value = value;
-      } else {
-        currentState.propObject[key as keyof Props] = state(() => value);
-      }
+      currentState.propObject[key as keyof Props] = value;
     });
   }, [props, currentState]);
 

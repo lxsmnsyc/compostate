@@ -25,10 +25,20 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-export { default as batch } from './reactivity/batch';
-export { default as computed } from './reactivity/computed';
-export { default as effect, Effect, EffectCleanup } from './reactivity/effect';
-export { default as reactive, isReactive } from './reactivity/reactive';
-export { default as readonly, isReadonly } from './reactivity/readonly';
-export { default as ref, Ref } from './reactivity/ref';
-export { default as untrack } from './reactivity/untrack';
+export default function isPlainObject(obj: unknown): obj is Record<string | symbol, any> {
+  // Basic check for Type object that's not null
+  if (typeof obj === 'object' && obj !== null) {
+    // If Object.getPrototypeOf supported, use it
+    if (typeof Object.getPrototypeOf === 'function') {
+      const proto = Object.getPrototypeOf(obj);
+      return proto === Object.prototype || proto === null;
+    }
+
+    // Otherwise, use internal class
+    // This should be reliable as if getPrototypeOf not supported, is pre-ES5
+    return Object.prototype.toString.call(obj) === '[object Object]';
+  }
+
+  // Not an object
+  return false;
+}

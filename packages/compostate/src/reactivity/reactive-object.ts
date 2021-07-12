@@ -25,10 +25,40 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-export { default as batch } from './reactivity/batch';
-export { default as computed } from './reactivity/computed';
-export { default as effect, Effect, EffectCleanup } from './reactivity/effect';
-export { default as reactive, isReactive } from './reactivity/reactive';
-export { default as readonly, isReadonly } from './reactivity/readonly';
-export { default as ref, Ref } from './reactivity/ref';
-export { default as untrack } from './reactivity/untrack';
+import ReactiveKeys from './reactive-keys';
+import { ReactiveObject } from './types';
+
+export default function createReactiveObject<T extends ReactiveObject>(
+  source: T,
+): T {
+  const collection = new ReactiveKeys<string | symbol | number>();
+
+  return new Proxy(source, {
+    get(target, key, receiver) {
+      collection.track(key);
+      return Reflect.get(target, key, receiver);
+    },
+    has(target, key) {
+      collection.track(key);
+      return Reflect.has(target, key);
+    },
+    deleteProperty(target, key) {
+      const deleted = Reflect.deleteProperty(target, key);
+      if (deleted) {
+        collection.notify(key);
+      }
+      return deleted;
+    },
+    set(target, key, value, receiver) {
+      const current = Reflect.get(target, key, receiver);
+
+      const result = Reflect.set(target, key, value, receiver);
+
+      if (result && !Object.is(current, value)) {
+        collection.notify(key);
+      }
+
+      return result;
+    },
+  });
+}

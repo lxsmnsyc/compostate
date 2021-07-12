@@ -25,20 +25,46 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
+import ReactiveWeakKeys from './reactive-weak-keys';
 
-let index = 0;
+// eslint-disable-next-line @typescript-eslint/ban-types
+export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, V> {
+  private source: WeakMap<K, V>;
 
-function createKey(prefix: string): string {
-  const count = index;
-  index += 1;
-  return `${prefix}-${count}`;
-}
+  private collection = new ReactiveWeakKeys<K>();
 
-export default function getKey(prefix: string, key?: string): string {
-  // Check if there's a key
-  if (key) {
-    return key;
+  constructor(source: WeakMap<K, V>) {
+    this.source = source;
   }
 
-  return createKey(prefix);
+  delete(key: K): boolean {
+    const result = this.source.delete(key);
+    if (result) {
+      this.collection.notify(key);
+    }
+    return result;
+  }
+
+  get [Symbol.toStringTag](): string {
+    return this.source[Symbol.toStringTag];
+  }
+
+  get(key: K): V | undefined {
+    this.collection.track(key);
+    return this.source.get(key);
+  }
+
+  set(key: K, value: V): this {
+    const current = this.source.get(key);
+    if (!Object.is(current, value)) {
+      this.source.set(key, value);
+      this.collection.notify(key);
+    }
+    return this;
+  }
+
+  has(key: K): boolean {
+    this.collection.track(key);
+    return this.source.has(key);
+  }
 }

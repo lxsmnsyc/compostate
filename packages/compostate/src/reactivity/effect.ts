@@ -25,30 +25,46 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-/** @jsx h */
-import { h, Fragment, FunctionComponent } from 'preact';
-import { useScopedModelExists } from 'preact-scoped-model';
-import { StoreAdapterRoot } from 'preact-store-adapter';
-import CompostateCore from './CompostateCore';
+import LinkedWork from '../linked-work';
+import { TRACKING, EFFECT } from './contexts';
 
-const CompostateRoot: FunctionComponent = ({ children }) => {
-  const context = useScopedModelExists(CompostateCore);
+export type EffectCleanup = () => void;
+export type Effect = () => EffectCleanup | undefined | void;
 
-  if (context) {
-    return <>{children}</>;
+export default function effect(callback: Effect): EffectCleanup {
+  let currentCleanup: EffectCleanup;
+
+  const cleanupWork = new LinkedWork(() => {
+    if (currentCleanup) {
+      currentCleanup();
+    }
+  });
+
+  const revalidate = new LinkedWork(() => {
+    cleanupWork.run();
+    cleanupWork.clearDependents();
+    const popTracking = TRACKING.push(revalidate);
+    const popEffect = EFFECT.push(cleanupWork);
+    const newCleanup = callback();
+    currentCleanup = () => {
+      if (newCleanup) {
+        newCleanup();
+      }
+      revalidate.unlinkDependencies();
+    };
+    popEffect();
+    popTracking();
+  });
+
+  revalidate.run();
+
+  const currentEffect = EFFECT.getContext();
+
+  if (currentEffect) {
+    currentEffect.addDependent(cleanupWork);
   }
 
-  return (
-    <StoreAdapterRoot>
-      <CompostateCore.Provider>
-        {children}
-      </CompostateCore.Provider>
-    </StoreAdapterRoot>
-  );
-};
-
-if (process.env.NODE_ENV !== 'production') {
-  CompostateRoot.displayName = 'CompostateRoot';
+  return () => {
+    cleanupWork.run();
+  };
 }
-
-export default CompostateRoot;

@@ -25,10 +25,23 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-export { default as batch } from './reactivity/batch';
-export { default as computed } from './reactivity/computed';
-export { default as effect, Effect, EffectCleanup } from './reactivity/effect';
-export { default as reactive, isReactive } from './reactivity/reactive';
-export { default as readonly, isReadonly } from './reactivity/readonly';
-export { default as ref, Ref } from './reactivity/ref';
-export { default as untrack } from './reactivity/untrack';
+import ReactiveAtom from './reactive-atom';
+
+// eslint-disable-next-line @typescript-eslint/ban-types
+export default class ReactiveWeakKeys<K extends object> {
+  private works = new WeakMap<K, ReactiveAtom>();
+
+  private getAtom(key: K): ReactiveAtom {
+    const current = this.works.get(key) ?? new ReactiveAtom();
+    this.works.set(key, current);
+    return current;
+  }
+
+  notify(key: K): void {
+    this.getAtom(key).notify();
+  }
+
+  track(key: K): void {
+    this.getAtom(key).track();
+  }
+}

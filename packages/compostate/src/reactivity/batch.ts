@@ -25,17 +25,15 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { State } from 'compostate';
-import { useDebugValue } from 'react';
-import { useStoreAdapter } from 'react-store-adapter';
-import { useCompostateCore, useCompostateRestriction } from './CompostateCore';
+import { BATCHING } from './contexts';
+import LinkedWork from '../linked-work';
 
-export default function useCompostate<S>(state: State<S>): S {
-  useCompostateRestriction();
-
-  const value = useStoreAdapter(useCompostateCore().get(state));
-
-  useDebugValue(value);
-
-  return value;
+export default function batch(callback: () => void): void {
+  const batchedWork = new Set<LinkedWork>();
+  const popBatching = BATCHING.push(batchedWork);
+  callback();
+  popBatching();
+  batchedWork.forEach((work) => {
+    work.run();
+  });
 }

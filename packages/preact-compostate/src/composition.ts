@@ -1,9 +1,5 @@
 import { effect } from 'compostate';
 
-export type EffectCleanup = () => void;
-export type EffectResult = EffectCleanup | void | undefined;
-export type Effect = () => EffectResult;
-
 interface CompositionContextMethods {
   mounted(): void;
   unmounted(): void;

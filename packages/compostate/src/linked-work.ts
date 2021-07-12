@@ -25,10 +25,48 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-export { default as batch } from './reactivity/batch';
-export { default as computed } from './reactivity/computed';
-export { default as effect, Effect, EffectCleanup } from './reactivity/effect';
-export { default as reactive, isReactive } from './reactivity/reactive';
-export { default as readonly, isReadonly } from './reactivity/readonly';
-export { default as ref, Ref } from './reactivity/ref';
-export { default as untrack } from './reactivity/untrack';
+export default class LinkedWork {
+  private dependents = new Set<LinkedWork>();
+
+  private dependencies = new Set<LinkedWork>();
+
+  private work?: () => void;
+
+  constructor(work?: () => void) {
+    this.work = work;
+  }
+
+  addDependent(link: LinkedWork): void {
+    this.dependents.add(link);
+  }
+
+  removeDependent(link: LinkedWork): void {
+    this.dependents.delete(link);
+  }
+
+  addDependency(link: LinkedWork): void {
+    this.dependencies.add(link);
+  }
+
+  removeDependency(link: LinkedWork): void {
+    this.dependencies.delete(link);
+  }
+
+  unlinkDependencies(): void {
+    this.dependencies.forEach((dependency) => {
+      dependency.removeDependent(this);
+    });
+  }
+
+  clearDependents(): void {
+    this.dependents.clear();
+  }
+
+  run(): void {
+    this.work?.();
+
+    new Set(this.dependents).forEach((dependent) => {
+      dependent.run();
+    });
+  }
+}

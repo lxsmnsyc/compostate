@@ -25,10 +25,41 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-export { default as batch } from './reactivity/batch';
-export { default as computed } from './reactivity/computed';
-export { default as effect, Effect, EffectCleanup } from './reactivity/effect';
-export { default as reactive, isReactive } from './reactivity/reactive';
-export { default as readonly, isReadonly } from './reactivity/readonly';
-export { default as ref, Ref } from './reactivity/ref';
-export { default as untrack } from './reactivity/untrack';
+import ReactiveWeakKeys from './reactive-weak-keys';
+
+// eslint-disable-next-line @typescript-eslint/ban-types
+export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
+  private collection = new ReactiveWeakKeys<V>();
+
+  private source: WeakSet<V>;
+
+  constructor(source: WeakSet<V>) {
+    this.source = source;
+  }
+
+  delete(value: V): boolean {
+    const result = this.source.delete(value);
+    if (result) {
+      this.collection.notify(value);
+    }
+    return result;
+  }
+
+  get [Symbol.toStringTag](): string {
+    return this.source[Symbol.toStringTag];
+  }
+
+  add(value: V): this {
+    const shouldNotify = !this.source.has(value);
+    this.source.add(value);
+    if (shouldNotify) {
+      this.collection.notify(value);
+    }
+    return this;
+  }
+
+  has(value: V): boolean {
+    this.collection.track(value);
+    return this.source.has(value);
+  }
+}

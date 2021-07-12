@@ -25,29 +25,28 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import React, { FC } from 'react';
-import { useScopedModelExists } from 'react-scoped-model';
-import { StoreAdapterRoot } from 'react-store-adapter';
-import CompostateCore from './CompostateCore';
+import ReactiveAtom from './reactive-atom';
 
-const CompostateRoot: FC = ({ children }) => {
-  const context = useScopedModelExists(CompostateCore);
+export default class ReactiveKeys<K> {
+  private works = new Map<K, ReactiveAtom>();
 
-  if (context) {
-    return <>{children}</>;
+  private getAtom(key: K): ReactiveAtom {
+    const current = this.works.get(key) ?? new ReactiveAtom();
+    this.works.set(key, current);
+    return current;
   }
 
-  return (
-    <StoreAdapterRoot>
-      <CompostateCore.Provider>
-        {children}
-      </CompostateCore.Provider>
-    </StoreAdapterRoot>
-  );
-};
+  notify(key: K): void {
+    this.getAtom(key).notify();
+  }
 
-if (process.env.NODE_ENV !== 'production') {
-  CompostateRoot.displayName = 'CompostateRoot';
+  track(key: K): void {
+    this.getAtom(key).track();
+  }
+
+  notifyAll(): void {
+    this.works.forEach((value) => {
+      value.notify();
+    });
+  }
 }
-
-export default CompostateRoot;

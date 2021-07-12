@@ -1,7 +1,3 @@
-export type EffectCleanup = () => void;
-export type EffectResult = EffectCleanup | void | undefined;
-export type Effect = () => EffectResult;
-
 interface ContextMethods {
   connected(): void;
   disconnected(): void;

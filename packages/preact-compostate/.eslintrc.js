@@ -1,6 +1,6 @@
 module.exports = {
   "extends": [
-    'lxsmnsyc/typescript/react',
+    'lxsmnsyc/typescript/preact',
   ],
   "parserOptions": {
     "project": "./tsconfig.eslint.json",
@@ -12,5 +12,7 @@ module.exports = {
         "devDependencies": ["**/*.test.tsx"]
       }
     ],
+    "@typescript-eslint/no-unsafe-return": "off",
+    "@typescript-eslint/no-unsafe-assignment": "off"
   }
 };

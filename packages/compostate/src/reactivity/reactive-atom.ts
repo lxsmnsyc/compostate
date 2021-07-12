@@ -25,10 +25,26 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-export { default as batch } from './reactivity/batch';
-export { default as computed } from './reactivity/computed';
-export { default as effect, Effect, EffectCleanup } from './reactivity/effect';
-export { default as reactive, isReactive } from './reactivity/reactive';
-export { default as readonly, isReadonly } from './reactivity/readonly';
-export { default as ref, Ref } from './reactivity/ref';
-export { default as untrack } from './reactivity/untrack';
+import LinkedWork from '../linked-work';
+import { BATCHING, TRACKING } from './contexts';
+
+export default class ReactiveAtom {
+  private work = new LinkedWork();
+
+  notify(): void {
+    const batching = BATCHING.getContext();
+    if (batching) {
+      batching.add(this.work);
+    } else {
+      this.work.run();
+    }
+  }
+
+  track(): void {
+    const tracking = TRACKING.getContext();
+    if (tracking) {
+      this.work.addDependent(tracking);
+      tracking.addDependency(this.work);
+    }
+  }
+}

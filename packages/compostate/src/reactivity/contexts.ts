@@ -25,17 +25,9 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { State } from 'compostate';
-import { useDebugValue } from 'preact/hooks';
-import { useStoreAdapter } from 'preact-store-adapter';
-import { useCompostateCore, useCompostateRestriction } from './CompostateCore';
+import Context from '../context';
+import LinkedWork from '../linked-work';
 
-export default function useCompostate<S>(state: State<S>): S {
-  useCompostateRestriction();
-
-  const value = useStoreAdapter(useCompostateCore().get(state));
-
-  useDebugValue(value);
-
-  return value;
-}
+export const TRACKING = new Context<LinkedWork | undefined>();
+export const EFFECT = new Context<LinkedWork | undefined>();
+export const BATCHING = new Context<Set<LinkedWork> | undefined>();

@@ -25,10 +25,32 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-export { default as batch } from './reactivity/batch';
-export { default as computed } from './reactivity/computed';
-export { default as effect, Effect, EffectCleanup } from './reactivity/effect';
-export { default as reactive, isReactive } from './reactivity/reactive';
-export { default as readonly, isReadonly } from './reactivity/readonly';
-export { default as ref, Ref } from './reactivity/ref';
-export { default as untrack } from './reactivity/untrack';
+import LinkedWork from '../linked-work';
+import { TRACKING } from './contexts';
+import { Ref } from './ref';
+
+export default function computed<T>(compute: () => T): Readonly<Ref<T>> {
+  let value: T;
+
+  const work = new LinkedWork(() => {
+    work.unlinkDependencies();
+    const popTracking = TRACKING.push(work);
+    value = compute();
+    popTracking();
+  });
+
+  work.run();
+
+  return {
+    get value() {
+      const tracking = TRACKING.getContext();
+
+      if (tracking) {
+        work.addDependent(tracking);
+        tracking.addDependency(work);
+      }
+
+      return value;
+    },
+  };
+}
