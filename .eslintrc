@@ -2,8 +2,7 @@
   "root": true,
   "parserOptions": {
     "project": [
-      "./tsconfig.eslint.json",
-      "./packages/*/tsconfig.json"
+      "./packages/*/tsconfig.eslint.json"
     ]
   },
   "extends": [
