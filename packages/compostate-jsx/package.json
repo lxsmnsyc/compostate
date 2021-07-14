@@ -9,7 +9,8 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "types.d.ts"
   ],
   "engines": {
     "node": ">=10"

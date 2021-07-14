@@ -1,3 +1,3 @@
-// /// <reference types="compostate-jsx/types" />
+/// <reference types="compostate-jsx/types" />
 
-// import JSX = Compostate.JSX;
+import JSX = Compostate.JSX;

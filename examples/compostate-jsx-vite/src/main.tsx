@@ -1,44 +1,134 @@
-// /** @jsx c */
-// /** @jsxFrag Fragment */
-import { c, Fragment } from 'compostate-jsx';
-import { computed, ref } from 'compostate';
+/** @jsx c */
+/** @jsxFrag Fragment */
+import {
+  c,
+  Fragment,
+  render,
+} from 'compostate-jsx';
+import {
+  computed,
+  track,
+  reactive,
+  ref,
+  effect,
+} from 'compostate';
 
-function Shown(props: { value: boolean }) {
-  return (
-    c(Fragment, {}, computed(() => (props.value && c('h1', {}, 'Hello World'))))
-  );
+import './style.css';
+
+interface TodoItem {
+  id: number;
+  done: boolean;
+  message: string;
 }
 
-function ButtonMessage(props: { value: boolean }) {
-  return (
-    c(Fragment, {}, computed(() => (props.value ? 'Hide' : 'Show')))
-  );
+const list = reactive<TodoItem[]>([]);
+
+interface TodoListItemProps {
+  item: TodoItem;
 }
 
-function Toggle() {
-  const show = ref(false);
+function TodoListItem(props: TodoListItemProps) {
+  const { item } = props;
+  function onToggle() {
+    item.done = !item.done;
+  }
 
-  function onClick() {
-    show.value = !show.value;
+  function onRemove() {
+    const index = list.findIndex((value) => value.id === item.id);
+
+    list.splice(index, 1);
   }
 
   return (
-    c('div', {}, ...[
-      c('button', { onClick }, c(ButtonMessage, { value: show })),
-      c(Shown, { value: show }),
-      c('h1', {}, 'Test'),
-    ])
+    <div
+      className={computed(() => (
+        `todo-item ${item.done ? 'complete' : 'pending'}`
+      ))}
+    >
+      <div className="todo-item-content">
+        {computed(() => item.message)}
+      </div>
+      <div className="todo-item-actions">
+        <button
+          className={computed(() => (
+            `todo-item-toggle ${item.done ? 'complete' : 'pending'}`
+          ))}
+          onClick={onToggle}
+        >
+          {computed(() => (item.done ? 'Completed' : 'Pending'))}
+        </button>
+        <button className="todo-item-delete" onClick={onRemove}>
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TodoListForm() {
+  const message = ref('');
+
+  function onSubmit(e: Event) {
+    e.preventDefault();
+
+    list.unshift(
+      reactive<TodoItem>({
+        done: false,
+        message: message.value,
+        id: list.length,
+      }),
+    );
+
+    message.value = '';
+  }
+
+  const disableButton = computed(() => message.value === '');
+
+  return (
+    <form className="todo-list-form" onSubmit={onSubmit}>
+      <input
+        type="text"
+        value={message}
+        onInput={(e) => {
+          message.value = (e.target as HTMLInputElement).value;
+        }}
+      />
+      <button
+        type="submit"
+        disabled={disableButton}
+      >
+        Add
+      </button>
+    </form>
+  );
+}
+
+function TodoList() {
+  return (
+    <>
+      <TodoListForm />
+      <div className="todo-list">
+        {computed(() => track(list).map((item) => (
+          <TodoListItem
+            item={computed(() => item)}
+          />
+        )))}
+      </div>
+    </>
   );
 }
 
 function App() {
   return (
-    c('div', {}, c(Toggle, {}))
+    <div className="app">
+      <h1>Todo List</h1>
+      <TodoList />
+    </div>
   );
 }
 
 const root = document.getElementById('root');
 
 if (root) {
-  c(App, {}).render(root);
+  render(root, <App />);
 }
