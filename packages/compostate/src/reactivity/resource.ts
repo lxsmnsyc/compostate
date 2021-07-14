@@ -1,3 +1,4 @@
+import batch from './batch';
 import computed from './computed';
 import effect from './effect';
 import reactive from './reactive';
@@ -41,14 +42,18 @@ export default function resource<T>(
     promise.value.then(
       (value) => {
         if (alive) {
-          state.status = 'success';
-          state.value = value;
+          batch(() => {
+            state.status = 'success';
+            state.value = value;
+          });
         }
       },
       (value: any) => {
         if (alive) {
-          state.status = 'failure';
-          state.value = value;
+          batch(() => {
+            state.status = 'failure';
+            state.value = value;
+          });
         }
       },
     );
