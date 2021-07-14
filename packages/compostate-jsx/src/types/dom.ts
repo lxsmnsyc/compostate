@@ -17,6 +17,8 @@ import {
 
 export interface DOMAttributes<Target extends EventTarget> {
   children?: VNode;
+  innerHTML?: string;
+  textContent?: string;
   // dangerouslySetInnerHTML?: {
   //     __html: string;
   // } | undefined;
