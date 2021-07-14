@@ -2,6 +2,7 @@ export {
   onMount,
   onEffect,
   onUnmount,
+  onError,
 } from './lifecycle';
 export {
   c,
