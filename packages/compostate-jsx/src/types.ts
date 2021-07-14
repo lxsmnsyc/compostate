@@ -31,6 +31,9 @@ export type ReactiveProperty<K, V> =
     :
   K extends 'children'
     ? V
+    :
+  V extends Ref<infer T>
+    ? Ref<Ref<T>>
     : V | Ref<V>;
 
 export type Reactive<P> =
@@ -39,6 +42,9 @@ export type Reactive<P> =
     :
   P extends Array<infer U>
     ? Array<U | Ref<U>>
+    :
+  P extends Ref<infer T>
+    ? Ref<Ref<T>>
     : P | Ref<P>;
 
 export interface VComponent<P> {
