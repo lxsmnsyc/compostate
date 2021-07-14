@@ -25,26 +25,34 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
+import ReactiveAtom from './reactive-atom';
 import ReactiveKeys from './reactive-keys';
+import { registerTrackable } from './track-map';
 
 export default class ReactiveSet<V> implements Set<V> {
   private collection = new ReactiveKeys<V>();
+
+  private atom = new ReactiveAtom();
 
   private source: Set<V>;
 
   constructor(source: Set<V>) {
     this.source = source;
+
+    registerTrackable(this.atom, this);
   }
 
   clear(): void {
     this.source.clear();
     this.collection.notifyAll();
+    this.atom.notify();
   }
 
   delete(value: V): boolean {
     const result = this.source.delete(value);
     if (result) {
       this.collection.notify(value);
+      this.atom.notify();
     }
     return result;
   }
@@ -85,6 +93,7 @@ export default class ReactiveSet<V> implements Set<V> {
     this.source.add(value);
     if (shouldNotify) {
       this.collection.notify(value);
+      this.atom.notify();
     }
     return this;
   }

@@ -25,15 +25,18 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
+import ReactiveAtom from './reactive-atom';
 import ReactiveKeys from './reactive-keys';
+import { registerTrackable } from './track-map';
 import { ReactiveObject } from './types';
 
 export default function createReactiveObject<T extends ReactiveObject>(
   source: T,
 ): T {
   const collection = new ReactiveKeys<string | symbol | number>();
+  const atom = new ReactiveAtom();
 
-  return new Proxy(source, {
+  const proxy = new Proxy(source, {
     get(target, key, receiver) {
       collection.track(key);
       return Reflect.get(target, key, receiver);
@@ -46,6 +49,7 @@ export default function createReactiveObject<T extends ReactiveObject>(
       const deleted = Reflect.deleteProperty(target, key);
       if (deleted) {
         collection.notify(key);
+        atom.notify();
       }
       return deleted;
     },
@@ -56,9 +60,14 @@ export default function createReactiveObject<T extends ReactiveObject>(
 
       if (result && !Object.is(current, value)) {
         collection.notify(key);
+        atom.notify();
       }
 
       return result;
     },
   });
+
+  registerTrackable(atom, proxy);
+
+  return proxy;
 }

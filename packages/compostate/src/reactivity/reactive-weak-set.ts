@@ -25,22 +25,29 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
+import ReactiveAtom from './reactive-atom';
 import ReactiveWeakKeys from './reactive-weak-keys';
+import { registerTrackable } from './track-map';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
+  private atom = new ReactiveAtom();
+
   private collection = new ReactiveWeakKeys<V>();
 
   private source: WeakSet<V>;
 
   constructor(source: WeakSet<V>) {
     this.source = source;
+
+    registerTrackable(this.atom, this);
   }
 
   delete(value: V): boolean {
     const result = this.source.delete(value);
     if (result) {
       this.collection.notify(value);
+      this.atom.notify();
     }
     return result;
   }
@@ -54,6 +61,7 @@ export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
     this.source.add(value);
     if (shouldNotify) {
       this.collection.notify(value);
+      this.atom.notify();
     }
     return this;
   }

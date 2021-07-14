@@ -32,3 +32,4 @@ export { default as reactive, isReactive } from './reactivity/reactive';
 export { default as readonly, isReadonly } from './reactivity/readonly';
 export { default as ref, Ref } from './reactivity/ref';
 export { default as untrack } from './reactivity/untrack';
+export { default as track } from './reactivity/track';
