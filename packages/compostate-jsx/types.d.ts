@@ -1,7 +1,7 @@
 import {
   Attributes,
-  Renderable,
   VComponent,
+  VNode,
 } from './src/types';
 import {
   DetailedHTMLProps,
@@ -55,14 +55,14 @@ import {
   TimeHTMLAttributes,
   TrackHTMLAttributes,
   VideoHTMLAttributes,
-  WebViewHTMLAttributes,
+  // WebViewHTMLAttributes,
 } from './src/types/html';
 import { SVGProps } from './src/types/svg';
 
 declare global {
   namespace Compostate {
     namespace JSX {
-      interface Element extends Renderable {
+      interface Element extends VNode {
     
       }
     
@@ -71,11 +71,11 @@ declare global {
       }
     
       interface ElementAttributesProperty {
-        $props: any;
+        props: any;
       }
     
       interface ElementChildrenAttribute {
-        children: {};
+        children: any;
       }
     
       interface IntrinsicAttributes extends Attributes {}

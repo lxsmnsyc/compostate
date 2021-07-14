@@ -1,13 +1,14 @@
-import { EffectCleanup, Ref } from 'compostate';
+import { Ref } from 'compostate';
 
-export interface Renderable {
-  render: (root: HTMLElement, marker?: Node | null) => EffectCleanup;
-}
+export type VElement<P extends Attributes = Attributes> = Reactive<{
+  type: string | VComponent<any> | null;
+  props: P;
+}>;
 
 export type VText = string | number;
 export type VNull = boolean | null | undefined;
-export type VChild = Renderable | VText;
-export type VNode = VChild | VNull | VNode[] | Ref<VNode>;
+export type VChild = VElement | VText;
+export type VNode = VChild | VNull | VNode[] | Ref<VNode> | VElement;
 
 export interface Attributes {
   // empty
@@ -49,5 +50,5 @@ export type Reactive<P> =
 
 export interface VComponent<P> {
   (props: P): VNode;
-  $props?: Reactive<P>;
+  props?: Reactive<P>;
 }
