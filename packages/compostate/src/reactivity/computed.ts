@@ -35,8 +35,11 @@ export default function computed<T>(compute: () => T): Readonly<Ref<T>> {
   const work = new LinkedWork(() => {
     work.unlinkDependencies();
     const popTracking = TRACKING.push(work);
-    value = compute();
-    popTracking();
+    try {
+      value = compute();
+    } finally {
+      popTracking();
+    }
   });
 
   work.run();

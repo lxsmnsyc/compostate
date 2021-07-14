@@ -31,8 +31,11 @@ import LinkedWork from '../linked-work';
 export default function batch(callback: () => void): void {
   const batchedWork = new Set<LinkedWork>();
   const popBatching = BATCHING.push(batchedWork);
-  callback();
-  popBatching();
+  try {
+    callback();
+  } finally {
+    popBatching();
+  }
   batchedWork.forEach((work) => {
     work.run();
   });

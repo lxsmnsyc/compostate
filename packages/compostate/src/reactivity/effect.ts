@@ -45,15 +45,18 @@ export default function effect(callback: Effect): EffectCleanup {
     cleanupWork.clearDependents();
     const popTracking = TRACKING.push(revalidate);
     const popEffect = EFFECT.push(cleanupWork);
-    const newCleanup = callback();
-    currentCleanup = () => {
-      if (newCleanup) {
-        newCleanup();
-      }
-      revalidate.unlinkDependencies();
-    };
-    popEffect();
-    popTracking();
+    try {
+      const newCleanup = callback();
+      currentCleanup = () => {
+        if (newCleanup) {
+          newCleanup();
+        }
+        revalidate.unlinkDependencies();
+      };
+    } finally {
+      popEffect();
+      popTracking();
+    }
   });
 
   revalidate.run();

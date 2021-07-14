@@ -31,9 +31,11 @@ export default function untrack<T>(callback: () => T): T {
   const popTracking = TRACKING.push(undefined);
   const popBatching = BATCHING.push(undefined);
   const popEffect = EFFECT.push(undefined);
-  const value = callback();
-  popEffect();
-  popBatching();
-  popTracking();
-  return value;
+  try {
+    return callback();
+  } finally {
+    popEffect();
+    popBatching();
+    popTracking();
+  }
 }
