@@ -26,6 +26,7 @@
  * @copyright Alexis Munsayac 2021
  */
 import LinkedWork from '../linked-work';
+import batch from './batch';
 import { TRACKING, EFFECT } from './contexts';
 
 export type EffectCleanup = () => void;
@@ -46,7 +47,13 @@ export default function effect(callback: Effect): EffectCleanup {
     const popTracking = TRACKING.push(revalidate);
     const popEffect = EFFECT.push(cleanupWork);
     try {
-      const newCleanup = callback();
+      let newCleanup: ReturnType<Effect>;
+
+      // Batch updates inside effect.
+      batch(() => {
+        newCleanup = callback();
+      });
+
       currentCleanup = () => {
         if (newCleanup) {
           newCleanup();
