@@ -1,10 +1,11 @@
 export default class VirtualFragment {
-  public element: HTMLDivElement;
+  public element: HTMLSpanElement;
 
   private marker: Comment;
 
   constructor() {
-    this.element = document.createElement('div');
+    this.element = document.createElement('span');
+    this.element.setAttribute('style', 'display:contents');
     this.marker = document.createComment('');
   }
 

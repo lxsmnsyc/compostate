@@ -13,6 +13,11 @@ button {
   transition: background-color 200ms;
 }
 
+button:disabled {
+  background-color: rgba(156, 163, 175, 255);
+  color: rgba(229, 231, 235, 255);
+}
+
 .app {
   margin: 5%;
 }
@@ -36,21 +41,16 @@ button {
   border-style: solid;
 }
 
-.todo-list-form button {
+.todo-list-form button:not(:disabled) {
   background-color: rgba(99, 102, 241, 255);
 }
 
-.todo-list-form button:hover {
+.todo-list-form button:not(:disabled):hover {
   background-color: rgba(67, 56, 202, 255);
 }
 
-.todo-list-form button:active {
+.todo-list-form button:not(:disabled):active {
   background-color: rgba(79, 70, 229, 255);
-}
-
-.todo-list-form button:disabled {
-  background-color: rgba(156, 163, 175, 255);
-  color: rgba(229, 231, 235, 255);
 }
 
 .todo-item-toggle.pending {
@@ -77,15 +77,15 @@ button {
   background-color: rgba(5, 150, 105, 255);
 }
 
-.todo-item-delete {
+.todo-item-delete:not(:disabled) {
   background-color: rgba(239, 68, 68, 255);
 }
 
-.todo-item-delete:hover {
+.todo-item-delete:not(:disabled):hover {
   background-color: rgba(185, 28, 28, 255);
 }
 
-.todo-item-delete:active {
+.todo-item-delete:not(:disabled):active {
   background-color: rgba(220, 38, 38, 255);
 }
 
@@ -99,6 +99,12 @@ button {
   justify-content: space-between;
   transition: background-color 200ms;
 }
+
+.todo-item.loading {
+  background-color: rgba(17, 24, 39, 255);
+  color: white;
+}
+
 
 .todo-item.complete {
   background-color: rgba(209, 250, 229, 255);

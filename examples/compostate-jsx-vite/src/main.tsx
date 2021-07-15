@@ -6,6 +6,7 @@ import {
   Suspense,
   render,
   suspend,
+  onEffect,
 } from 'compostate-jsx';
 import {
   computed,
@@ -29,7 +30,7 @@ interface TodoListItemProps {
   item: TodoItem;
 }
 
-function TodoListItem(props: TodoListItemProps) {
+function TodoListItemInternal(props: TodoListItemProps) {
   const { item } = props;
   function onToggle() {
     item.done = !item.done;
@@ -64,6 +65,50 @@ function TodoListItem(props: TodoListItemProps) {
         </button>
       </div>
     </div>
+  );
+}
+
+const sleep = (value: number) => new Promise((resolve) => {
+  setTimeout(resolve, value, true);
+});
+
+function TodoListItemLoading() {
+  return (
+    <div
+      className="todo-item loading"
+    >
+      <div className="todo-item-content">
+        Loading...
+      </div>
+      <div className="todo-item-actions">
+        <button className="todo-item-toggle" disabled>
+          Pending
+        </button>
+        <button className="todo-item-delete" disabled>
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TodoListItem(props: TodoListItemProps) {
+  const delayedProps = resource(async () => {
+    const value = props.item;
+    await sleep(3000);
+    return value;
+  });
+
+  suspend(delayedProps);
+
+  return (
+    <>
+      {computed(() => (
+        delayedProps.status === 'success'
+          ? <TodoListItemInternal item={delayedProps.value} />
+          : <TodoListItemLoading />
+      ))}
+    </>
   );
 }
 
@@ -111,25 +156,13 @@ function TodoList() {
       <TodoListForm />
       <div className="todo-list">
         {computed(() => track(list).map((item) => (
-          <TodoListItem
-            item={computed(() => item)}
-          />
+          <Suspense fallback={<TodoListItemLoading />}>
+            <TodoListItem
+              item={computed(() => item)}
+            />
+          </Suspense>
         )))}
       </div>
-    </>
-  );
-}
-
-function ExampleResource() {
-  const data = resource(() => new Promise<string>((resolve) => {
-    setTimeout(() => resolve('Hello World'), 5000);
-  }));
-
-  suspend(data);
-
-  return (
-    <>
-      <h1>{computed(() => data.status === 'success' && data.status)}</h1>
     </>
   );
 }
@@ -139,13 +172,6 @@ function App() {
     <div className="app">
       <h1>Todo List</h1>
       <TodoList />
-      <Suspense fallback={<h1>Loading...</h1>}>
-        <ExampleResource />
-        <ExampleResource />
-        <ExampleResource />
-        <ExampleResource />
-        <ExampleResource />
-      </Suspense>
     </div>
   );
 }
