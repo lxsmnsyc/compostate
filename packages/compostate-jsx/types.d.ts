@@ -62,9 +62,8 @@ import { SVGProps } from './src/types/svg';
 declare global {
   namespace Compostate {
     namespace JSX {
-      interface Element extends VNode {
-    
-      }
+      // interface?
+      type Element = VNode;
     
       interface ElementClass extends VComponent<any> {
         //
