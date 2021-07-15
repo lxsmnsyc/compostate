@@ -17,9 +17,10 @@ import {
   UNMOUNT,
   EFFECT,
   ERROR,
+  ErrorCapture,
 } from './lifecycle';
-import { PROVIDER } from './provider';
-import { SUSPENSE } from './suspense';
+import { PROVIDER, ProviderData } from './provider';
+import { SUSPENSE, SuspenseData } from './suspense';
 import {
   Reactive,
   RefAttributes,
@@ -34,518 +35,476 @@ function unwrapRef<T>(baseRef: T | Ref<T>): T {
   return baseRef;
 }
 
+function renderWithContext<T>(
+  pushContext: () => EffectCleanup,
+  renderFn: () => T,
+): T {
+  const popContext = pushContext();
+  try {
+    return renderFn();
+  } finally {
+    popContext();
+  }
+}
+
+function renderWithContainer<T>(
+  container: VirtualFragment,
+  renderFn: () => T,
+): T {
+  return renderWithContext(
+    () => {
+      container.rewrap();
+      return () => {
+        container.unwrap();
+      };
+    },
+    renderFn,
+  );
+}
+
+interface Boundary {
+  error?: ErrorCapture;
+  suspense?: SuspenseData;
+  provider?: ProviderData;
+}
+
+function renderWithBoundaries<T>(
+  boundary: Boundary,
+  renderFn: () => T,
+): T | undefined {
+  try {
+    return renderWithContext(
+      () => {
+        const popErrorBoundary = boundary.error
+          ? ERROR_BOUNDARY.push(boundary.error)
+          : undefined;
+        const popProvider = PROVIDER.push(boundary.provider);
+        const popSuspense = SUSPENSE.push(boundary.suspense);
+
+        return () => {
+          popSuspense();
+          popProvider();
+          popErrorBoundary?.();
+        };
+      },
+      renderFn,
+    );
+  } catch (error) {
+    if (boundary.error) {
+      boundary.error(error);
+      return undefined;
+    }
+    throw error;
+  }
+}
+
 function renderInternal(
   root: HTMLElement,
   children: VNode,
 ): EffectCleanup {
+  // Re-capture current boundaries
+  const parentErrorBoundary = ERROR_BOUNDARY.getContext();
+  const parentProvider = PROVIDER.getContext();
+  const parentSuspense = SUSPENSE.getContext();
+
   if (Array.isArray(children)) {
-    return untrack(() => (
-      effect(() => {
-        children.forEach((child) => {
-          const container = new VirtualFragment();
-          // Re-capture current error boundary
-          const parentErrorBoundary = ERROR_BOUNDARY.getContext();
-          const parentProvider = PROVIDER.getContext();
-          const parentSuspense = SUSPENSE.getContext();
-          effect(() => {
-            // Mount the marker first as it is
-            // used for position reference for child nodes
-            root.appendChild(container.element);
-
-            effect(() => {
-              // Since the effect may re-evaluate with losing context
-              // We need to re-push the captured context
-              if (parentErrorBoundary) {
-                const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
-                const popParentProvider = PROVIDER.push(parentProvider);
-                const popSuspense = SUSPENSE.push(parentSuspense);
-                try {
-                  container.rewrap();
-                  return renderInternal(container.element, child);
-                } catch (error) {
-                  parentErrorBoundary(error);
-                  return undefined;
-                } finally {
-                  container.unwrap();
-                  popSuspense();
-                  popParentProvider();
-                  popErrorBoundary();
-                }
-              }
-              container.rewrap();
-              const cleanup = renderInternal(container.element, child);
-              container.unwrap();
-              return cleanup;
-            });
-
-            return () => {
-              container.rewrap();
-              root.removeChild(container.element);
-            };
-          });
-        });
-      })
-    ));
+    return untrack(() => effect(() => {
+      Array.from(children).forEach((child) => {
+        effect(() => renderInternal(root, child));
+      });
+    }));
   }
   if (typeof children === 'string' || typeof children === 'number') {
     const node = document.createTextNode(`${children}`);
 
-    return untrack(() => (
-      effect(() => {
-        root.appendChild(node);
-        return () => {
-          root.removeChild(node);
-        };
-      })
-    ));
+    return untrack(() => effect(() => {
+      root.appendChild(node);
+      return () => {
+        root.removeChild(node);
+      };
+    }));
   }
   if (children == null || typeof children === 'boolean') {
-    return () => { /** no-op */ };
+    return () => { /* no-op */ };
   }
   if ('type' in children) {
-    let stop: EffectCleanup;
+    return untrack(() => effect(() => {
+      // Unwrap constructor (useful if constructor is reactively changed).
+      const constructor = unwrapRef(children.type);
 
-    // If there's no error boundary (e.g. root component),
-    // make sure that the whole tree is unmounted.
-    const parentErrorBoundary = ERROR_BOUNDARY.getContext() ?? ((error) => {
-      stop?.();
+      // Merge children with props
+      const newProps: Reactive<any> = {
+        ...children.props,
+      };
 
-      // Re-throw error on a global context
-      throw error;
-    });
+      // Construct DOM element
+      if (typeof constructor === 'string') {
+        const el = document.createElement(constructor);
 
-    const parentProvider = PROVIDER.getContext();
-    const parentSuspense = SUSPENSE.getContext();
-
-    // Isolate effect tracking
-    stop = untrack(() => (
-      effect(() => {
-        // Unwrap constructor (useful if constructor is reactively changed).
-        const constructor = unwrapRef(children.type);
-
-        // Merge children with props
-        const newProps: Reactive<any> = {
-          ...children.props,
-        };
-
-        // Construct DOM element
-        if (typeof constructor === 'string') {
-          const el = document.createElement(constructor);
-
-          effect(() => {
-            Object.keys(newProps).forEach((key) => {
-              if (key === 'ref') {
-                effect(() => {
-                  const elRef = (newProps as RefAttributes<Element>)[key];
-                  if (elRef) {
-                    elRef.value = el;
-                  }
-                });
-              } else if (key === 'children') {
-                effect(() => {
-                  const value = (newProps as WithChildren).children;
-                  if (value != null) {
-                    const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
-                    const popProvider = PROVIDER.push(parentProvider);
-                    const popSuspense = SUSPENSE.push(parentSuspense);
-                    try {
-                      return renderInternal(el, value);
-                    } catch (error) {
-                      parentErrorBoundary(error);
-                    } finally {
-                      popSuspense();
-                      popProvider();
-                      popErrorBoundary();
-                    }
-                  }
-                  return undefined;
-                });
-              } else {
-                effect(() => {
-                  const property = unwrapRef(newProps[key]);
-
-                  // Event Handlers
-                  if (key.startsWith('on')) {
-                    effect(() => {
-                      // Extract event name
-                      const event = key.substring(2).toLowerCase();
-                      // Check if event name ends with 'capture'
-                      const capture = event.endsWith('capture');
-                      // Capture actual DOM event
-                      const actualEvent = event.substring(
-                        0,
-                        event.length - (capture ? 7 : 0),
-                      );
-
-                      const wrappedEvent = <E extends Event>(evt: E) => {
-                        // In case of synchronous calls
-                        untrack(() => {
-                          // Allow update batching
-                          try {
-                            batch(() => {
-                              (property as EventListener)(evt);
-                            });
-                          } catch (error) {
-                            if (parentErrorBoundary) {
-                              parentErrorBoundary(error);
-                            } else {
-                              throw error;
-                            }
-                          }
-                        });
-                      };
-
-                      // Register
-                      el.addEventListener(actualEvent, wrappedEvent, {
-                        capture,
-                      });
-                      // Unregister
-                      return () => {
-                        el.removeEventListener(actualEvent, wrappedEvent, {
-                          capture,
-                        });
-                      };
-                    });
-                  } else if (key === 'className') {
-                    el.setAttribute('class', property);
-                  } else if (key === 'textContent') {
-                    el.textContent = property as string;
-                  } else if (key === 'innerHTML') {
-                    el.innerHTML = property as string;
-                  } else if (key === 'style') {
-                    // TODO Style Object parsing
-                  } else if (key === 'value') {
-                    (el as HTMLInputElement).value = property;
-                  } else if (typeof property === 'string' || typeof property === 'number') {
-                    el.setAttribute(key, `${property}`);
-                  } else if (property) {
-                    el.setAttribute(key, '');
-                  } else {
-                    el.removeAttribute(key);
-                  }
-                });
-              }
-            });
-          });
-
-          effect(() => {
-            root.appendChild(el);
-            return () => {
-              el.parentNode?.removeChild(el);
-            };
-          });
-        } else if (typeof constructor === 'function') {
-          // Create a reactive object form for the props
-          const unwrappedProps = reactive<Record<string, any>>({});
-
-          effect(() => {
-            // Track individual props
-            Object.keys(newProps).forEach((key) => {
-              if (key === 'ref') {
-                effect(() => {
-                  (unwrappedProps as RefAttributes<any>).ref = (newProps as RefAttributes<any>).ref;
-                });
-              } else if (key === 'children') {
-                effect(() => {
-                  (unwrappedProps as WithChildren).children = (newProps as WithChildren).children;
-                });
-              } else {
-                effect(() => {
-                  unwrappedProps[key] = unwrapRef(newProps[key]);
-                });
-              }
-            });
-          });
-
-          // Push lifecycle hooks
-          const popMount = MOUNT.push([]);
-          const popUnmount = UNMOUNT.push([]);
-          const popEffect = EFFECT.push([]);
-          const popError = ERROR.push([]);
-
-          let result: VNode;
-
-          const provider = {
-            data: reactive({}),
-            parent: parentProvider,
-          };
-
-          const popParentErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
-          const popProvider = PROVIDER.push(provider);
-          const popSuspense = SUSPENSE.push(parentSuspense);
-          try {
-            result = constructor(unwrappedProps);
-          } catch (error) {
-            parentErrorBoundary(error);
-          } finally {
-            popSuspense();
-            popProvider();
-            popParentErrorBoundary();
-          }
-
-          const mounts = popMount();
-          const unmounts = popUnmount();
-          const effects = popEffect();
-          const errors = popError();
-
-          const errorBoundary = (error: any) => {
-            // Check if there are any handlers
-            if (errors.length > 0) {
-              untrack(() => {
-                try {
-                  errors.forEach((capture) => {
-                    batch(() => {
-                      capture(error);
-                    });
-                  });
-                } catch (newError) {
-                  // onError handlers threw an error,
-                  // forward to parent
-                  parentErrorBoundary(newError);
+        effect(() => {
+          Object.keys(newProps).forEach((key) => {
+            if (key === 'ref') {
+              effect(() => {
+                const elRef = (newProps as RefAttributes<Element>)[key];
+                if (elRef) {
+                  elRef.value = el;
                 }
+              });
+            } else if (key === 'children') {
+              effect(() => {
+                const value = (newProps as WithChildren).children;
+                if (value != null) {
+                  return renderWithBoundaries(
+                    {
+                      error: parentErrorBoundary,
+                      provider: parentProvider,
+                      suspense: parentSuspense,
+                    },
+                    () => renderInternal(el, value),
+                  );
+                }
+                return undefined;
               });
             } else {
-              parentErrorBoundary(error);
-            }
-          };
+              effect(() => {
+                const property = unwrapRef(newProps[key]);
 
-          const container = new VirtualFragment();
+                // Event Handlers
+                if (key.startsWith('on')) {
+                  effect(() => {
+                    // Extract event name
+                    const event = key.substring(2).toLowerCase();
+                    // Check if event name ends with 'capture'
+                    const capture = event.endsWith('capture');
+                    // Capture actual DOM event
+                    const actualEvent = event.substring(
+                      0,
+                      event.length - (capture ? 7 : 0),
+                    );
 
-          effect(() => {
-            root.appendChild(container.element);
+                    const wrappedEvent = <E extends Event>(evt: E) => {
+                      // In case of synchronous calls
+                      untrack(() => {
+                        // Allow update batching
+                        try {
+                          batch(() => {
+                            (property as EventListener)(evt);
+                          });
+                        } catch (error) {
+                          if (parentErrorBoundary) {
+                            parentErrorBoundary(error);
+                          } else {
+                            throw error;
+                          }
+                        }
+                      });
+                    };
 
-            effect(() => {
-              const popErrorBoundary = ERROR_BOUNDARY.push(errorBoundary);
-              const popChildProvider = PROVIDER.push(provider);
-              const popParentSuspense = SUSPENSE.push(parentSuspense);
-              try {
-                // container.rewrap();
-                return renderInternal(container.element, result);
-              } catch (error) {
-                errorBoundary(error);
-              } finally {
-                // container.unwrap();
-                popParentSuspense();
-                popChildProvider();
-                popErrorBoundary();
-              }
-              return undefined;
-            });
-
-            return () => {
-              // container.rewrap();
-              container.element.parentNode?.removeChild(container.element);
-            };
-          });
-
-          effect(() => {
-            untrack(() => {
-              try {
-                mounts.forEach((mount) => {
-                  batch(() => {
-                    mount();
-                  });
-                });
-              } catch (error) {
-                errorBoundary(error);
-              }
-            });
-
-            return () => {
-              untrack(() => {
-                try {
-                  unmounts.forEach((unmount) => {
-                    batch(() => {
-                      unmount();
+                    // Register
+                    el.addEventListener(actualEvent, wrappedEvent, {
+                      capture,
                     });
+                    // Unregister
+                    return () => {
+                      el.removeEventListener(actualEvent, wrappedEvent, {
+                        capture,
+                      });
+                    };
                   });
-                } catch (error) {
-                  errorBoundary(error);
+                } else if (key === 'className') {
+                  el.setAttribute('class', property);
+                } else if (key === 'textContent') {
+                  el.textContent = property as string;
+                } else if (key === 'innerHTML') {
+                  el.innerHTML = property as string;
+                } else if (key === 'style') {
+                  // TODO Style Object parsing
+                } else if (key === 'value') {
+                  (el as HTMLInputElement).value = property;
+                } else if (typeof property === 'string' || typeof property === 'number') {
+                  el.setAttribute(key, `${property}`);
+                } else if (property) {
+                  el.setAttribute(key, '');
+                } else {
+                  el.removeAttribute(key);
                 }
               });
-            };
+            }
           });
+        });
 
-          effect(() => {
+        effect(() => {
+          root.appendChild(el);
+
+          return () => {
+            root.removeChild(el);
+          };
+        });
+      } else if (typeof constructor === 'function') {
+        // Create a reactive object form for the props
+        const unwrappedProps = reactive<Record<string, any>>({});
+
+        effect(() => {
+          // Track individual props
+          Object.keys(newProps).forEach((key) => {
+            if (key === 'ref') {
+              effect(() => {
+                (unwrappedProps as RefAttributes<any>).ref = (newProps as RefAttributes<any>).ref;
+              });
+            } else if (key === 'children') {
+              effect(() => {
+                (unwrappedProps as WithChildren).children = (newProps as WithChildren).children;
+              });
+            } else {
+              effect(() => {
+                unwrappedProps[key] = unwrapRef(newProps[key]);
+              });
+            }
+          });
+        });
+
+        // Push lifecycle hooks
+        const popMount = MOUNT.push([]);
+        const popUnmount = UNMOUNT.push([]);
+        const popEffect = EFFECT.push([]);
+        const popError = ERROR.push([]);
+
+        const provider = {
+          data: reactive({}),
+          parent: parentProvider,
+        };
+
+        const result = (
+          renderWithBoundaries(
+            {
+              error: parentErrorBoundary,
+              suspense: parentSuspense,
+              provider,
+            },
+            () => constructor(unwrappedProps),
+          )
+        );
+
+        const mounts = popMount();
+        const unmounts = popUnmount();
+        const effects = popEffect();
+        const errors = popError();
+
+        const errorBoundary = (error: any) => {
+          // Check if there are any handlers
+          if (errors.length > 0) {
+            untrack(() => {
+              try {
+                errors.forEach((capture) => {
+                  batch(() => {
+                    capture(error);
+                  });
+                });
+              } catch (newError) {
+                // onError handlers threw an error,
+                // forward to parent
+                if (parentErrorBoundary) {
+                  parentErrorBoundary(newError);
+                } else {
+                  throw newError;
+                }
+              }
+            });
+          } else if (parentErrorBoundary) {
+            parentErrorBoundary(error);
+          } else {
+            throw error;
+          }
+        };
+
+        effect(() => (
+          renderWithBoundaries(
+            {
+              error: errorBoundary,
+              provider,
+              suspense: parentSuspense,
+            },
+            () => (
+              renderInternal(root, result)
+            ),
+          )
+        ));
+
+        effect(() => {
+          untrack(() => {
             try {
-              effects.forEach((callback) => {
-                effect(callback);
+              mounts.forEach((mount) => {
+                batch(() => {
+                  mount();
+                });
               });
             } catch (error) {
               errorBoundary(error);
             }
           });
-        } else if (constructor === 1) {
-          // Fragment renderer
-          const container = new VirtualFragment();
-          effect(() => {
-            root.appendChild(container.element);
 
-            // effect(() => {
-            //   container.unwrap();
-            //   return () => {
-            //     container.rewrap();
-            //   };
-            // });
-
-            effect(() => {
-              const value = (newProps as WithChildren).children;
-              if (value != null) {
-                const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
-                const popProvider = PROVIDER.push(parentProvider);
-                const popSuspense = SUSPENSE.push(parentSuspense);
-                try {
-                  // container.rewrap();
-                  return renderInternal(container.element, value);
-                } catch (error) {
-                  parentErrorBoundary(error);
-                } finally {
-                  // container.unwrap();
-                  popSuspense();
-                  popProvider();
-                  popErrorBoundary();
-                }
-              }
-              return undefined;
-            });
-
-            return () => {
-              root.removeChild(container.element);
-            };
-          });
-        } else {
-          // Suspense
-          const suspend = ref(false);
-          const resources = reactive<Set<Resource<any>>>(new Set());
-
-          effect(() => {
-            suspend.value = track(resources).size > 0;
-          });
-
-          effect(() => {
-            new Set(track(resources)).forEach((resource) => {
-              if (resource.status === 'success') {
-                resources.delete(resource);
-              } else if (resource.status === 'failure') {
-                parentErrorBoundary(resource.value);
-                resources.delete(resource);
+          return () => {
+            untrack(() => {
+              try {
+                unmounts.forEach((unmount) => {
+                  batch(() => {
+                    unmount();
+                  });
+                });
+              } catch (error) {
+                errorBoundary(error);
               }
             });
-          });
-
-          const capture = <T>(resource: Resource<T>) => {
-            resources.add(resource);
           };
+        });
 
-          const suspenseContainer = new VirtualFragment();
+        effect(() => {
+          try {
+            effects.forEach((callback) => {
+              effect(callback);
+            });
+          } catch (error) {
+            errorBoundary(error);
+          }
+        });
+      } else if (constructor === 1) {
+        // Fragment renderer
+        effect(() => {
+          const value = (newProps as WithChildren).children;
+          if (value != null) {
+            effect(() => (
+              renderWithBoundaries(
+                {
+                  error: parentErrorBoundary,
+                  provider: parentProvider,
+                  suspense: parentSuspense,
+                },
+                () => renderInternal(root, value),
+              )
+            ));
+          }
+        });
+      } else {
+        // Suspense
+        const suspend = ref(false);
+        const resources = reactive<Set<Resource<any>>>(new Set());
+
+        effect(() => {
+          suspend.value = track(resources).size > 0;
+        });
+
+        effect(() => {
+          new Set(track(resources)).forEach((resource) => {
+            if (resource.status === 'success') {
+              resources.delete(resource);
+            } else if (resource.status === 'failure') {
+              resources.delete(resource);
+              if (parentErrorBoundary) {
+                parentErrorBoundary(resource.value);
+              } else {
+                throw resource.value;
+              }
+            }
+          });
+        });
+
+        const capture = <T>(resource: Resource<T>) => {
+          resources.add(resource);
+        };
+
+        const currentSuspense = {
+          parent: parentSuspense,
+          capture,
+        };
+
+        const container = new VirtualFragment();
+
+        effect(() => {
+          root.appendChild(container.element);
+
+          // Render fallback
+          const fallbackBranch = new VirtualFragment();
+          effect(() => {
+            const value = (newProps as SuspenseProps).fallback;
+
+            if (value) {
+              return renderWithContainer(
+                fallbackBranch,
+                () => (
+                  renderWithBoundaries(
+                    {
+                      error: parentErrorBoundary,
+                      provider: parentProvider,
+                      suspense: parentSuspense,
+                    },
+                    () => renderInternal(fallbackBranch.element, value),
+                  )
+                ),
+              );
+            }
+            return undefined;
+          });
+
+          // Render children
+          const childrenBranch = new VirtualFragment();
+          effect(() => {
+            const value = (newProps as SuspenseProps).children;
+            if (value != null) {
+              return renderWithContainer(
+                childrenBranch,
+                () => (
+                  renderWithBoundaries(
+                    {
+                      error: parentErrorBoundary,
+                      provider: parentProvider,
+                      suspense: currentSuspense,
+                    },
+                    () => renderInternal(childrenBranch.element, value),
+                  )
+                ),
+              );
+            }
+            return undefined;
+          });
 
           effect(() => {
-            root.appendChild(suspenseContainer.element);
-
-            // Render fallback
-            const fallbackBranch = new VirtualFragment();
-            effect(() => {
-              const value = (newProps as SuspenseProps).fallback;
-
-              if (value) {
-                const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
-                const popProvider = PROVIDER.push(parentProvider);
-                try {
-                  return renderInternal(fallbackBranch.element, value);
-                } catch (error) {
-                  parentErrorBoundary(error);
-                } finally {
-                  popProvider();
-                  popErrorBoundary();
-                }
-              }
-              return undefined;
-            });
-
-            // Render children
-            const childrenBranch = new VirtualFragment();
-            effect(() => {
-              const value = (newProps as SuspenseProps).children;
-              if (value != null) {
-                const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
-                const popProvider = PROVIDER.push(parentProvider);
-                const popSuspense = SUSPENSE.push(capture);
-                try {
-                  return renderInternal(childrenBranch.element, value);
-                } catch (error) {
-                  parentErrorBoundary(error);
-                } finally {
-                  popSuspense();
-                  popProvider();
-                  popErrorBoundary();
-                }
-              }
-              return undefined;
-            });
-
-            effect(() => {
-              // suspenseContainer.rewrap();
-              const newChild = suspend.value ? fallbackBranch : childrenBranch;
-              const oldChild = suspend.value ? childrenBranch : fallbackBranch;
-              // oldChild.rewrap();
-              if (suspenseContainer.element === oldChild.element.parentNode) {
-                suspenseContainer.element.replaceChild(newChild.element, oldChild.element);
-              } else {
-                suspenseContainer.element.appendChild(newChild.element);
-              }
-              // newChild.unwrap();
-              // suspenseContainer.unwrap();
-            });
-
-            return () => {
-              // suspenseContainer.rewrap();
-              root.removeChild(suspenseContainer.element);
-            };
+            container.rewrap();
+            const newChild = suspend.value ? fallbackBranch : childrenBranch;
+            const oldChild = suspend.value ? childrenBranch : fallbackBranch;
+            oldChild.rewrap();
+            if (container.element === oldChild.element.parentNode) {
+              container.element.replaceChild(newChild.element, oldChild.element);
+            } else {
+              container.element.appendChild(newChild.element);
+            }
+            newChild.unwrap();
+            container.unwrap();
           });
-        }
-      })
-    ));
 
-    return stop;
+          return () => {
+            container.rewrap();
+            root.removeChild(container.element);
+          };
+        });
+      }
+    }));
   }
 
-  // Capture current error boundary
-  const parentErrorBoundary = ERROR_BOUNDARY.getContext();
-  const parentProvider = PROVIDER.getContext();
-  const container = new VirtualFragment();
-  return untrack(() => effect(() => {
+  return untrack(() => (
     effect(() => {
-      root.appendChild(container.element);
-      effect(() => {
-        const unwrappedChild = unwrapRef(children);
-        // Since the effect may re-evaluate with losing context
-        // We need to re-push the captured context
-        if (parentErrorBoundary) {
-          const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
-          const popProvider = PROVIDER.push(parentProvider);
-          try {
-            // container.rewrap();
-            return renderInternal(container.element, unwrappedChild);
-          } catch (error) {
-            parentErrorBoundary(error);
-            return undefined;
-          } finally {
-            // container.unwrap();
-            popProvider();
-            popErrorBoundary();
-          }
-        }
-        // container.rewrap();
-        const cleanup = renderInternal(container.element, unwrappedChild);
-        // container.unwrap();
-        return cleanup;
-      });
-      return () => {
-        // container.rewrap();
-        root.removeChild(container.element);
-      };
-    });
-  }));
+      const unwrappedChild = unwrapRef(children);
+      return renderWithBoundaries(
+        {
+          error: parentErrorBoundary,
+          provider: parentProvider,
+          suspense: parentSuspense,
+        },
+        () => (
+          renderInternal(root, unwrappedChild)
+        ),
+      );
+    })
+  ));
 }
 
 export function render(root: HTMLElement, element: VNode): () => void {
