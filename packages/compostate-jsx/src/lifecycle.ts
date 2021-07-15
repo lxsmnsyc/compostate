@@ -25,7 +25,7 @@ export function onUnmount(callback: () => void): void {
   if (current) {
     current.push(callback);
   } else {
-    throw new Error('Invalid onMount');
+    throw new Error('Invalid onUnmount');
   }
 }
 
@@ -35,7 +35,7 @@ export function onEffect(callback: Effect): void {
   if (current) {
     current.push(callback);
   } else {
-    throw new Error('Invalid onMount');
+    throw new Error('Invalid onEffect');
   }
 }
 
@@ -45,7 +45,7 @@ export function onError(callback: ErrorCapture): void {
   if (current) {
     current.push(callback);
   } else {
-    throw new Error('Invalid onMount');
+    throw new Error('Invalid onError');
   }
 }
 
