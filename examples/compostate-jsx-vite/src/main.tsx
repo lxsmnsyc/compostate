@@ -3,14 +3,16 @@
 import {
   c,
   Fragment,
+  Suspense,
   render,
+  suspend,
 } from 'compostate-jsx';
 import {
   computed,
   track,
   reactive,
   ref,
-  effect,
+  resource,
 } from 'compostate';
 
 import './style.css';
@@ -118,11 +120,32 @@ function TodoList() {
   );
 }
 
+function ExampleResource() {
+  const data = resource(() => new Promise<string>((resolve) => {
+    setTimeout(() => resolve('Hello World'), 5000);
+  }));
+
+  suspend(data);
+
+  return (
+    <>
+      <h1>{computed(() => data.status === 'success' && data.status)}</h1>
+    </>
+  );
+}
+
 function App() {
   return (
     <div className="app">
       <h1>Todo List</h1>
       <TodoList />
+      <Suspense fallback={<h1>Loading...</h1>}>
+        <ExampleResource />
+        <ExampleResource />
+        <ExampleResource />
+        <ExampleResource />
+        <ExampleResource />
+      </Suspense>
     </div>
   );
 }
