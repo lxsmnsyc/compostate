@@ -3,9 +3,14 @@ import {
   effect,
   EffectCleanup,
   reactive,
+  ref,
   Ref,
+  Resource,
+  track,
   untrack,
 } from 'compostate';
+import { SuspenseProps } from './core';
+import VirtualFragment from './fragment';
 import {
   ERROR_BOUNDARY,
   MOUNT,
@@ -14,6 +19,7 @@ import {
   ERROR,
 } from './lifecycle';
 import { PROVIDER } from './provider';
+import { SUSPENSE } from './suspense';
 import {
   Reactive,
   RefAttributes,
@@ -21,63 +27,61 @@ import {
   WithChildren,
 } from './types';
 
-let id = 0;
-
-function getID(): number {
-  const current = id;
-  id += 1;
-  return current;
-}
-
-function unwrapRef<T>(ref: T | Ref<T>): T {
-  if (ref && typeof ref === 'object' && 'value' in ref) {
-    return ref.value;
+function unwrapRef<T>(baseRef: T | Ref<T>): T {
+  if (baseRef && typeof baseRef === 'object' && 'value' in baseRef) {
+    return baseRef.value;
   }
-  return ref;
+  return baseRef;
 }
 
-export function render(
+function renderInternal(
   root: HTMLElement,
   children: VNode,
-  marker: Node | null = null,
 ): EffectCleanup {
   if (Array.isArray(children)) {
     return untrack(() => (
       effect(() => {
         children.forEach((child) => {
-          // Create node marker
-          const newMarker = document.createComment(`${getID()}`);
-          effect(() => {
-            // Mount the marker first as it is
-            // used for position reference for child nodes
-            root.insertBefore(newMarker, marker);
-          });
+          const container = new VirtualFragment();
           // Re-capture current error boundary
           const parentErrorBoundary = ERROR_BOUNDARY.getContext();
           const parentProvider = PROVIDER.getContext();
+          const parentSuspense = SUSPENSE.getContext();
           effect(() => {
-            // Since the effect may re-evaluate with losing context
-            // We need to re-push the captured context
-            if (parentErrorBoundary) {
-              const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
-              const popParentProvider = PROVIDER.push(parentProvider);
-              try {
-                return render(root, child, newMarker);
-              } catch (error) {
-                parentErrorBoundary(error);
-                return undefined;
-              } finally {
-                popParentProvider();
-                popErrorBoundary();
+            // Mount the marker first as it is
+            // used for position reference for child nodes
+            root.appendChild(container.element);
+
+            effect(() => {
+              // Since the effect may re-evaluate with losing context
+              // We need to re-push the captured context
+              if (parentErrorBoundary) {
+                const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
+                const popParentProvider = PROVIDER.push(parentProvider);
+                const popSuspense = SUSPENSE.push(parentSuspense);
+                try {
+                  container.rewrap();
+                  return renderInternal(container.element, child);
+                } catch (error) {
+                  parentErrorBoundary(error);
+                  return undefined;
+                } finally {
+                  container.unwrap();
+                  popSuspense();
+                  popParentProvider();
+                  popErrorBoundary();
+                }
               }
-            }
-            return render(root, child, newMarker);
-          });
-          // Perform marker cleanup after all child nodes have been removed.
-          effect(() => () => {
-            if (newMarker.parentNode === root) {
-              root.removeChild(newMarker);
-            }
+              container.rewrap();
+              const cleanup = renderInternal(container.element, child);
+              container.unwrap();
+              return cleanup;
+            });
+
+            return () => {
+              container.rewrap();
+              root.removeChild(container.element);
+            };
           });
         });
       })
@@ -88,11 +92,9 @@ export function render(
 
     return untrack(() => (
       effect(() => {
-        root.insertBefore(node, marker);
+        root.appendChild(node);
         return () => {
-          if (node.parentNode === root) {
-            root.removeChild(node);
-          }
+          root.removeChild(node);
         };
       })
     ));
@@ -106,13 +108,14 @@ export function render(
     // If there's no error boundary (e.g. root component),
     // make sure that the whole tree is unmounted.
     const parentErrorBoundary = ERROR_BOUNDARY.getContext() ?? ((error) => {
-      stop();
+      stop?.();
 
       // Re-throw error on a global context
       throw error;
     });
 
     const parentProvider = PROVIDER.getContext();
+    const parentSuspense = SUSPENSE.getContext();
 
     // Isolate effect tracking
     stop = untrack(() => (
@@ -133,9 +136,9 @@ export function render(
             Object.keys(newProps).forEach((key) => {
               if (key === 'ref') {
                 effect(() => {
-                  const ref = (newProps as RefAttributes<Element>)[key];
-                  if (ref) {
-                    ref.value = el;
+                  const elRef = (newProps as RefAttributes<Element>)[key];
+                  if (elRef) {
+                    elRef.value = el;
                   }
                 });
               } else if (key === 'children') {
@@ -144,11 +147,13 @@ export function render(
                   if (value != null) {
                     const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
                     const popProvider = PROVIDER.push(parentProvider);
+                    const popSuspense = SUSPENSE.push(parentSuspense);
                     try {
-                      return render(el, value, null);
+                      return renderInternal(el, value);
                     } catch (error) {
                       parentErrorBoundary(error);
                     } finally {
+                      popSuspense();
                       popProvider();
                       popErrorBoundary();
                     }
@@ -224,14 +229,12 @@ export function render(
           });
 
           effect(() => {
-            root.insertBefore(el, marker);
+            root.appendChild(el);
             return () => {
-              if (el.parentNode === root) {
-                root.removeChild(el);
-              }
+              el.parentNode?.removeChild(el);
             };
           });
-        } else if (constructor) {
+        } else if (typeof constructor === 'function') {
           // Create a reactive object form for the props
           const unwrappedProps = reactive<Record<string, any>>({});
 
@@ -269,11 +272,13 @@ export function render(
 
           const popParentErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
           const popProvider = PROVIDER.push(provider);
+          const popSuspense = SUSPENSE.push(parentSuspense);
           try {
             result = constructor(unwrappedProps);
           } catch (error) {
             parentErrorBoundary(error);
           } finally {
+            popSuspense();
             popProvider();
             popParentErrorBoundary();
           }
@@ -304,18 +309,33 @@ export function render(
             }
           };
 
+          const container = new VirtualFragment();
+
           effect(() => {
-            const popErrorBoundary = ERROR_BOUNDARY.push(errorBoundary);
-            const popChildProvider = PROVIDER.push(provider);
-            try {
-              return render(root, result, marker);
-            } catch (error) {
-              errorBoundary(error);
-            } finally {
-              popChildProvider();
-              popErrorBoundary();
-            }
-            return undefined;
+            root.appendChild(container.element);
+
+            effect(() => {
+              const popErrorBoundary = ERROR_BOUNDARY.push(errorBoundary);
+              const popChildProvider = PROVIDER.push(provider);
+              const popParentSuspense = SUSPENSE.push(parentSuspense);
+              try {
+                // container.rewrap();
+                return renderInternal(container.element, result);
+              } catch (error) {
+                errorBoundary(error);
+              } finally {
+                // container.unwrap();
+                popParentSuspense();
+                popChildProvider();
+                popErrorBoundary();
+              }
+              return undefined;
+            });
+
+            return () => {
+              // container.rewrap();
+              container.element.parentNode?.removeChild(container.element);
+            };
           });
 
           effect(() => {
@@ -355,23 +375,132 @@ export function render(
               errorBoundary(error);
             }
           });
-        } else {
+        } else if (constructor === 1) {
           // Fragment renderer
+          const container = new VirtualFragment();
           effect(() => {
-            const value = (newProps as WithChildren).children;
-            if (value != null) {
-              const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
-              const popProvider = PROVIDER.push(parentProvider);
-              try {
-                return render(root, value, marker);
-              } catch (error) {
-                parentErrorBoundary(error);
-              } finally {
-                popProvider();
-                popErrorBoundary();
+            root.appendChild(container.element);
+
+            // effect(() => {
+            //   container.unwrap();
+            //   return () => {
+            //     container.rewrap();
+            //   };
+            // });
+
+            effect(() => {
+              const value = (newProps as WithChildren).children;
+              if (value != null) {
+                const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
+                const popProvider = PROVIDER.push(parentProvider);
+                const popSuspense = SUSPENSE.push(parentSuspense);
+                try {
+                  // container.rewrap();
+                  return renderInternal(container.element, value);
+                } catch (error) {
+                  parentErrorBoundary(error);
+                } finally {
+                  // container.unwrap();
+                  popSuspense();
+                  popProvider();
+                  popErrorBoundary();
+                }
               }
-            }
-            return undefined;
+              return undefined;
+            });
+
+            return () => {
+              root.removeChild(container.element);
+            };
+          });
+        } else {
+          // Suspense
+          const suspend = ref(false);
+          const resources = reactive<Set<Resource<any>>>(new Set());
+
+          effect(() => {
+            suspend.value = track(resources).size > 0;
+          });
+
+          effect(() => {
+            new Set(track(resources)).forEach((resource) => {
+              if (resource.status === 'success') {
+                resources.delete(resource);
+              } else if (resource.status === 'failure') {
+                parentErrorBoundary(resource.value);
+                resources.delete(resource);
+              }
+            });
+          });
+
+          const capture = <T>(resource: Resource<T>) => {
+            resources.add(resource);
+          };
+
+          const suspenseContainer = new VirtualFragment();
+
+          effect(() => {
+            root.appendChild(suspenseContainer.element);
+
+            // Render fallback
+            const fallbackBranch = new VirtualFragment();
+            effect(() => {
+              const value = (newProps as SuspenseProps).fallback;
+
+              if (value) {
+                const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
+                const popProvider = PROVIDER.push(parentProvider);
+                try {
+                  return renderInternal(fallbackBranch.element, value);
+                } catch (error) {
+                  parentErrorBoundary(error);
+                } finally {
+                  popProvider();
+                  popErrorBoundary();
+                }
+              }
+              return undefined;
+            });
+
+            // Render children
+            const childrenBranch = new VirtualFragment();
+            effect(() => {
+              const value = (newProps as SuspenseProps).children;
+              if (value != null) {
+                const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
+                const popProvider = PROVIDER.push(parentProvider);
+                const popSuspense = SUSPENSE.push(capture);
+                try {
+                  return renderInternal(childrenBranch.element, value);
+                } catch (error) {
+                  parentErrorBoundary(error);
+                } finally {
+                  popSuspense();
+                  popProvider();
+                  popErrorBoundary();
+                }
+              }
+              return undefined;
+            });
+
+            effect(() => {
+              // suspenseContainer.rewrap();
+              const newChild = suspend.value ? fallbackBranch : childrenBranch;
+              const oldChild = suspend.value ? childrenBranch : fallbackBranch;
+              // oldChild.rewrap();
+              if (suspenseContainer.element === oldChild.element.parentNode) {
+                suspenseContainer.element.replaceChild(newChild.element, oldChild.element);
+              } else {
+                suspenseContainer.element.appendChild(newChild.element);
+              }
+              // newChild.unwrap();
+              // suspenseContainer.unwrap();
+            });
+
+            return () => {
+              // suspenseContainer.rewrap();
+              root.removeChild(suspenseContainer.element);
+            };
           });
         }
       })
@@ -383,27 +512,44 @@ export function render(
   // Capture current error boundary
   const parentErrorBoundary = ERROR_BOUNDARY.getContext();
   const parentProvider = PROVIDER.getContext();
-  return untrack(() => (
+  const container = new VirtualFragment();
+  return untrack(() => effect(() => {
     effect(() => {
-      const unwrappedChild = unwrapRef(children);
-      // Since the effect may re-evaluate with losing context
-      // We need to re-push the captured context
-      if (parentErrorBoundary) {
-        const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
-        const popProvider = PROVIDER.push(parentProvider);
-        try {
-          return render(root, unwrappedChild, marker);
-        } catch (error) {
-          parentErrorBoundary(error);
-          return undefined;
-        } finally {
-          popProvider();
-          popErrorBoundary();
+      root.appendChild(container.element);
+      effect(() => {
+        const unwrappedChild = unwrapRef(children);
+        // Since the effect may re-evaluate with losing context
+        // We need to re-push the captured context
+        if (parentErrorBoundary) {
+          const popErrorBoundary = ERROR_BOUNDARY.push(parentErrorBoundary);
+          const popProvider = PROVIDER.push(parentProvider);
+          try {
+            // container.rewrap();
+            return renderInternal(container.element, unwrappedChild);
+          } catch (error) {
+            parentErrorBoundary(error);
+            return undefined;
+          } finally {
+            // container.unwrap();
+            popProvider();
+            popErrorBoundary();
+          }
         }
-      }
-      return render(root, unwrappedChild, marker);
-    })
-  ));
+        // container.rewrap();
+        const cleanup = renderInternal(container.element, unwrappedChild);
+        // container.unwrap();
+        return cleanup;
+      });
+      return () => {
+        // container.rewrap();
+        root.removeChild(container.element);
+      };
+    });
+  }));
+}
+
+export function render(root: HTMLElement, element: VNode): () => void {
+  return renderInternal(root, element);
 }
 
 // Based on https://github.com/WebReflection/domtagger/blob/master/esm/sanitizer.js
