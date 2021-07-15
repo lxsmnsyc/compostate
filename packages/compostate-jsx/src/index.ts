@@ -12,9 +12,13 @@ export {
 export {
   c,
   Fragment,
+  Suspense,
 } from './core';
 export {
   render,
   renderToString,
 } from './render';
+export {
+  suspend,
+} from './suspense';
 export * from './types';
