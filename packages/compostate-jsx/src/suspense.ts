@@ -2,9 +2,14 @@ import { Resource } from 'compostate';
 import Context from './context';
 import { MOUNT } from './lifecycle';
 
-type SuspenseCapture = <T>(resource: Resource<T>) => void;
+export type SuspenseCapture = <T>(resource: Resource<T>) => void;
 
-export const SUSPENSE = new Context<SuspenseCapture | undefined>();
+export interface SuspenseData {
+  capture: SuspenseCapture;
+  parent?: SuspenseData;
+}
+
+export const SUSPENSE = new Context<SuspenseData | undefined>();
 
 export function suspend<T>(resource: Resource<T>): void {
   const mounting = MOUNT.getContext();
@@ -13,9 +18,9 @@ export function suspend<T>(resource: Resource<T>): void {
     throw new Error('Illegal suspend');
   }
 
-  const suspenseCapture = SUSPENSE.getContext();
+  const suspense = SUSPENSE.getContext();
 
-  if (suspenseCapture) {
-    suspenseCapture(resource);
+  if (suspense) {
+    suspense.capture(resource);
   }
 }
