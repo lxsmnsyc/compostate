@@ -1,46 +1,60 @@
 export default class VirtualFragment {
   public element: HTMLDivElement;
 
+  private marker: Comment;
+
   constructor() {
     this.element = document.createElement('div');
+    this.marker = document.createComment('');
   }
 
-  private orphans?: ChildNode[];
+  private startChild?: ChildNode | null;
 
-  private parentNode?: (Node & ParentNode);
+  private endChild?: ChildNode | null;
 
   unwrap(): void {
-    if (!this.element.parentNode) {
+    const parent = this.element.parentNode;
+    if (!parent) {
       return;
     }
+    // Capture focused element
     this.captureFocused(this.element);
-    this.orphans = [];
+
+    this.startChild = this.element.firstChild;
+    this.endChild = this.element.lastChild;
 
     while (this.element.firstChild) {
-      this.orphans.push(this.element.firstChild);
-      this.element.parentNode.insertBefore(this.element.firstChild, this.element);
+      parent.insertBefore(this.element.firstChild, this.element);
     }
 
-    this.parentNode = this.element.parentNode;
-    if (this.orphans.length) {
-      this.parentNode.removeChild(this.element);
+    if (this.startChild) {
+      parent.removeChild(this.element);
+    } else {
+      parent.replaceChild(this.marker, this.element);
     }
+
+    // Refocus
     this.restoreFocused();
   }
 
   rewrap(): void {
-    if (!(this.parentNode && this.parentNode.parentNode)) {
+    if (this.element.parentNode) {
       return;
     }
-    if (this.orphans?.length) {
-      this.parentNode.insertBefore(this.element, this.orphans[0]);
-      if (this.orphans[0].parentNode) {
-        this.captureFocused(this.orphans[0].parentNode);
-      }
-      while (true) {
-        const orphan = this.orphans.shift();
-        if (orphan) {
-          this.element.appendChild(orphan);
+    if (this.marker.parentNode) {
+      this.marker.parentNode.replaceChild(this.element, this.marker);
+      return;
+    }
+
+    let currentChild = this.startChild;
+
+    if (currentChild) {
+      currentChild.parentNode?.insertBefore(this.element, currentChild);
+
+      while (currentChild) {
+        this.element.appendChild(currentChild);
+        if (currentChild !== this.endChild) {
+          currentChild = currentChild.nextSibling;
         } else {
           break;
         }
