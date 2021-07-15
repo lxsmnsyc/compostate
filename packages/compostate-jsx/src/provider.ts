@@ -18,7 +18,7 @@ export function createProvider<T>(defaultValue: T): Provider<T> {
   };
 }
 
-interface ProviderData {
+export interface ProviderData {
   parent?: ProviderData;
   data: Record<string, any>;
 }

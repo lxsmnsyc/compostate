@@ -1,6 +1,7 @@
 import {
   Attributes,
   VComponent,
+  VConstructor,
   VNode,
 } from './src/types';
 import {
@@ -65,9 +66,8 @@ declare global {
       // interface?
       type Element = VNode;
     
-      interface ElementClass extends VComponent<any> {
-        //
-      }
+      // interface ?
+      type ElementClass = VConstructor;
     
       interface ElementAttributesProperty {
         props: any;
