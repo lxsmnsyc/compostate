@@ -62,20 +62,10 @@ export function c<P extends BaseProps<P>>(
   };
 }
 
-export function Fragment(props: WithChildren): VElement {
-  return c(1/* Fragment */, {
-    children: props.children,
-  });
-}
-
 export interface SuspenseProps {
   fallback: VNode;
   children?: VNode[];
 }
 
-export function Suspense(props: SuspenseProps): VElement {
-  return c(2/* Suspense */, {
-    fallback: props.fallback,
-    children: props.children,
-  });
-}
+export const Fragment: VFragment = 0x00000001;
+export const Suspense: VSuspense = 0x00000002;
