@@ -27,7 +27,10 @@
  */
 import Context from '../context';
 import LinkedWork from '../linked-work';
+import ErrorBoundary from './error-boundary';
 
 export const TRACKING = new Context<LinkedWork | undefined>();
 export const EFFECT = new Context<LinkedWork | undefined>();
-export const BATCHING = new Context<Set<LinkedWork> | undefined>();
+export const BATCH_UPDATES = new Context<Set<LinkedWork> | undefined>();
+export const BATCH_EFFECTS = new Context<Set<LinkedWork> | undefined>();
+export const ERROR = new Context<ErrorBoundary>();

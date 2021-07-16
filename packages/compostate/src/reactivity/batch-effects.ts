@@ -25,18 +25,21 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { BATCH_UPDATES } from './contexts';
+import { BATCH_EFFECTS } from './contexts';
 import LinkedWork from '../linked-work';
 
-export default function batch(callback: () => void): void {
+export default function batchEffects(callback: () => void): () => void {
   const batchedWork = new Set<LinkedWork>();
-  const popBatchUpdates = BATCH_UPDATES.push(batchedWork);
+  const popBatchEffects = BATCH_EFFECTS.push(batchedWork);
   try {
     callback();
   } finally {
-    popBatchUpdates();
+    popBatchEffects();
   }
-  batchedWork.forEach((work) => {
-    work.run();
-  });
+  return () => {
+    batchedWork.forEach((work) => {
+      work.run();
+    });
+    batchedWork.clear();
+  };
 }

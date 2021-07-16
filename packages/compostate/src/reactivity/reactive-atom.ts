@@ -26,13 +26,13 @@
  * @copyright Alexis Munsayac 2021
  */
 import LinkedWork from '../linked-work';
-import { BATCHING, TRACKING } from './contexts';
+import { BATCH_UPDATES, TRACKING } from './contexts';
 
 export default class ReactiveAtom {
   private work = new LinkedWork();
 
   notify(): void {
-    const batching = BATCHING.getContext();
+    const batching = BATCH_UPDATES.getContext();
     if (batching) {
       batching.add(this.work);
     } else {

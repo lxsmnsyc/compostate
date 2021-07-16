@@ -27,17 +27,35 @@
  */
 import LinkedWork from '../linked-work';
 import batch from './batch';
-import { TRACKING, EFFECT } from './contexts';
+import {
+  TRACKING,
+  EFFECT,
+  BATCH_EFFECTS,
+  ERROR,
+} from './contexts';
+import ErrorBoundary from './error-boundary';
 
 export type EffectCleanup = () => void;
 export type Effect = () => EffectCleanup | undefined | void;
 
 export default function effect(callback: Effect): EffectCleanup {
+  const parentError = ERROR.getContext();
+
+  const errorBoundary = new ErrorBoundary(parentError);
+
   let currentCleanup: EffectCleanup;
 
   const cleanupWork = new LinkedWork(() => {
     if (currentCleanup) {
-      currentCleanup();
+      try {
+        currentCleanup();
+      } catch (error) {
+        if (parentError) {
+          parentError.capture(error);
+        } else {
+          throw error;
+        }
+      }
     }
   });
 
@@ -46,6 +64,7 @@ export default function effect(callback: Effect): EffectCleanup {
     cleanupWork.clearDependents();
     const popTracking = TRACKING.push(revalidate);
     const popEffect = EFFECT.push(cleanupWork);
+    const popError = ERROR.push(errorBoundary);
     try {
       let newCleanup: ReturnType<Effect>;
 
@@ -60,13 +79,26 @@ export default function effect(callback: Effect): EffectCleanup {
         }
         revalidate.unlinkDependencies();
       };
+    } catch (error) {
+      if (parentError) {
+        parentError.capture(error);
+      } else {
+        throw error;
+      }
     } finally {
+      popError();
       popEffect();
       popTracking();
     }
   });
 
-  revalidate.run();
+  const batching = BATCH_EFFECTS.getContext();
+
+  if (batching) {
+    batching.add(revalidate);
+  } else {
+    revalidate.run();
+  }
 
   const currentEffect = EFFECT.getContext();
 

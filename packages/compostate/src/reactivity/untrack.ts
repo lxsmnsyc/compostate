@@ -25,17 +25,28 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { TRACKING, BATCHING, EFFECT } from './contexts';
+import {
+  TRACKING,
+  BATCH_EFFECTS,
+  EFFECT,
+  BATCH_UPDATES,
+  ERROR,
+} from './contexts';
+import { GLOBAL } from './on-error';
 
 export default function untrack<T>(callback: () => T): T {
   const popTracking = TRACKING.push(undefined);
-  const popBatching = BATCHING.push(undefined);
+  const popBatchEffects = BATCH_EFFECTS.push(undefined);
+  const popBatchUpdates = BATCH_UPDATES.push(undefined);
   const popEffect = EFFECT.push(undefined);
+  const popError = ERROR.push(GLOBAL);
   try {
     return callback();
   } finally {
+    popError();
     popEffect();
-    popBatching();
+    popBatchEffects();
+    popBatchUpdates();
     popTracking();
   }
 }

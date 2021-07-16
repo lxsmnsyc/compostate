@@ -26,7 +26,9 @@
  * @copyright Alexis Munsayac 2021
  */
 export { default as batch } from './reactivity/batch';
+export { default as batchEffects } from './reactivity/batch-effects';
 export { default as computed } from './reactivity/computed';
+export { default as debounce } from './reactivity/debounce';
 export { default as effect, Effect, EffectCleanup } from './reactivity/effect';
 export { default as reactive, isReactive } from './reactivity/reactive';
 export { default as readonly, isReadonly } from './reactivity/readonly';
@@ -34,5 +36,6 @@ export { default as ref, Ref } from './reactivity/ref';
 export { default as untrack } from './reactivity/untrack';
 export { default as track } from './reactivity/track';
 export { default as resource } from './reactivity/resource';
+export { default as onError } from './reactivity/on-error';
 
 export * from './reactivity/resource';
