@@ -1,5 +1,6 @@
 import {
   batch,
+  computed,
   effect,
   EffectCleanup,
   reactive,
@@ -10,7 +11,12 @@ import {
   untrack,
 } from 'compostate';
 import { SuspenseProps } from './core';
-import VirtualFragment from './fragment';
+import {
+  createMarker,
+  createText,
+  insert,
+  remove,
+} from './dom';
 import {
   ERROR_BOUNDARY,
   MOUNT,
@@ -45,21 +51,6 @@ function renderWithContext<T>(
   } finally {
     popContext();
   }
-}
-
-function renderWithContainer<T>(
-  container: VirtualFragment,
-  renderFn: () => T,
-): T {
-  return renderWithContext(
-    () => {
-      container.rewrap();
-      return () => {
-        container.unwrap();
-      };
-    },
-    renderFn,
-  );
 }
 
 interface Boundary {
@@ -102,6 +93,7 @@ function renderInternal(
   root: HTMLElement,
   children: VNode,
   marker: Node | null = null,
+  suspended: Ref<boolean> | boolean = false,
 ): EffectCleanup {
   // Re-capture current boundaries
   const parentErrorBoundary = ERROR_BOUNDARY.getContext();
@@ -111,9 +103,9 @@ function renderInternal(
   if (Array.isArray(children)) {
     return untrack(() => effect(() => {
       Array.from(children).forEach((child) => {
-        const childMarker = document.createComment('');
+        const childMarker = createMarker();
         effect(() => {
-          root.insertBefore(childMarker, marker);
+          insert(root, childMarker, marker);
 
           effect(() => (
             renderWithBoundaries(
@@ -122,24 +114,26 @@ function renderInternal(
                 provider: parentProvider,
                 suspense: parentSuspense,
               },
-              () => renderInternal(root, child, childMarker),
+              () => renderInternal(root, child, childMarker, suspended),
             )
           ));
 
           return () => {
-            root.removeChild(childMarker);
+            remove(childMarker);
           };
         });
       });
     }));
   }
   if (typeof children === 'string' || typeof children === 'number') {
-    const node = document.createTextNode(`${children}`);
+    const node = createText(`${children}`);
 
     return untrack(() => effect(() => {
-      root.insertBefore(node, marker);
+      if (!unwrapRef(suspended)) {
+        insert(root, node, marker);
+      }
       return () => {
-        root.removeChild(node);
+        remove(node);
       };
     }));
   }
@@ -254,10 +248,12 @@ function renderInternal(
           });
 
           effect(() => {
-            root.insertBefore(el, marker);
+            if (!unwrapRef(suspended)) {
+              insert(root, el, marker);
+            }
 
             return () => {
-              root.removeChild(el);
+              remove(el);
             };
           });
         } else if (typeof constructor === 'function') {
@@ -345,7 +341,7 @@ function renderInternal(
                 suspense: parentSuspense,
               },
               () => (
-                renderInternal(root, result, marker)
+                renderInternal(root, result, marker, suspended)
               ),
             )
           ));
@@ -399,7 +395,7 @@ function renderInternal(
                     provider: parentProvider,
                     suspense: parentSuspense,
                   },
-                  () => renderInternal(root, value, marker),
+                  () => renderInternal(root, value, marker, suspended),
                 )
               ));
             }
@@ -437,72 +433,49 @@ function renderInternal(
             capture,
           };
 
-          // Render fallback
-          const fallbackBranch = new VirtualFragment();
-          effect(() => {
-            const value = (newProps as SuspenseProps).fallback;
+          const fallbackBranch = createMarker();
+          const childrenBranch = createMarker();
 
-            if (value) {
-              return renderWithContainer(
-                fallbackBranch,
-                () => renderWithBoundaries(
+          effect(() => {
+            insert(root, fallbackBranch, marker);
+            insert(root, childrenBranch, marker);
+
+            // Render fallback
+            effect(() => {
+              const value = (newProps as SuspenseProps).fallback;
+
+              if (value) {
+                return renderWithBoundaries(
                   {
                     error: parentErrorBoundary,
                     provider: parentProvider,
                     suspense: parentSuspense,
                   },
-                  () => renderInternal(fallbackBranch.element, value),
-                ),
-              );
-            }
-            return undefined;
-          });
+                  () => renderInternal(root, value, fallbackBranch, computed(() => !suspend.value)),
+                );
+              }
+              return undefined;
+            });
 
-          // Render children
-          const childrenBranch = new VirtualFragment();
-          effect(() => {
-            const value = (newProps as SuspenseProps).children;
-            if (value != null) {
-              return renderWithContainer(
-                childrenBranch,
-                () => renderWithBoundaries(
+            // Render children
+            effect(() => {
+              const value = (newProps as SuspenseProps).children;
+              if (value != null) {
+                return renderWithBoundaries(
                   {
                     error: parentErrorBoundary,
                     provider: parentProvider,
                     suspense: currentSuspense,
                   },
-                  () => renderInternal(childrenBranch.element, value),
-                ),
-              );
-            }
-            return undefined;
-          });
-
-          const container = new VirtualFragment();
-
-          effect(() => {
-            root.insertBefore(container.element, marker);
-
-            effect(() => {
-              container.rewrap();
-              fallbackBranch.rewrap();
-              childrenBranch.rewrap();
-              const newChild = suspend.value ? fallbackBranch : childrenBranch;
-              const oldChild = suspend.value ? childrenBranch : fallbackBranch;
-              if (container.element === oldChild.element.parentNode) {
-                container.element.replaceChild(newChild.element, oldChild.element);
-              } else {
-                container.element.appendChild(newChild.element);
+                  () => renderInternal(root, value, childrenBranch, suspend),
+                );
               }
-              container.unwrap();
-              // newChild.unwrap();
+              return undefined;
             });
 
             return () => {
-              fallbackBranch.rewrap();
-              childrenBranch.rewrap();
-              container.rewrap();
-              root.removeChild(container.element);
+              remove(fallbackBranch);
+              remove(childrenBranch);
             };
           });
         }
@@ -520,7 +493,7 @@ function renderInternal(
           suspense: parentSuspense,
         },
         () => (
-          renderInternal(root, unwrappedChild, marker)
+          renderInternal(root, unwrappedChild, marker, suspended)
         ),
       );
     })
