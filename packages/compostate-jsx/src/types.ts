@@ -52,12 +52,16 @@ export interface VComponent<P> {
   props?: Reactive<P>;
 }
 
-export type VFragment = 0x00000001;
-export type VSuspense = 0x00000002;
+export type VFragment = 1;
+export type VSuspense = 2;
+export type VOffscreen = 3;
+export type VPortal = 4;
 
 export type VSpecialConstructor =
   | VFragment
-  | VSuspense;
+  | VSuspense
+  | VOffscreen
+  | VPortal;
 
 export type VConstructor<P extends Record<string, any> = Record<string, any>> =
   | ShallowReactive<string

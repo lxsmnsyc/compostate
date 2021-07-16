@@ -1,5 +1,3 @@
-import Context from './context';
-
 export type ErrorCapture = (error: Error) => void;
 
 export default class ErrorBoundary {
@@ -39,5 +37,3 @@ export default class ErrorBoundary {
     }
   }
 }
-
-export const ERROR_BOUNDARY = new Context<ErrorBoundary | undefined>();

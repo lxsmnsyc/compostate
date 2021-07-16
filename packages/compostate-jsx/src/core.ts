@@ -10,6 +10,8 @@ import {
   VConstructor,
   ShallowReactive,
   VSuspense,
+  VPortal,
+  VOffscreen,
 } from './types';
 import { DOMAttributes } from './types/dom';
 import { HTMLAttributes, CompostateHTML } from './types/html';
@@ -40,6 +42,16 @@ export function c(
   props: Reactive<Attributes & SuspenseProps>,
   ...children: VNode[]
 ): VElement;
+export function c(
+  type: ShallowReactive<VOffscreen>,
+  props: Reactive<Attributes & OffscreenProps>,
+  ...children: VNode[]
+): VElement;
+export function c(
+  type: ShallowReactive<VPortal>,
+  props: Reactive<Attributes & PortalProps>,
+  ...children: VNode[]
+): VElement;
 export function c<P>(
   type: ShallowReactive<VComponent<P>>,
   props: Reactive<Attributes & P>,
@@ -67,5 +79,17 @@ export interface SuspenseProps {
   children?: VNode[];
 }
 
-export const Fragment: VFragment = 0x00000001;
-export const Suspense: VSuspense = 0x00000002;
+export interface PortalProps {
+  target: HTMLElement;
+  children?: VNode[];
+}
+
+export interface OffscreenProps {
+  mount?: boolean;
+  children?: VNode[];
+}
+
+export const Fragment: VFragment = 1;
+export const Suspense: VSuspense = 2;
+export const Offscreen: VOffscreen = 3;
+export const Portal: VPortal = 4;

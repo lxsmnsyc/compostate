@@ -14,6 +14,10 @@ import {
 } from 'compostate';
 import {
   Fragment,
+  Offscreen,
+  OffscreenProps,
+  Portal,
+  PortalProps,
   Suspense,
   SuspenseProps,
 } from './core';
@@ -25,7 +29,7 @@ import {
   remove,
   setAttribute,
 } from './dom';
-import ErrorBoundary, { ERROR_BOUNDARY } from './error-boundary';
+import ErrorBoundary from './error-boundary';
 import {
   ERROR,
   MOUNT,
@@ -47,44 +51,6 @@ function unwrapRef<T>(baseRef: T | Ref<T>): T {
   return baseRef;
 }
 
-function renderWithContext<T>(
-  pushContext: () => EffectCleanup,
-  renderFn: () => T,
-): T {
-  const popContext = pushContext();
-  try {
-    return renderFn();
-  } finally {
-    popContext();
-  }
-}
-
-interface Boundary {
-  error?: ErrorBoundary;
-  suspense?: SuspenseData;
-  provider?: ProviderData;
-}
-
-function renderWithBoundaries<T>(
-  boundary: Boundary,
-  renderFn: () => T,
-): T | undefined {
-  return renderWithContext(
-    () => {
-      const popError = ERROR_BOUNDARY.push(boundary.error);
-      const popProvider = PROVIDER.push(boundary.provider);
-      const popSuspense = SUSPENSE.push(boundary.suspense);
-
-      return () => {
-        popError();
-        popSuspense();
-        popProvider();
-      };
-    },
-    renderFn,
-  );
-}
-
 function handleError(boundary: ErrorBoundary | undefined, error: Error): void {
   if (boundary) {
     boundary.capture(error);
@@ -99,21 +65,23 @@ function setupErrorBoundary(boundary?: ErrorBoundary): void {
   });
 }
 
+interface Boundary {
+  error?: ErrorBoundary;
+  suspense?: SuspenseData;
+  provider?: ProviderData;
+}
+
 function renderInternal(
+  boundary: Boundary,
   root: HTMLElement,
   children: VNode,
   marker: Node | null = null,
   suspended: Ref<boolean> | boolean = false,
 ): EffectCleanup {
-  // Re-capture current boundaries
-  const parentErrorBoundary = ERROR_BOUNDARY.getContext();
-  const parentProvider = PROVIDER.getContext();
-  const parentSuspense = SUSPENSE.getContext();
-
   if (Array.isArray(children)) {
     return untrack(() => effect(() => {
       // Bridge error boundary across untrack
-      setupErrorBoundary(parentErrorBoundary);
+      setupErrorBoundary(boundary.error);
 
       Array.from(children).forEach((child) => {
         // Create a marker for each child
@@ -124,14 +92,7 @@ function renderInternal(
 
           // Render the child
           effect(() => (
-            renderWithBoundaries(
-              {
-                error: parentErrorBoundary,
-                provider: parentProvider,
-                suspense: parentSuspense,
-              },
-              () => renderInternal(root, child, childMarker, suspended),
-            )
+            renderInternal(boundary, root, child, childMarker, suspended)
           ));
 
           return () => {
@@ -160,7 +121,7 @@ function renderInternal(
     return untrack(() => effect(() => {
       // Setup parent error boundary
       // because of untrack scope
-      setupErrorBoundary(parentErrorBoundary);
+      setupErrorBoundary(boundary.error);
 
       effect(() => {
         // Unwrap constructor (useful if constructor is reactively changed).
@@ -191,17 +152,10 @@ function renderInternal(
                   const value = (newProps as WithChildren).children;
 
                   if (value != null) {
-                    return renderWithBoundaries(
-                      {
-                        error: parentErrorBoundary,
-                        provider: parentProvider,
-                        suspense: parentSuspense,
-                      },
-                      // We don't have to suspend here
-                      // since the element itself isn't
-                      // rendered yet.
-                      () => renderInternal(el, value),
-                    );
+                    // We don't have to suspend here
+                    // since the element itself isn't
+                    // rendered yet.
+                    return renderInternal(boundary, el, value);
                   }
                   return undefined;
                 });
@@ -220,7 +174,7 @@ function renderInternal(
                             (property as EventListener)(evt);
                           });
                         } catch (error) {
-                          handleError(parentErrorBoundary, error);
+                          handleError(boundary.error, error);
                         }
                       });
                     };
@@ -281,12 +235,12 @@ function renderInternal(
 
           // Create an error boundary and link
           // the parent error boundary
-          const errorBoundary = new ErrorBoundary(parentErrorBoundary);
+          const errorBoundary = new ErrorBoundary(boundary.error);
 
           // Create a provider boundary
           const provider = {
             data: reactive({}),
-            parent: parentProvider,
+            parent: boundary.provider,
           };
 
           let result: VNode;
@@ -296,16 +250,18 @@ function renderInternal(
           // actually gets committed.
           // This is useful in SSR so that effects
           // never run and only run on client-side.
-          const flushEffects = batchEffects(() => {
-            result = renderWithBoundaries(
-              {
-                error: parentErrorBoundary,
-                suspense: parentSuspense,
-                provider,
-              },
-              () => constructor(unwrappedProps),
-            );
-          });
+          const flushEffects = untrack(() => (
+            batchEffects(() => {
+              const popSuspense = SUSPENSE.push(boundary.suspense);
+              const popProvider = PROVIDER.push(boundary.provider);
+              try {
+                result = constructor(unwrappedProps);
+              } finally {
+                popSuspense();
+                popProvider();
+              }
+            })
+          ));
 
           // Get all captured lifecycle callbacks
           const mounts = popMount();
@@ -326,18 +282,15 @@ function renderInternal(
           effect(() => {
             setupErrorBoundary(errorBoundary);
 
+            const newBoundary = {
+              suspense: boundary.suspense,
+              error: errorBoundary,
+              provider,
+            };
+
             // Render constructor result
             effect(() => (
-              renderWithBoundaries(
-                {
-                  error: errorBoundary,
-                  provider,
-                  suspense: parentSuspense,
-                },
-                () => (
-                  renderInternal(root, result, marker, suspended)
-                ),
-              )
+              renderInternal(newBoundary, root, result, marker, suspended)
             ));
 
             // Run lifecycles
@@ -372,14 +325,7 @@ function renderInternal(
             const value = (newProps as WithChildren).children;
             if (value != null) {
               effect(() => (
-                renderWithBoundaries(
-                  {
-                    error: parentErrorBoundary,
-                    provider: parentProvider,
-                    suspense: parentSuspense,
-                  },
-                  () => renderInternal(root, value, marker, suspended),
-                )
+                renderInternal(boundary, root, value, marker, suspended)
               ));
             }
           });
@@ -419,7 +365,7 @@ function renderInternal(
           };
 
           const currentSuspense = {
-            parent: parentSuspense,
+            parent: boundary.suspense,
             capture,
           };
 
@@ -438,22 +384,16 @@ function renderInternal(
               const value = (newProps as SuspenseProps).fallback;
 
               if (value) {
-                return renderWithBoundaries(
-                  {
-                    error: parentErrorBoundary,
-                    provider: parentProvider,
-                    suspense: parentSuspense,
-                  },
-                  () => renderInternal(
-                    root,
-                    value,
-                    fallbackBranch,
-                    // Since the fallback branch
-                    // only renders when suspended
-                    // We make sure to flip the value
-                    // to consider DOM elements
-                    computed(() => !suspend.value),
-                  ),
+                return renderInternal(
+                  boundary,
+                  root,
+                  value,
+                  fallbackBranch,
+                  // Since the fallback branch
+                  // only renders when suspended
+                  // We make sure to flip the value
+                  // to consider DOM elements
+                  computed(() => !suspend.value),
                 );
               }
               return undefined;
@@ -463,19 +403,16 @@ function renderInternal(
             effect(() => {
               const value = (newProps as SuspenseProps).children;
               if (value != null) {
-                return renderWithBoundaries(
+                return renderInternal(
                   {
-                    error: parentErrorBoundary,
-                    provider: parentProvider,
+                    ...boundary,
                     suspense: currentSuspense,
                   },
-                  () => renderInternal(
-                    root,
-                    value,
-                    childrenBranch,
-                    // Forward the suspend state
-                    suspend,
-                  ),
+                  root,
+                  value,
+                  childrenBranch,
+                  // Forward the suspend state
+                  suspend,
                 );
               }
               return undefined;
@@ -486,6 +423,45 @@ function renderInternal(
               remove(childrenBranch);
             };
           });
+        } else if (constructor === Offscreen) {
+          const offscreenMarker = createMarker();
+
+          const suspend = computed(() => (
+            !unwrapRef((newProps as OffscreenProps).mount)
+          ));
+
+          effect(() => {
+            insert(root, offscreenMarker, marker);
+
+            effect(() => {
+              const value = (newProps as SuspenseProps).children;
+              if (value != null) {
+                return renderInternal(
+                  boundary,
+                  root,
+                  value,
+                  offscreenMarker,
+                  // Forward the suspend state
+                  suspend,
+                );
+              }
+              return undefined;
+            });
+
+            return () => {
+              remove(offscreenMarker);
+            };
+          });
+        } else if (constructor === Portal) {
+          effect(() => {
+            const portalRoot = unwrapRef((newProps as PortalProps).target);
+            const value = (newProps as PortalProps).children;
+            if (value != null) {
+              effect(() => (
+                renderInternal(boundary, portalRoot, value, marker, suspended)
+              ));
+            }
+          });
         }
       });
     }));
@@ -494,28 +470,19 @@ function renderInternal(
   // Reactive VNode
   return untrack(() => (
     effect(() => {
-      setupErrorBoundary(parentErrorBoundary);
+      setupErrorBoundary(boundary.error);
       // Track the VNode
       const unwrappedChild = unwrapRef(children);
 
       effect(() => (
-        renderWithBoundaries(
-          {
-            error: parentErrorBoundary,
-            provider: parentProvider,
-            suspense: parentSuspense,
-          },
-          () => (
-            renderInternal(root, unwrappedChild, marker, suspended)
-          ),
-        )
+        renderInternal(boundary, root, unwrappedChild, marker, suspended)
       ));
     })
   ));
 }
 
 export function render(root: HTMLElement, element: VNode): () => void {
-  return renderInternal(root, element);
+  return renderInternal({}, root, element);
 }
 
 // Based on https://github.com/WebReflection/domtagger/blob/master/esm/sanitizer.js
