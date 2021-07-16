@@ -3,17 +3,14 @@
 import {
   c,
   Fragment,
-  Suspense,
   render,
-  suspend,
-  onEffect,
 } from 'compostate-jsx';
 import {
   computed,
   track,
   reactive,
   ref,
-  resource,
+  effect,
 } from 'compostate';
 
 import './style.css';
@@ -30,7 +27,7 @@ interface TodoListItemProps {
   item: TodoItem;
 }
 
-function TodoListItemInternal(props: TodoListItemProps) {
+function TodoListItem(props: TodoListItemProps) {
   const { item } = props;
   function onToggle() {
     item.done = !item.done;
@@ -65,50 +62,6 @@ function TodoListItemInternal(props: TodoListItemProps) {
         </button>
       </div>
     </div>
-  );
-}
-
-const sleep = (value: number) => new Promise((resolve) => {
-  setTimeout(resolve, value, true);
-});
-
-function TodoListItemLoading() {
-  return (
-    <div
-      className="todo-item loading"
-    >
-      <div className="todo-item-content">
-        Loading...
-      </div>
-      <div className="todo-item-actions">
-        <button className="todo-item-toggle" disabled>
-          Pending
-        </button>
-        <button className="todo-item-delete" disabled>
-          Delete
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function TodoListItem(props: TodoListItemProps) {
-  const delayedProps = resource(async () => {
-    const value = props.item;
-    await sleep(3000);
-    return value;
-  });
-
-  suspend(delayedProps);
-
-  return (
-    <>
-      {computed(() => (
-        delayedProps.status === 'success'
-          ? <TodoListItemInternal item={delayedProps.value} />
-          : <TodoListItemLoading />
-      ))}
-    </>
   );
 }
 
@@ -156,11 +109,9 @@ function TodoList() {
       <TodoListForm />
       <div className="todo-list">
         {computed(() => track(list).map((item) => (
-          <Suspense fallback={<TodoListItemLoading />}>
-            <TodoListItem
-              item={computed(() => item)}
-            />
-          </Suspense>
+          <TodoListItem
+            item={item}
+          />
         )))}
       </div>
     </>
