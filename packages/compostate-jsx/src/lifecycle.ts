@@ -1,12 +1,10 @@
-import { Effect } from 'compostate';
 import Context from './context';
+import { ErrorCapture } from './error-boundary';
 
 export type Lifecycle = () => void;
-export type ErrorCapture = (error: Error) => void;
 
 export const MOUNT = new Context<Lifecycle[]>();
 export const UNMOUNT = new Context<Lifecycle[]>();
-export const EFFECT = new Context<Effect[]>();
 export const ERROR = new Context<ErrorCapture[]>();
 
 export function onMount(callback: () => void): void {
@@ -29,16 +27,6 @@ export function onUnmount(callback: () => void): void {
   }
 }
 
-export function onEffect(callback: Effect): void {
-  const current = EFFECT.getContext();
-
-  if (current) {
-    current.push(callback);
-  } else {
-    throw new Error('Invalid onEffect');
-  }
-}
-
 export function onError(callback: ErrorCapture): void {
   const current = ERROR.getContext();
 
@@ -48,5 +36,3 @@ export function onError(callback: ErrorCapture): void {
     throw new Error('Invalid onError');
   }
 }
-
-export const ERROR_BOUNDARY = new Context<ErrorCapture>();
