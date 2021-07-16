@@ -15,7 +15,9 @@ import {
   createMarker,
   createText,
   insert,
+  registerEvent,
   remove,
+  setAttribute,
 } from './dom';
 import {
   ERROR_BOUNDARY,
@@ -185,62 +187,29 @@ function renderInternal(
 
                   // Event Handlers
                   if (key.startsWith('on')) {
-                    effect(() => {
-                      // Extract event name
-                      const event = key.substring(2).toLowerCase();
-                      // Check if event name ends with 'capture'
-                      const capture = event.endsWith('capture');
-                      // Capture actual DOM event
-                      const actualEvent = event.substring(
-                        0,
-                        event.length - (capture ? 7 : 0),
-                      );
-
-                      const wrappedEvent = <E extends Event>(evt: E) => {
-                        // In case of synchronous calls
-                        untrack(() => {
-                          // Allow update batching
-                          try {
-                            batch(() => {
-                              (property as EventListener)(evt);
-                            });
-                          } catch (error) {
-                            if (parentErrorBoundary) {
-                              parentErrorBoundary(error);
-                            } else {
-                              throw error;
-                            }
+                    const wrappedEvent = <E extends Event>(evt: E) => {
+                      // In case of synchronous calls
+                      untrack(() => {
+                        // Allow update batching
+                        try {
+                          batch(() => {
+                            (property as EventListener)(evt);
+                          });
+                        } catch (error) {
+                          if (parentErrorBoundary) {
+                            parentErrorBoundary(error);
+                          } else {
+                            throw error;
                           }
-                        });
-                      };
-
-                      // Register
-                      el.addEventListener(actualEvent, wrappedEvent, {
-                        capture,
+                        }
                       });
-                      // Unregister
-                      return () => {
-                        el.removeEventListener(actualEvent, wrappedEvent, {
-                          capture,
-                        });
-                      };
-                    });
-                  } else if (key === 'className') {
-                    el.setAttribute('class', property);
-                  } else if (key === 'textContent') {
-                    el.textContent = property as string;
-                  } else if (key === 'innerHTML') {
-                    el.innerHTML = property as string;
+                    };
+
+                    effect(() => registerEvent(el, key, wrappedEvent));
                   } else if (key === 'style') {
                     // TODO Style Object parsing
-                  } else if (key === 'value') {
-                    (el as HTMLInputElement).value = property;
-                  } else if (typeof property === 'string' || typeof property === 'number') {
-                    el.setAttribute(key, `${property}`);
-                  } else if (property) {
-                    el.setAttribute(key, '');
                   } else {
-                    el.removeAttribute(key);
+                    setAttribute(el, key, property);
                   }
                 });
               }
