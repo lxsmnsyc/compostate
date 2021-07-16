@@ -208,6 +208,8 @@ function renderInternal(
                     effect(() => registerEvent(el, key, wrappedEvent));
                   } else if (key === 'style') {
                     // TODO Style Object parsing
+                  } else if (typeof property === 'boolean') {
+                    setAttribute(el, key, property ? '' : null);
                   } else {
                     setAttribute(el, key, property);
                   }
