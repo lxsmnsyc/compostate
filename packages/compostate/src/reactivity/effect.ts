@@ -65,6 +65,7 @@ export default function effect(callback: Effect): EffectCleanup {
     const popTracking = TRACKING.push(revalidate);
     const popEffect = EFFECT.push(cleanupWork);
     const popError = ERROR.push(errorBoundary);
+    const popBatchEffects = BATCH_EFFECTS.push(undefined);
     try {
       let newCleanup: ReturnType<Effect>;
 
@@ -86,24 +87,29 @@ export default function effect(callback: Effect): EffectCleanup {
         throw error;
       }
     } finally {
+      popBatchEffects();
       popError();
       popEffect();
       popTracking();
     }
   });
 
+  const flush = new LinkedWork(() => {
+    revalidate.run();
+
+    const currentEffect = EFFECT.getContext();
+
+    if (currentEffect) {
+      currentEffect.addDependent(cleanupWork);
+    }
+  });
+
   const batching = BATCH_EFFECTS.getContext();
 
   if (batching) {
-    batching.add(revalidate);
+    batching.add(flush);
   } else {
-    revalidate.run();
-  }
-
-  const currentEffect = EFFECT.getContext();
-
-  if (currentEffect) {
-    currentEffect.addDependent(cleanupWork);
+    flush.run();
   }
 
   return () => {
