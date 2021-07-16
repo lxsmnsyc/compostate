@@ -1,4 +1,4 @@
-export type ErrorCapture = <T>(error: T) => void;
+export type ErrorCapture = (error: Error) => void;
 
 export default class ErrorBoundary {
   private collection = new Set<ErrorCapture>();
@@ -16,7 +16,7 @@ export default class ErrorBoundary {
     };
   }
 
-  capture<T>(error: T): void {
+  capture(error: Error): void {
     if (this.collection.size) {
       try {
         new Set(this.collection).forEach((capture) => {
