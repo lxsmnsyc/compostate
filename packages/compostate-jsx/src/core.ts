@@ -12,6 +12,7 @@ import {
   VSuspense,
   VPortal,
   VOffscreen,
+  VFor,
 } from './types';
 import { DOMAttributes } from './types/dom';
 import { HTMLAttributes, CompostateHTML } from './types/html';
@@ -52,6 +53,11 @@ export function c(
   props: Reactive<Attributes & PortalProps>,
   ...children: VNode[]
 ): VElement;
+export function c<T>(
+  type: ShallowReactive<VFor>,
+  props: Reactive<Attributes & ForProps<T>>,
+  ...children: VNode[]
+): VElement;
 export function c<P>(
   type: ShallowReactive<VComponent<P>>,
   props: Reactive<Attributes & P>,
@@ -89,7 +95,13 @@ export interface OffscreenProps {
   children?: VNode[];
 }
 
+export interface ForProps<T> {
+  in: T[];
+  each: (item: T) => VNode;
+}
+
 export const Fragment: VFragment = 1;
 export const Suspense: VSuspense = 2;
 export const Offscreen: VOffscreen = 3;
 export const Portal: VPortal = 4;
+export const For: VFor = 5;

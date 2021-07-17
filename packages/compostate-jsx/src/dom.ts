@@ -1,3 +1,5 @@
+import { reactive } from 'compostate';
+
 /* eslint-disable no-param-reassign */
 export function insert(
   parent: Node,
@@ -19,8 +21,16 @@ export function createText(value: string): Node {
   return document.createTextNode(value);
 }
 
-export function createMarker(): Node {
-  return createText('');
+export interface Marker {
+  version: number;
+  node: Node;
+}
+
+export function createMarker(): Marker {
+  return reactive({
+    version: 0,
+    node: createText(''),
+  });
 }
 
 function setAttributeSafe(el: Element, attribute: string, value: string | null): void {

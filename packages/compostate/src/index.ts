@@ -37,5 +37,11 @@ export { default as untrack } from './reactivity/untrack';
 export { default as track } from './reactivity/track';
 export { default as resource } from './reactivity/resource';
 export { default as onError } from './reactivity/on-error';
-
+export {
+  mapByIndex,
+  mapByValue,
+} from './reactivity/array';
+export {
+  default as spread,
+} from './reactivity/spread';
 export * from './reactivity/resource';

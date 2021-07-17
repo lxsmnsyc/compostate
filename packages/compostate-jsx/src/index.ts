@@ -12,6 +12,9 @@ export {
   c,
   Fragment,
   Suspense,
+  Offscreen,
+  Portal,
+  For,
 } from './core';
 export {
   render,

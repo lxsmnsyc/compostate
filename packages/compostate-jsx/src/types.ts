@@ -56,12 +56,14 @@ export type VFragment = 1;
 export type VSuspense = 2;
 export type VOffscreen = 3;
 export type VPortal = 4;
+export type VFor = 5;
 
 export type VSpecialConstructor =
   | VFragment
   | VSuspense
   | VOffscreen
-  | VPortal;
+  | VPortal
+  | VFor;
 
 export type VConstructor<P extends Record<string, any> = Record<string, any>> =
   | ShallowReactive<string

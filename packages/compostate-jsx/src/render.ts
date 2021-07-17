@@ -1,9 +1,12 @@
+/* eslint-disable no-param-reassign */
 import {
   batch,
   batchEffects,
   computed,
   effect,
   EffectCleanup,
+  mapByIndex,
+  mapByValue,
   onError,
   reactive,
   ref,
@@ -13,6 +16,8 @@ import {
   untrack,
 } from 'compostate';
 import {
+  For,
+  ForProps,
   Fragment,
   Offscreen,
   OffscreenProps,
@@ -25,6 +30,7 @@ import {
   createMarker,
   createText,
   insert,
+  Marker,
   registerEvent,
   remove,
   setAttribute,
@@ -40,6 +46,7 @@ import { SUSPENSE, SuspenseData } from './suspense';
 import {
   Reactive,
   RefAttributes,
+  ShallowReactive,
   VNode,
   WithChildren,
 } from './types';
@@ -71,11 +78,65 @@ interface Boundary {
   provider?: ProviderData;
 }
 
+function watchMarkerForMarker(
+  root: HTMLElement,
+  parent: Marker | null,
+  child: Marker,
+): void {
+  let parentVersion: number | undefined;
+
+  effect(() => {
+    // Insert new marker before the parent marker
+    if (parent) {
+      if (parentVersion !== parent.version) {
+        parentVersion = parent.version;
+        insert(root, child.node, parent.node);
+        child.version += 1;
+      }
+    } else {
+      insert(root, child.node);
+    }
+
+    return () => {
+      remove(child.node);
+    };
+  });
+}
+
+function watchMarkerForNode(
+  root: HTMLElement,
+  parent: Marker | null,
+  child: Node,
+  suspended: Ref<boolean> | boolean = false,
+): void {
+  let parentVersion: number | undefined;
+
+  effect(() => {
+    // Do not insert node if the tree is suspended
+    if (!unwrapRef(suspended)) {
+      if (parent) {
+        // Check if the parent marker has changed position
+        if (parentVersion !== parent.version) {
+          // Move the child marker before the parent
+          insert(root, child, parent.node);
+        }
+      } else {
+        // No parent, just append child
+        insert(root, child);
+      }
+    }
+
+    return () => {
+      remove(child);
+    };
+  });
+}
+
 function renderInternal(
   boundary: Boundary,
   root: HTMLElement,
   children: VNode,
-  marker: Node | null = null,
+  marker: Marker | null = null,
   suspended: Ref<boolean> | boolean = false,
 ): EffectCleanup {
   if (Array.isArray(children)) {
@@ -86,33 +147,24 @@ function renderInternal(
       Array.from(children).forEach((child) => {
         // Create a marker for each child
         const childMarker = createMarker();
-        effect(() => {
-          // Insert new marker before the parent marker
-          insert(root, childMarker, marker);
 
-          // Render the child
-          effect(() => (
-            renderInternal(boundary, root, child, childMarker, suspended)
-          ));
+        watchMarkerForMarker(root, marker, childMarker);
 
-          return () => {
-            remove(childMarker);
-          };
-        });
+        // Render the child
+        effect(() => (
+          renderInternal(boundary, root, child, childMarker, suspended)
+        ));
       });
     }));
   }
   if (typeof children === 'string' || typeof children === 'number') {
     const node = createText(`${children}`);
 
-    return untrack(() => effect(() => {
-      if (!unwrapRef(suspended)) {
-        insert(root, node, marker);
-      }
-      return () => {
-        remove(node);
-      };
-    }));
+    return untrack(() => (
+      effect(() => {
+        watchMarkerForNode(root, marker, node, suspended);
+      })
+    ));
   }
   if (children == null || typeof children === 'boolean') {
     return () => { /* no-op */ };
@@ -193,17 +245,7 @@ function renderInternal(
           });
 
           effect(() => {
-            // If the element received a suspense ref
-            // we have to make sure that the element
-            // isn't inserted until the suspense boundary
-            // resolves
-            if (!unwrapRef(suspended)) {
-              insert(root, el, marker);
-            }
-
-            return () => {
-              remove(el);
-            };
+            watchMarkerForNode(root, marker, el, suspended);
           });
         } else if (typeof constructor === 'function') {
           // Create a reactive object form for the props
@@ -374,54 +416,46 @@ function renderInternal(
           const fallbackBranch = createMarker();
           const childrenBranch = createMarker();
 
+          watchMarkerForMarker(root, marker, fallbackBranch);
+          watchMarkerForMarker(root, marker, childrenBranch);
+
+          // Render fallback
           effect(() => {
-            // Mount both markers
-            insert(root, fallbackBranch, marker);
-            insert(root, childrenBranch, marker);
+            const value = (newProps as SuspenseProps).fallback;
 
-            // Render fallback
-            effect(() => {
-              const value = (newProps as SuspenseProps).fallback;
+            if (value) {
+              return renderInternal(
+                boundary,
+                root,
+                value,
+                fallbackBranch,
+                // Since the fallback branch
+                // only renders when suspended
+                // We make sure to flip the value
+                // to consider DOM elements
+                computed(() => !suspend.value),
+              );
+            }
+            return undefined;
+          });
 
-              if (value) {
-                return renderInternal(
-                  boundary,
-                  root,
-                  value,
-                  fallbackBranch,
-                  // Since the fallback branch
-                  // only renders when suspended
-                  // We make sure to flip the value
-                  // to consider DOM elements
-                  computed(() => !suspend.value),
-                );
-              }
-              return undefined;
-            });
-
-            // Render children
-            effect(() => {
-              const value = (newProps as SuspenseProps).children;
-              if (value != null) {
-                return renderInternal(
-                  {
-                    ...boundary,
-                    suspense: currentSuspense,
-                  },
-                  root,
-                  value,
-                  childrenBranch,
-                  // Forward the suspend state
-                  suspend,
-                );
-              }
-              return undefined;
-            });
-
-            return () => {
-              remove(fallbackBranch);
-              remove(childrenBranch);
-            };
+          // Render children
+          effect(() => {
+            const value = (newProps as SuspenseProps).children;
+            if (value != null) {
+              return renderInternal(
+                {
+                  ...boundary,
+                  suspense: currentSuspense,
+                },
+                root,
+                value,
+                childrenBranch,
+                // Forward the suspend state
+                suspend,
+              );
+            }
+            return undefined;
           });
         } else if (constructor === Offscreen) {
           const offscreenMarker = createMarker();
@@ -430,27 +464,21 @@ function renderInternal(
             !unwrapRef((newProps as OffscreenProps).mount)
           ));
 
+          watchMarkerForMarker(root, marker, offscreenMarker);
+
           effect(() => {
-            insert(root, offscreenMarker, marker);
-
-            effect(() => {
-              const value = (newProps as SuspenseProps).children;
-              if (value != null) {
-                return renderInternal(
-                  boundary,
-                  root,
-                  value,
-                  offscreenMarker,
-                  // Forward the suspend state
-                  suspend,
-                );
-              }
-              return undefined;
-            });
-
-            return () => {
-              remove(offscreenMarker);
-            };
+            const value = (newProps as SuspenseProps).children;
+            if (value != null) {
+              return renderInternal(
+                boundary,
+                root,
+                value,
+                offscreenMarker,
+                // Forward the suspend state
+                suspend,
+              );
+            }
+            return undefined;
           });
         } else if (constructor === Portal) {
           effect(() => {
@@ -461,6 +489,27 @@ function renderInternal(
                 renderInternal(boundary, portalRoot, value, marker, suspended)
               ));
             }
+          });
+        } else if (constructor === For) {
+          effect(() => {
+            const each = unwrapRef((newProps as ForProps<any>).each);
+            const inArray = unwrapRef((newProps as ForProps<any>).in);
+
+            const lifecycles = mapByIndex(inArray, (item) => (
+              renderInternal(
+                boundary,
+                root,
+                each(item),
+                marker,
+                suspended,
+              )
+            ));
+
+            effect(() => () => {
+              lifecycles.forEach((cleanup) => {
+                cleanup();
+              });
+            });
           });
         }
       });
