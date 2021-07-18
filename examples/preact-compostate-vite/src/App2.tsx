@@ -1,5 +1,5 @@
 import { defineComponent, onEffect } from 'preact-compostate';
-import { state } from 'compostate';
+import { ref } from 'compostate';
 
 interface CounterMessageProps {
   value: number;
@@ -15,7 +15,7 @@ const CounterMessage = defineComponent<CounterMessageProps>(({ value }) => {
 });
 
 const Counter = defineComponent(() => {
-  const count = state(() => 0);
+  const count = ref(0);
 
   function increment() {
     count.value += 1;

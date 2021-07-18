@@ -1,5 +1,5 @@
 import { defineComponent, onEffect } from 'react-compostate';
-import { state } from 'compostate';
+import { ref } from 'compostate';
 import React from 'react';
 
 interface CounterMessageProps {
@@ -16,7 +16,7 @@ const CounterMessage = defineComponent<CounterMessageProps>(({ value }) => {
 });
 
 const Counter = defineComponent(() => {
-  const count = state(() => 0);
+  const count = ref(0);
 
   function increment() {
     count.value += 1;

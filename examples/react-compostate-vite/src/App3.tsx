@@ -1,5 +1,5 @@
 import { onEffect, useCompostateSetup } from 'react-compostate';
-import { state } from 'compostate';
+import { ref } from 'compostate';
 import React from 'react';
 
 interface CounterMessageProps {
@@ -23,7 +23,7 @@ function CounterMessage(props: CounterMessageProps): JSX.Element {
 
 function Counter(): JSX.Element {
   const counter = useCompostateSetup(() => {
-    const count = state(() => 0);
+    const count = ref(0);
 
     onEffect(() => {
       console.log('Count: ', count.value);
