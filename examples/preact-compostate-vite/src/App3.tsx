@@ -6,13 +6,13 @@ interface CounterMessageProps {
 }
 
 function CounterMessage(props: CounterMessageProps): JSX.Element {
-  const { value } = useCompostateSetup(({ value: count }) => {
+  const { value } = useCompostateSetup((reactiveProps) => {
     onEffect(() => {
-      console.log('Count: ', count.value);
+      console.log('Count: ', reactiveProps.value);
     });
 
     return () => ({
-      value: count.value,
+      value: reactiveProps.value,
     });
   }, props);
   return (

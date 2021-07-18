@@ -5,12 +5,12 @@ interface CounterMessageProps {
   value: number;
 }
 
-const CounterMessage = defineComponent<CounterMessageProps>(({ value }) => {
+const CounterMessage = defineComponent<CounterMessageProps>((props) => {
   onEffect(() => {
-    console.log('Count: ', value.value);
+    console.log('Count: ', props.value);
   });
   return () => (
-    <h1>{`Count: ${value.value}`}</h1>
+    <h1>{`Count: ${props.value}`}</h1>
   );
 });
 
