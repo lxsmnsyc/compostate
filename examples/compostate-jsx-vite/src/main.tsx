@@ -11,6 +11,7 @@ import {
   track,
   reactive,
   ref,
+  effect,
 } from 'compostate';
 
 import './style.css';
@@ -65,6 +66,8 @@ function TodoListItem(props: TodoListItemProps) {
   );
 }
 
+let index = 0;
+
 function TodoListForm() {
   const message = ref('');
 
@@ -75,10 +78,10 @@ function TodoListForm() {
       reactive<TodoItem>({
         done: false,
         message: message.value,
-        id: list.length,
+        id: index,
       }),
     );
-
+    index += 1;
     message.value = '';
   }
 
