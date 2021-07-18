@@ -1,5 +1,5 @@
 {
-  "version": "0.0.0",
+  "version": "0.2.0",
   "name": "compostate-jsx-vite",
   "license": "MIT",
   "scripts": {
@@ -8,8 +8,8 @@
     "serve": "vite preview"
   },
   "dependencies": {
-    "compostate": "0.1.1",
-    "compostate-jsx": "0.1.1",
+    "compostate": "0.2.0",
+    "compostate-jsx": "0.2.0",
     "lit-html": "^1.4.1"
   },
   "devDependencies": {
