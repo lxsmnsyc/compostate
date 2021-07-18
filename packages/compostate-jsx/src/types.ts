@@ -11,7 +11,7 @@ export type VChild = VElement | VText;
 export type VNode = VChild | VNull | VNode[] | Ref<VNode> | VElement;
 
 export interface Attributes {
-  // empty
+  // no-op
 }
 
 export interface RefAttributes<T> extends Attributes {

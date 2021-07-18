@@ -26,8 +26,13 @@ export interface Marker {
   node: Node;
 }
 
+let id = 0;
+
 export function createMarker(): Marker {
+  const newID = id;
+  id += 1;
   return reactive({
+    id: newID,
     version: 0,
     node: createText(''),
   });

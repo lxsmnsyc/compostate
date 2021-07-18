@@ -5,8 +5,6 @@ import {
   computed,
   effect,
   EffectCleanup,
-  mapByIndex,
-  mapByValue,
   onError,
   reactive,
   ref,
@@ -26,6 +24,7 @@ import {
   Suspense,
   SuspenseProps,
 } from './core';
+import diff from './diff';
 import {
   createMarker,
   createText,
@@ -80,17 +79,23 @@ interface Boundary {
 
 function watchMarkerForMarker(
   root: HTMLElement,
-  parent: Marker | null,
+  parent: ShallowReactive<Marker | null>,
   child: Marker,
 ): void {
   let parentVersion: number | undefined;
+  let previousParent: Marker | null = null;
 
   effect(() => {
     // Insert new marker before the parent marker
-    if (parent) {
-      if (parentVersion !== parent.version) {
-        parentVersion = parent.version;
-        insert(root, child.node, parent.node);
+    const actualParent = unwrapRef(parent);
+    if (actualParent !== previousParent) {
+      parentVersion = undefined;
+      previousParent = actualParent;
+    }
+    if (actualParent) {
+      if (parentVersion !== actualParent.version) {
+        parentVersion = actualParent.version;
+        insert(root, child.node, actualParent.node);
         child.version += 1;
       }
     } else {
@@ -105,20 +110,26 @@ function watchMarkerForMarker(
 
 function watchMarkerForNode(
   root: HTMLElement,
-  parent: Marker | null,
+  parent: ShallowReactive<Marker | null>,
   child: Node,
   suspended: Ref<boolean> | boolean = false,
 ): void {
   let parentVersion: number | undefined;
+  let previousParent: Marker | null = null;
 
   effect(() => {
     // Do not insert node if the tree is suspended
+    const actualParent = unwrapRef(parent);
+    if (actualParent !== previousParent) {
+      parentVersion = undefined;
+      previousParent = actualParent;
+    }
     if (!unwrapRef(suspended)) {
-      if (parent) {
+      if (actualParent) {
         // Check if the parent marker has changed position
-        if (parentVersion !== parent.version) {
-          // Move the child marker before the parent
-          insert(root, child, parent.node);
+        if (parentVersion !== actualParent.version) {
+          parentVersion = actualParent.version;
+          insert(root, child, actualParent.node);
         }
       } else {
         // No parent, just append child
@@ -136,7 +147,7 @@ function renderInternal(
   boundary: Boundary,
   root: HTMLElement,
   children: VNode,
-  marker: Marker | null = null,
+  marker: ShallowReactive<Marker | null> = null,
   suspended: Ref<boolean> | boolean = false,
 ): EffectCleanup {
   if (Array.isArray(children)) {
@@ -363,14 +374,15 @@ function renderInternal(
           });
         } else if (constructor === Fragment) {
           // Fragment renderer
-          effect(() => {
-            const value = (newProps as WithChildren).children;
-            if (value != null) {
-              effect(() => (
-                renderInternal(boundary, root, value, marker, suspended)
-              ));
-            }
-          });
+          effect(() => (
+            renderInternal(
+              boundary,
+              root,
+              (newProps as WithChildren).children,
+              marker,
+              suspended,
+            )
+          ));
         } else if (constructor === Suspense) {
           // Suspense
           const suspend = ref(false);
@@ -466,49 +478,140 @@ function renderInternal(
 
           watchMarkerForMarker(root, marker, offscreenMarker);
 
-          effect(() => {
-            const value = (newProps as SuspenseProps).children;
-            if (value != null) {
-              return renderInternal(
-                boundary,
-                root,
-                value,
-                offscreenMarker,
-                // Forward the suspend state
-                suspend,
-              );
-            }
-            return undefined;
-          });
+          effect(() => (
+            renderInternal(
+              boundary,
+              root,
+              (newProps as SuspenseProps).children,
+              offscreenMarker,
+              // Forward the suspend state
+              suspend,
+            )
+          ));
         } else if (constructor === Portal) {
-          effect(() => {
-            const portalRoot = unwrapRef((newProps as PortalProps).target);
-            const value = (newProps as PortalProps).children;
-            if (value != null) {
-              effect(() => (
-                renderInternal(boundary, portalRoot, value, marker, suspended)
-              ));
-            }
-          });
+          effect(() => (
+            renderInternal(
+              boundary,
+              unwrapRef((newProps as PortalProps).target),
+              (newProps as PortalProps).children,
+              marker,
+              suspended,
+            )
+          ));
         } else if (constructor === For) {
+          // The memoized array based on the source array
+          const memory = reactive<any[]>([]);
+          // The lifecycles of children
+          const lifecycles: EffectCleanup[] = [];
+          // Markers for the child position
+          const markers: Marker[] = [];
+          // Lifecycles of markers
+          const markersLifecycle: EffectCleanup[] = [];
+          // The position for memoized children lifecycle
+          const position: Ref<number>[] = [];
+
           effect(() => {
-            const each = unwrapRef((newProps as ForProps<any>).each);
-            const inArray = unwrapRef((newProps as ForProps<any>).in);
+            // Track the given array
+            const tracked = track(unwrapRef((newProps as ForProps<any>).in));
 
-            const lifecycles = mapByIndex(inArray, (item) => (
-              renderInternal(
-                boundary,
-                root,
-                each(item),
-                marker,
-                suspended,
-              )
-            ));
+            // Expand markers if the tracked array has suffix inserts
+            untrack(() => {
+              for (let i = tracked.length; i < markers.length; i += 1) {
+                markersLifecycle[i]();
+                delete markers[i];
+              }
+              for (let i = markers.length; i < tracked.length; i += 1) {
+                markers[i] = createMarker();
+                markersLifecycle[i] = untrack(() => (
+                  effect(() => {
+                    watchMarkerForMarker(root, marker, markers[i]);
+                  })
+                ));
+              }
+            });
+            // Untrack for un-intended tracking
+            untrack(() => {
+              // Perform Myers diff on the tracked array
+              const difference = diff(memory, tracked);
 
-            effect(() => () => {
-              lifecycles.forEach((cleanup) => {
-                cleanup();
+              batch(() => {
+                let memoryIndex = 0;
+                let trackedIndex = 0;
+
+                const nextItem = () => {
+                  // Update the position of the moved item
+                  // This could happen when insert or delete
+                  // operations are added between noop
+                  position[memoryIndex].value = trackedIndex;
+                  memoryIndex += 1;
+                  trackedIndex += 1;
+                };
+
+                const deleteItem = () => {
+                  // Splicing ensures that the
+                  // array shifts
+                  memory.splice(memoryIndex, 1);
+                  position.splice(memoryIndex, 1);
+                  // Clean the lifecycle
+                  lifecycles[memoryIndex]();
+                  lifecycles.splice(memoryIndex, 1);
+                };
+
+                const insertItem = () => {
+                  memory.splice(memoryIndex, 0, tracked[trackedIndex]);
+                  // Create a reference position for the mounting child
+                  const newPosition = ref(trackedIndex);
+                  position.splice(memoryIndex, 0, newPosition);
+                  lifecycles.splice(memoryIndex, 0, untrack(() => (
+                    effect(() => (
+                      renderInternal(
+                        boundary,
+                        root,
+                        // Reactively track changes
+                        // on the produced children
+                        computed(() => (
+                          unwrapRef((newProps as ForProps<any>).each)(
+                            untrack(() => tracked[trackedIndex]),
+                          )
+                        )),
+                        // Track marker positions
+                        computed(() => markers[newPosition.value]),
+                        suspended,
+                      )
+                    ))
+                  )));
+                  nextItem();
+                };
+
+                difference.forEach((operation) => {
+                  switch (operation) {
+                    case 'replace':
+                      deleteItem();
+                      insertItem();
+                      break;
+                    case 'noop':
+                      nextItem();
+                      break;
+                    case 'delete':
+                      deleteItem();
+                      break;
+                    case 'insert':
+                      insertItem();
+                      break;
+                    default:
+                      break;
+                  }
+                });
               });
+            });
+          });
+
+          effect(() => () => {
+            lifecycles.forEach((cleanup) => {
+              cleanup();
+            });
+            markersLifecycle.forEach((cleanup) => {
+              cleanup();
             });
           });
         }

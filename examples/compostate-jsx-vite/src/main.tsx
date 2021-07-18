@@ -2,6 +2,7 @@
 /** @jsxFrag Fragment */
 import {
   c,
+  For,
   Fragment,
   render,
 } from 'compostate-jsx';
@@ -10,7 +11,6 @@ import {
   track,
   reactive,
   ref,
-  effect,
 } from 'compostate';
 
 import './style.css';
@@ -108,11 +108,12 @@ function TodoList() {
     <>
       <TodoListForm />
       <div className="todo-list">
-        {computed(() => track(list).map((item) => (
-          <TodoListItem
-            item={item}
-          />
-        )))}
+        <For
+          in={list}
+          each={(item) => (
+            <TodoListItem item={item} />
+          )}
+        />
       </div>
     </>
   );
