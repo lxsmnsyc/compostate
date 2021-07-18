@@ -246,7 +246,7 @@ function renderInternal(
                   } else if (key === 'style') {
                     // TODO Style Object parsing
                   } else if (typeof property === 'boolean') {
-                    setAttribute(el, key, property ? '' : null);
+                    setAttribute(el, key, property ? 'true' : null);
                   } else {
                     setAttribute(el, key, property);
                   }
@@ -627,7 +627,13 @@ function renderInternal(
       const unwrappedChild = unwrapRef(children);
 
       effect(() => (
-        renderInternal(boundary, root, unwrappedChild, marker, suspended)
+        renderInternal(
+          boundary,
+          root,
+          unwrappedChild,
+          marker,
+          suspended,
+        )
       ));
     })
   ));
