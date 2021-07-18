@@ -516,10 +516,10 @@ function renderInternal(
 
             // Expand markers if the tracked array has suffix inserts
             untrack(() => {
-              for (let i = tracked.length; i < markers.length; i += 1) {
-                markersLifecycle[i]();
-                delete markers[i];
-              }
+              // for (let i = tracked.length; i < markers.length; i += 1) {
+              //   markersLifecycle[i]();
+              //   delete markers[i];
+              // }
               for (let i = markers.length; i < tracked.length; i += 1) {
                 markers[i] = createMarker();
                 markersLifecycle[i] = untrack(() => (
