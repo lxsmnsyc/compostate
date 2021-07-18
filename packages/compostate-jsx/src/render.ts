@@ -625,14 +625,10 @@ function renderInternal(
 
                 difference.forEach((operation) => {
                   switch (operation) {
-                    case 'replace':
-                      deleteItem();
-                      insertItem();
-                      break;
-                    case 'noop':
+                    case 'keep':
                       nextItem();
                       break;
-                    case 'delete':
+                    case 'remove':
                       deleteItem();
                       break;
                     case 'insert':
