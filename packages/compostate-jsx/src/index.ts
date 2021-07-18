@@ -19,6 +19,7 @@ export {
 export {
   render,
   renderToString,
+  hydrate,
 } from './render';
 export {
   suspend,

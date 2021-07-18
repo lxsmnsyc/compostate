@@ -4,6 +4,7 @@ import {
   c,
   For,
   Fragment,
+  hydrate,
   render,
 } from 'compostate-jsx';
 import {
@@ -134,5 +135,5 @@ function App() {
 const root = document.getElementById('root');
 
 if (root) {
-  render(root, <App />);
+  hydrate(root, <App />);
 }

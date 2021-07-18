@@ -35,11 +35,19 @@ import {
   setAttribute,
 } from './dom';
 import ErrorBoundary from './error-boundary';
+import { claimHydration, createHydration, HYDRATION } from './hydration';
 import {
   ERROR,
   MOUNT,
   UNMOUNT,
 } from './lifecycle';
+import {
+  createLinkedList,
+  createLinkedListNode,
+  insertBefore,
+  insertTail,
+  removeNode,
+} from './linked-list';
 import { PROVIDER, ProviderData } from './provider';
 import { SUSPENSE, SuspenseData } from './suspense';
 import {
@@ -197,7 +205,20 @@ function renderInternal(
 
         // Construct DOM element
         if (typeof constructor === 'string') {
-          const el = document.createElement(constructor);
+          const hydration = HYDRATION.getContext();
+          const claim = hydration ? claimHydration(hydration) : null;
+          let el = document.createElement(constructor);
+
+          if (hydration) {
+            if (claim) {
+              if (claim.tagName !== constructor.toUpperCase()) {
+                throw new Error(`Hydration mismatch. (Expected: ${constructor}, Received: ${claim.tagName})`);
+              }
+              el = claim as HTMLElement;
+            } else {
+              throw new Error(`Hydration mismatch. (Expected: ${constructor}, Received: null)`);
+            }
+          }
 
           effect(() => {
             Object.keys(newProps).forEach((key) => {
@@ -218,7 +239,7 @@ function renderInternal(
                     // We don't have to suspend here
                     // since the element itself isn't
                     // rendered yet.
-                    return renderInternal(boundary, el, value);
+                    return renderInternal(boundary, el as HTMLElement, value);
                   }
                   return undefined;
                 });
@@ -501,14 +522,18 @@ function renderInternal(
         } else if (constructor === For) {
           // The memoized array based on the source array
           const memory = reactive<any[]>([]);
-          // The lifecycles of children
-          const lifecycles: EffectCleanup[] = [];
+
+          interface MemoryList {
+            cleanup: EffectCleanup;
+            position: Ref<number>;
+          }
+
+          const memoryList = createLinkedList<MemoryList>();
+
           // Markers for the child position
           const markers: Marker[] = [];
           // Lifecycles of markers
           const markersLifecycle: EffectCleanup[] = [];
-          // The position for memoized children lifecycle
-          const position: Ref<number>[] = [];
 
           effect(() => {
             // Track the given array
@@ -537,12 +562,16 @@ function renderInternal(
               batch(() => {
                 let memoryIndex = 0;
                 let trackedIndex = 0;
+                let currentNode = memoryList.head;
 
                 const nextItem = () => {
                   // Update the position of the moved item
                   // This could happen when insert or delete
                   // operations are added between noop
-                  position[memoryIndex].value = trackedIndex;
+                  if (currentNode) {
+                    currentNode.value.position.value = trackedIndex;
+                    currentNode = currentNode.next;
+                  }
                   memoryIndex += 1;
                   trackedIndex += 1;
                 };
@@ -551,35 +580,46 @@ function renderInternal(
                   // Splicing ensures that the
                   // array shifts
                   memory.splice(memoryIndex, 1);
-                  position.splice(memoryIndex, 1);
                   // Clean the lifecycle
-                  lifecycles[memoryIndex]();
-                  lifecycles.splice(memoryIndex, 1);
+                  if (currentNode) {
+                    const targetNode = currentNode.next;
+                    currentNode.value.cleanup();
+                    removeNode(memoryList, currentNode);
+                    currentNode = targetNode;
+                  }
                 };
 
                 const insertItem = () => {
                   memory.splice(memoryIndex, 0, tracked[trackedIndex]);
                   // Create a reference position for the mounting child
-                  const newPosition = ref(trackedIndex);
-                  position.splice(memoryIndex, 0, newPosition);
-                  lifecycles.splice(memoryIndex, 0, untrack(() => (
-                    effect(() => (
-                      renderInternal(
-                        boundary,
-                        root,
-                        // Reactively track changes
-                        // on the produced children
-                        computed(() => (
-                          unwrapRef((newProps as ForProps<any>).each)(
-                            untrack(() => tracked[trackedIndex]),
-                          )
-                        )),
-                        // Track marker positions
-                        computed(() => markers[newPosition.value]),
-                        suspended,
-                      )
-                    ))
-                  )));
+                  const position = ref(trackedIndex);
+                  const newNode = createLinkedListNode<MemoryList>({
+                    position,
+                    cleanup: untrack(() => (
+                      effect(() => (
+                        renderInternal(
+                          boundary,
+                          root,
+                          // Reactively track changes
+                          // on the produced children
+                          computed(() => (
+                            unwrapRef((newProps as ForProps<any>).each)(
+                              untrack(() => tracked[trackedIndex]),
+                            )
+                          )),
+                          // Track marker positions
+                          computed(() => markers[position.value]),
+                          suspended,
+                        )
+                      ))
+                    )),
+                  });
+                  if (currentNode) {
+                    insertBefore(memoryList, newNode, currentNode);
+                  } else {
+                    insertTail(memoryList, newNode);
+                  }
+                  currentNode = newNode;
                   nextItem();
                 };
 
@@ -607,9 +647,11 @@ function renderInternal(
           });
 
           effect(() => () => {
-            lifecycles.forEach((cleanup) => {
-              cleanup();
-            });
+            let node = memoryList.head;
+            while (node) {
+              node.value.cleanup();
+              node = node.next;
+            }
             markersLifecycle.forEach((cleanup) => {
               cleanup();
             });
@@ -641,6 +683,15 @@ function renderInternal(
 
 export function render(root: HTMLElement, element: VNode): () => void {
   return renderInternal({}, root, element);
+}
+
+export function hydrate(root: HTMLElement, element: VNode): () => void {
+  const popHydration = HYDRATION.push(createHydration(root));
+  try {
+    return renderInternal({}, root, element);
+  } finally {
+    popHydration();
+  }
 }
 
 // Based on https://github.com/WebReflection/domtagger/blob/master/esm/sanitizer.js
