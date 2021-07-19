@@ -23,7 +23,17 @@ interface TodoItem {
   message: string;
 }
 
-const list = reactive<TodoItem[]>([]);
+const initialData = new Array(1000)
+  .fill(0)
+  .map((_, index) => (
+    reactive<TodoItem>({
+      id: -index,
+      done: false,
+      message: `message-${index}`,
+    })
+  ));
+
+const list = reactive<TodoItem[]>(initialData);
 
 interface TodoListItemProps {
   item: TodoItem;
@@ -136,5 +146,5 @@ function App() {
 const root = document.getElementById('root');
 
 if (root) {
-  hydrate(root, <App />);
+  render(root, <App />);
 }
