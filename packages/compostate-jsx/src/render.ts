@@ -81,11 +81,11 @@ function watchMarkerForMarker(
   root: HTMLElement,
   parent: ShallowReactive<Marker | null>,
   child: Marker,
-): void {
+): EffectCleanup {
   let parentVersion: number | undefined;
   let previousParent: Marker | null = null;
 
-  effect(() => {
+  return effect(() => {
     // Insert new marker before the parent marker
     const actualParent = unwrapRef(parent);
     if (actualParent !== previousParent) {
@@ -113,11 +113,11 @@ function watchMarkerForNode(
   parent: ShallowReactive<Marker | null>,
   child: Node,
   suspended: Ref<boolean> | boolean = false,
-): void {
+): EffectCleanup {
   let parentVersion: number | undefined;
   let previousParent: Marker | null = null;
 
-  effect(() => {
+  return effect(() => {
     // Do not insert node if the tree is suspended
     const actualParent = unwrapRef(parent);
     if (actualParent !== previousParent) {
@@ -151,7 +151,7 @@ function renderInternal(
   suspended: Ref<boolean> | boolean = false,
 ): EffectCleanup {
   if (Array.isArray(children)) {
-    return untrack(() => effect(() => {
+    return effect(() => {
       // Bridge error boundary across untrack
       setupErrorBoundary(boundary.error);
 
@@ -162,26 +162,20 @@ function renderInternal(
         watchMarkerForMarker(root, marker, childMarker);
 
         // Render the child
-        effect(() => (
-          renderInternal(boundary, root, child, childMarker, suspended)
-        ));
+        renderInternal(boundary, root, child, childMarker, suspended)
       });
-    }));
+    });
   }
   if (typeof children === 'string' || typeof children === 'number') {
     const node = createText(`${children}`);
 
-    return untrack(() => (
-      effect(() => {
-        watchMarkerForNode(root, marker, node, suspended);
-      })
-    ));
+    return watchMarkerForNode(root, marker, node, suspended);
   }
   if (children == null || typeof children === 'boolean') {
     return () => { /* no-op */ };
   }
   if ('type' in children) {
-    return untrack(() => effect(() => {
+    return effect(() => {
       // Setup parent error boundary
       // because of untrack scope
       setupErrorBoundary(boundary.error);
@@ -212,86 +206,79 @@ function renderInternal(
             }
           }
 
-          effect(() => {
-            Object.keys(newProps).forEach((key) => {
-              // Ref handler
-              if (key === 'ref') {
-                effect(() => {
-                  const elRef = (newProps as RefAttributes<Element>).ref;
-                  if (elRef) {
-                    elRef.value = el;
-                  }
-                });
-              // Children handler
-              } else if (key === 'children') {
-                effect(() => {
-                  const value = (newProps as WithChildren).children;
+          Object.keys(newProps).forEach((key) => {
+            // Ref handler
+            if (key === 'ref') {
+              effect(() => {
+                const elRef = (newProps as RefAttributes<Element>).ref;
+                if (elRef) {
+                  elRef.value = el;
+                }
+              });
+            // Children handler
+            } else if (key === 'children') {
+              effect(() => {
+                const value = (newProps as WithChildren).children;
 
-                  if (value != null) {
-                    // We don't have to suspend here
-                    // since the element itself isn't
-                    // rendered yet.
-                    return renderInternal(boundary, el as HTMLElement, value);
-                  }
-                  return undefined;
-                });
-              } else {
-                effect(() => {
-                  const property = unwrapRef(newProps[key]);
+                if (value != null) {
+                  // We don't have to suspend here
+                  // since the element itself isn't
+                  // rendered yet.
+                  renderInternal(boundary, el, value);
+                }
+              });
+            } else {
+              effect(() => {
+                const property = unwrapRef(newProps[key]);
 
-                  // Event Handlers
-                  if (key.startsWith('on')) {
-                    const wrappedEvent = <E extends Event>(evt: E) => {
-                      // In case of synchronous calls
-                      untrack(() => {
-                        // Allow update batching
-                        try {
-                          batch(() => {
-                            (property as EventListener)(evt);
-                          });
-                        } catch (error) {
-                          handleError(boundary.error, error);
-                        }
-                      });
-                    };
+                // Event Handlers
+                if (key.startsWith('on')) {
+                  const wrappedEvent = <E extends Event>(evt: E) => {
+                    // In case of synchronous calls
+                    untrack(() => {
+                      // Allow update batching
+                      try {
+                        batch(() => {
+                          (property as EventListener)(evt);
+                        });
+                      } catch (error) {
+                        handleError(boundary.error, error);
+                      }
+                    });
+                  };
 
-                    effect(() => registerEvent(el, key, wrappedEvent));
-                  } else if (key === 'style') {
-                    // TODO Style Object parsing
-                  } else if (typeof property === 'boolean') {
-                    setAttribute(el, key, property ? 'true' : null);
-                  } else {
-                    setAttribute(el, key, property);
-                  }
-                });
-              }
-            });
+                  effect(() => registerEvent(el, key, wrappedEvent));
+                } else if (key === 'style') {
+                  // TODO Style Object parsing
+                } else if (typeof property === 'boolean') {
+                  setAttribute(el, key, property ? 'true' : null);
+                } else {
+                  setAttribute(el, key, property);
+                }
+              });
+            }
           });
 
-          effect(() => {
-            watchMarkerForNode(root, marker, el, suspended);
-          });
+          watchMarkerForNode(root, marker, el, suspended);
         } else if (typeof constructor === 'function') {
           // Create a reactive object form for the props
           const unwrappedProps = reactive<Record<string, any>>({});
 
-          effect(() => {
-            // Track individual props
-            Object.keys(newProps).forEach((key) => {
-              if (key === 'ref') {
-                effect(() => {
-                  (unwrappedProps as RefAttributes<any>).ref = (newProps as RefAttributes<any>).ref;
-                });
-              } else if (key === 'children') {
-                effect(() => {
-                  (unwrappedProps as WithChildren).children = (newProps as WithChildren).children;
-                });
-              } else {
-                effect(() => {
-                  unwrappedProps[key] = unwrapRef(newProps[key]);
-                });
-              }
-            });
+          // Track individual props
+          Object.keys(newProps).forEach((key) => {
+            if (key === 'ref') {
+              effect(() => {
+                (unwrappedProps as RefAttributes<any>).ref = (newProps as RefAttributes<any>).ref;
+              });
+            } else if (key === 'children') {
+              effect(() => {
+                (unwrappedProps as WithChildren).children = (newProps as WithChildren).children;
+              });
+            } else {
+              effect(() => {
+                unwrappedProps[key] = unwrapRef(newProps[key]);
+              });
+            }
           });
 
           // Push lifecycle hooks
@@ -355,9 +342,7 @@ function renderInternal(
             };
 
             // Render constructor result
-            effect(() => (
-              renderInternal(newBoundary, root, result, marker, suspended)
-            ));
+            renderInternal(newBoundary, root, result, marker, suspended);
 
             // Run lifecycles
             effect(() => {
@@ -387,15 +372,13 @@ function renderInternal(
           });
         } else if (constructor === Fragment) {
           // Fragment renderer
-          effect(() => (
-            renderInternal(
-              boundary,
-              root,
-              (newProps as WithChildren).children,
-              marker,
-              suspended,
-            )
-          ));
+          renderInternal(
+            boundary,
+            root,
+            (newProps as WithChildren).children,
+            marker,
+            suspended,
+          );
         } else if (constructor === Suspense) {
           // Suspense
           const suspend = ref(false);
@@ -445,43 +428,29 @@ function renderInternal(
           watchMarkerForMarker(root, marker, childrenBranch);
 
           // Render fallback
-          effect(() => {
-            const value = (newProps as SuspenseProps).fallback;
+          renderInternal(
+            boundary,
+            root,
+            (newProps as SuspenseProps).fallback,
+            fallbackBranch,
+            // Since the fallback branch
+            // only renders when suspended
+            // We make sure to flip the value
+            // to consider DOM elements
+            computed(() => !suspend.value),
+          );
 
-            if (value) {
-              return renderInternal(
-                boundary,
-                root,
-                value,
-                fallbackBranch,
-                // Since the fallback branch
-                // only renders when suspended
-                // We make sure to flip the value
-                // to consider DOM elements
-                computed(() => !suspend.value),
-              );
-            }
-            return undefined;
-          });
-
-          // Render children
-          effect(() => {
-            const value = (newProps as SuspenseProps).children;
-            if (value != null) {
-              return renderInternal(
-                {
-                  ...boundary,
-                  suspense: currentSuspense,
-                },
-                root,
-                value,
-                childrenBranch,
-                // Forward the suspend state
-                suspend,
-              );
-            }
-            return undefined;
-          });
+          renderInternal(
+            {
+              ...boundary,
+              suspense: currentSuspense,
+            },
+            root,
+            (newProps as SuspenseProps).children,
+            childrenBranch,
+            // Forward the suspend state
+            suspend,
+          );
         } else if (constructor === Offscreen) {
           const offscreenMarker = createMarker();
 
@@ -491,26 +460,22 @@ function renderInternal(
 
           watchMarkerForMarker(root, marker, offscreenMarker);
 
-          effect(() => (
-            renderInternal(
-              boundary,
-              root,
-              (newProps as SuspenseProps).children,
-              offscreenMarker,
-              // Forward the suspend state
-              suspend,
-            )
-          ));
+          renderInternal(
+            boundary,
+            root,
+            (newProps as OffscreenProps).children,
+            offscreenMarker,
+            // Forward the suspend state
+            suspend,
+          );
         } else if (constructor === Portal) {
-          effect(() => (
-            renderInternal(
-              boundary,
-              unwrapRef((newProps as PortalProps).target),
-              (newProps as PortalProps).children,
-              marker,
-              suspended,
-            )
-          ));
+          renderInternal(
+            boundary,
+            unwrapRef((newProps as PortalProps).target),
+            (newProps as PortalProps).children,
+            marker,
+            suspended,
+          );
         } else if (constructor === For) {
           // The memoized array based on the source array
           const memory: any[] = [];
@@ -540,9 +505,7 @@ function renderInternal(
               for (let i = markers.length; i < tracked.length; i += 1) {
                 markers[i] = createMarker();
                 markersLifecycle[i] = untrack(() => (
-                  effect(() => {
-                    watchMarkerForMarker(root, marker, markers[i]);
-                  })
+                  watchMarkerForMarker(root, marker, markers[i])
                 ));
               }
             });
@@ -553,23 +516,21 @@ function renderInternal(
                 return {
                   position,
                   cleanup: untrack(() => (
-                    effect(() => (
-                      renderInternal(
-                        boundary,
-                        root,
-                        // Reactively track changes
-                        // on the produced children
-                        computed(() => (
-                          unwrapRef((newProps as ForProps<any>).each)(
-                            untrack(() => tracked[index]),
-                            position,
-                          )
-                        )),
-                        // Track marker positions
-                        computed(() => markers[position.value]),
-                        suspended,
-                      )
-                    ))
+                    renderInternal(
+                      boundary,
+                      root,
+                      // Reactively track changes
+                      // on the produced children
+                      computed(() => (
+                        unwrapRef((newProps as ForProps<any>).each)(
+                          untrack(() => tracked[index]),
+                          position,
+                        )
+                      )),
+                      // Track marker positions
+                      computed(() => markers[position.value]),
+                      suspended,
+                    )
                   )),
                 };
               }
@@ -658,37 +619,31 @@ function renderInternal(
           });
         }
       });
-    }));
+    });
   }
 
   // Reactive VNode
-  return untrack(() => (
-    effect(() => {
-      setupErrorBoundary(boundary.error);
-      // Track the VNode
-      const unwrappedChild = unwrapRef(children);
+  return effect(() => {
+    setupErrorBoundary(boundary.error);
 
-      effect(() => (
-        renderInternal(
-          boundary,
-          root,
-          unwrappedChild,
-          marker,
-          suspended,
-        )
-      ));
-    })
-  ));
+    renderInternal(
+      boundary,
+      root,
+      unwrapRef(children),
+      marker,
+      suspended,
+    );
+  });
 }
 
 export function render(root: HTMLElement, element: VNode): () => void {
-  return renderInternal({}, root, element);
+  return untrack(() => renderInternal({}, root, element));
 }
 
 export function hydrate(root: HTMLElement, element: VNode): () => void {
   const popHydration = HYDRATION.push(createHydration(root));
   try {
-    return renderInternal({}, root, element);
+    return untrack(() => renderInternal({}, root, element));
   } finally {
     popHydration();
   }

@@ -52,6 +52,10 @@ export function setAttribute(el: Element, attribute: string, value: string | nul
 
   if (attribute === 'className') {
     setAttributeSafe(el, 'class', value);
+  } else if (attribute === 'textContent') {
+    el.textContent = value;
+  } else if (attribute === 'innerHTML') {
+    el.innerHTML = value ?? '';
   } else if (descriptor && descriptor.set) {
     (el as Record<string, any>)[attribute] = value;
   } else {
