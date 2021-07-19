@@ -31,6 +31,7 @@ interface TodoListItemProps {
 
 function TodoListItem(props: TodoListItemProps) {
   const { item } = props;
+
   function onToggle() {
     item.done = !item.done;
   }

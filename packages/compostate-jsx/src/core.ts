@@ -1,3 +1,4 @@
+import { Ref } from 'compostate';
 import {
   VNode,
   Reactive,
@@ -97,7 +98,7 @@ export interface OffscreenProps {
 
 export interface ForProps<T> {
   in: T[];
-  each: (item: T) => VNode;
+  each: (item: T, index: Ref<number>) => VNode;
 }
 
 export const Fragment: VFragment = 1;

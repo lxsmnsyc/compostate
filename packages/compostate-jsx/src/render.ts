@@ -24,7 +24,6 @@ import {
   Suspense,
   SuspenseProps,
 } from './core';
-import diff from './diff';
 import {
   createMarker,
   createText,
@@ -41,13 +40,6 @@ import {
   MOUNT,
   UNMOUNT,
 } from './lifecycle';
-import {
-  createLinkedList,
-  createLinkedListNode,
-  insertBefore,
-  insertTail,
-  removeNode,
-} from './linked-list';
 import { PROVIDER, ProviderData } from './provider';
 import { SUSPENSE, SuspenseData } from './suspense';
 import {
@@ -521,14 +513,14 @@ function renderInternal(
           ));
         } else if (constructor === For) {
           // The memoized array based on the source array
-          const memory = reactive<any[]>([]);
+          const memory: any[] = [];
 
-          interface MemoryList {
+          interface MemoryItem {
             cleanup: EffectCleanup;
             position: Ref<number>;
           }
 
-          const memoryList = createLinkedList<MemoryList>();
+          const memoryMap = new Map<any, MemoryItem[]>();
 
           // Markers for the child position
           const markers: Marker[] = [];
@@ -556,98 +548,110 @@ function renderInternal(
             });
             // Untrack for un-intended tracking
             untrack(() => {
-              // Perform Myers diff on the tracked array
-              const difference = diff(memory, tracked);
-
-              batch(() => {
-                let memoryIndex = 0;
-                let trackedIndex = 0;
-                let currentNode = memoryList.head;
-
-                const nextItem = () => {
-                  // Update the position of the moved item
-                  // This could happen when insert or delete
-                  // operations are added between noop
-                  if (currentNode) {
-                    currentNode.value.position.value = trackedIndex;
-                    currentNode = currentNode.next;
-                  }
-                  memoryIndex += 1;
-                  trackedIndex += 1;
+              function getNode(index: number) {
+                const position = ref(index);
+                return {
+                  position,
+                  cleanup: untrack(() => (
+                    effect(() => (
+                      renderInternal(
+                        boundary,
+                        root,
+                        // Reactively track changes
+                        // on the produced children
+                        computed(() => (
+                          unwrapRef((newProps as ForProps<any>).each)(
+                            untrack(() => tracked[index]),
+                            position,
+                          )
+                        )),
+                        // Track marker positions
+                        computed(() => markers[position.value]),
+                        suspended,
+                      )
+                    ))
+                  )),
                 };
-
-                const deleteItem = () => {
-                  // Splicing ensures that the
-                  // array shifts
-                  memory.splice(memoryIndex, 1);
-                  // Clean the lifecycle
-                  if (currentNode) {
-                    const targetNode = currentNode.next;
-                    currentNode.value.cleanup();
-                    removeNode(memoryList, currentNode);
-                    currentNode = targetNode;
-                  }
-                };
-
-                const insertItem = () => {
-                  memory.splice(memoryIndex, 0, tracked[trackedIndex]);
-                  // Create a reference position for the mounting child
-                  const position = ref(trackedIndex);
-                  const newNode = createLinkedListNode<MemoryList>({
-                    position,
-                    cleanup: untrack(() => (
-                      effect(() => (
-                        renderInternal(
-                          boundary,
-                          root,
-                          // Reactively track changes
-                          // on the produced children
-                          computed(() => (
-                            unwrapRef((newProps as ForProps<any>).each)(
-                              untrack(() => tracked[trackedIndex]),
-                            )
-                          )),
-                          // Track marker positions
-                          computed(() => markers[position.value]),
-                          suspended,
-                        )
-                      ))
-                    )),
+              }
+              // Shortcut for empty tracked array
+              if (tracked.length === 0) {
+                memoryMap.forEach((items) => {
+                  items.forEach((item) => {
+                    item.cleanup();
                   });
-                  if (currentNode) {
-                    insertBefore(memoryList, newNode, currentNode);
-                  } else {
-                    insertTail(memoryList, newNode);
-                  }
-                  currentNode = newNode;
-                  nextItem();
-                };
-
-                difference.forEach((operation) => {
-                  switch (operation) {
-                    case 'keep':
-                      nextItem();
-                      break;
-                    case 'remove':
-                      deleteItem();
-                      break;
-                    case 'insert':
-                      insertItem();
-                      break;
-                    default:
-                      break;
-                  }
                 });
-              });
+                memoryMap.clear();
+                // Empty the memory
+                memory.splice(0, memory.length);
+              // Shortcut for inserts
+              } else if (memory.length === 0) {
+                const occurences = new Map<any, number>();
+                for (let i = 0; i < tracked.length; i += 1) {
+                  const item = tracked[i];
+                  const occurence = memoryMap.get(item);
+
+                  if (occurence) {
+                    const currentOccurence = (occurences.get(item) ?? 0) + 1;
+                    occurence[currentOccurence] = getNode(i);
+                    occurences.set(item, currentOccurence);
+                  } else {
+                    memoryMap.set(item, [getNode(i)]);
+                    occurences.set(item, 0);
+                  }
+                  memory[i] = item;
+                }
+                occurences.clear();
+              } else {
+                const occurences = new Map<any, number>();
+                const flagged = new Set<MemoryItem>();
+                for (let i = 0; i < tracked.length; i += 1) {
+                  const item = tracked[i];
+                  // Get record from memory
+                  const occurence = memoryMap.get(item);
+
+                  if (occurence) {
+                    // Get the occurence
+                    const currentOccurence = occurences.get(item) ?? 0;
+                    const currentItem = occurence[currentOccurence];
+                    if (currentItem) {
+                      currentItem.position.value = i;
+                    } else {
+                      occurence[currentOccurence] = getNode(i);
+                    }
+                    flagged.add(occurence[currentOccurence]);
+                    occurences.set(item, currentOccurence + 1);
+                  } else {
+                    const node = getNode(i);
+                    memoryMap.set(item, [node]);
+                    occurences.set(item, 0);
+
+                    flagged.add(node);
+                  }
+                  memory[i] = item;
+                }
+                occurences.clear();
+                new Map(memoryMap).forEach((items, index) => {
+                  const newItems: MemoryItem[] = [];
+                  items.forEach((item) => {
+                    if (!flagged.has(item)) {
+                      item.cleanup();
+                    } else {
+                      newItems.push(item);
+                    }
+                  });
+                  memoryMap.set(index, newItems);
+                });
+              }
             });
           });
 
           effect(() => () => {
-            let node = memoryList.head;
-            while (node) {
-              node.value.cleanup();
-              node = node.next;
-            }
+            memoryMap.forEach((items) => {
+              items.forEach((item) => {
+                item.cleanup();
+              });
+            });
+            memoryMap.clear();
             markersLifecycle.forEach((cleanup) => {
               cleanup();
             });
