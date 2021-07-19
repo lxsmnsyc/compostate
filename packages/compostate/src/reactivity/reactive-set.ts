@@ -25,14 +25,22 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import ReactiveAtom from './reactive-atom';
-import ReactiveKeys from './reactive-keys';
+import {
+  createReactiveAtom,
+  notifyAtom,
+} from './reactive-atom';
+import {
+  createReactiveKeys,
+  notifyAllKeys,
+  notifyKey,
+  trackKey,
+} from './reactive-keys';
 import { registerTrackable } from './track-map';
 
 export default class ReactiveSet<V> implements Set<V> {
-  private collection = new ReactiveKeys<V>();
+  private collection = createReactiveKeys<V>();
 
-  private atom = new ReactiveAtom();
+  private atom = createReactiveAtom();
 
   private source: Set<V>;
 
@@ -44,15 +52,15 @@ export default class ReactiveSet<V> implements Set<V> {
 
   clear(): void {
     this.source.clear();
-    this.collection.notifyAll();
-    this.atom.notify();
+    notifyAllKeys(this.collection);
+    notifyAtom(this.atom);
   }
 
   delete(value: V): boolean {
     const result = this.source.delete(value);
     if (result) {
-      this.collection.notify(value);
-      this.atom.notify();
+      notifyKey(this.collection, value);
+      notifyAtom(this.atom);
     }
     return result;
   }
@@ -92,14 +100,14 @@ export default class ReactiveSet<V> implements Set<V> {
     const shouldNotify = !this.source.has(value);
     this.source.add(value);
     if (shouldNotify) {
-      this.collection.notify(value);
-      this.atom.notify();
+      notifyKey(this.collection, value);
+      notifyAtom(this.atom);
     }
     return this;
   }
 
   has(value: V): boolean {
-    this.collection.track(value);
+    trackKey(this.collection, value);
     return this.source.has(value);
   }
 }

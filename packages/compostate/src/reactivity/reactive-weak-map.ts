@@ -25,17 +25,17 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import ReactiveAtom from './reactive-atom';
-import ReactiveWeakKeys from './reactive-weak-keys';
+import { createReactiveAtom, notifyAtom } from './reactive-atom';
+import { createReactiveWeakKeys, notifyWeakKey, trackWeakKey } from './reactive-weak-keys';
 import { registerTrackable } from './track-map';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, V> {
   private source: WeakMap<K, V>;
 
-  private atom = new ReactiveAtom();
+  private atom = createReactiveAtom();
 
-  private collection = new ReactiveWeakKeys<K>();
+  private collection = createReactiveWeakKeys<K>();
 
   constructor(source: WeakMap<K, V>) {
     this.source = source;
@@ -46,8 +46,8 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
   delete(key: K): boolean {
     const result = this.source.delete(key);
     if (result) {
-      this.collection.notify(key);
-      this.atom.notify();
+      notifyWeakKey(this.collection, key);
+      notifyAtom(this.atom);
     }
     return result;
   }
@@ -57,7 +57,7 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
   }
 
   get(key: K): V | undefined {
-    this.collection.track(key);
+    trackWeakKey(this.collection, key);
     return this.source.get(key);
   }
 
@@ -65,14 +65,14 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
     const current = this.source.get(key);
     if (!Object.is(current, value)) {
       this.source.set(key, value);
-      this.collection.notify(key);
-      this.atom.notify();
+      notifyWeakKey(this.collection, key);
+      notifyAtom(this.atom);
     }
     return this;
   }
 
   has(key: K): boolean {
-    this.collection.track(key);
+    trackWeakKey(this.collection, key);
     return this.source.has(key);
   }
 }

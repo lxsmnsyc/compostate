@@ -26,17 +26,18 @@
  * @copyright Alexis Munsayac 2021
  */
 import { BATCH_UPDATES } from './contexts';
-import LinkedWork from '../linked-work';
+import { pushContext } from '../context';
+import { LinkedWork, runLinkedWork } from '../linked-work';
 
 export default function batch(callback: () => void): void {
   const batchedWork = new Set<LinkedWork>();
-  const popBatchUpdates = BATCH_UPDATES.push(batchedWork);
+  const popBatchUpdates = pushContext(BATCH_UPDATES, batchedWork);
   try {
     callback();
   } finally {
     popBatchUpdates();
   }
   batchedWork.forEach((work) => {
-    work.run();
+    runLinkedWork(work);
   });
 }

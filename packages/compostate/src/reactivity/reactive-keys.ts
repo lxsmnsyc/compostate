@@ -25,28 +25,39 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import ReactiveAtom from './reactive-atom';
+import {
+  createReactiveAtom,
+  notifyAtom,
+  ReactiveAtom,
+  trackAtom,
+} from './reactive-atom';
 
-export default class ReactiveKeys<K> {
-  private works = new Map<K, ReactiveAtom>();
+export interface ReactiveKeys<K> {
+  works: Map<K, ReactiveAtom>;
+}
 
-  private getAtom(key: K): ReactiveAtom {
-    const current = this.works.get(key) ?? new ReactiveAtom();
-    this.works.set(key, current);
-    return current;
-  }
+export function createReactiveKeys<K>(): ReactiveKeys<K> {
+  return {
+    works: new Map<K, ReactiveAtom>(),
+  };
+}
 
-  notify(key: K): void {
-    this.getAtom(key).notify();
-  }
+function getAtom<K>(keys: ReactiveKeys<K>, key: K): ReactiveAtom {
+  const current = keys.works.get(key) ?? createReactiveAtom();
+  keys.works.set(key, current);
+  return current;
+}
 
-  track(key: K): void {
-    this.getAtom(key).track();
-  }
+export function notifyKey<K>(keys: ReactiveKeys<K>, key: K): void {
+  notifyAtom(getAtom(keys, key));
+}
 
-  notifyAll(): void {
-    this.works.forEach((value) => {
-      value.notify();
-    });
-  }
+export function trackKey<K>(keys: ReactiveKeys<K>, key: K): void {
+  trackAtom(getAtom(keys, key));
+}
+
+export function notifyAllKeys<K>(keys: ReactiveKeys<K>): void {
+  keys.works.forEach((atom) => {
+    notifyAtom(atom);
+  });
 }

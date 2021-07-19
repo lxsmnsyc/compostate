@@ -25,48 +25,30 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-export default class LinkedWork {
-  private dependents = new Set<LinkedWork>();
 
-  private dependencies = new Set<LinkedWork>();
+export interface LinkedWork {
+  dependents: Set<LinkedWork>;
+  dependencies: Set<LinkedWork>;
+  work?: () => void;
+}
 
-  private work?: () => void;
+export function createLinkedWork(work?: () => void): LinkedWork {
+  return {
+    dependents: new Set(),
+    dependencies: new Set(),
+    work,
+  };
+}
 
-  constructor(work?: () => void) {
-    this.work = work;
-  }
+export function runLinkedWork({ work, dependents }: LinkedWork): void {
+  work?.();
+  new Set(dependents).forEach((dependent) => {
+    runLinkedWork(dependent);
+  });
+}
 
-  addDependent(link: LinkedWork): void {
-    this.dependents.add(link);
-  }
-
-  removeDependent(link: LinkedWork): void {
-    this.dependents.delete(link);
-  }
-
-  addDependency(link: LinkedWork): void {
-    this.dependencies.add(link);
-  }
-
-  removeDependency(link: LinkedWork): void {
-    this.dependencies.delete(link);
-  }
-
-  unlinkDependencies(): void {
-    this.dependencies.forEach((dependency) => {
-      dependency.removeDependent(this);
-    });
-  }
-
-  clearDependents(): void {
-    this.dependents.clear();
-  }
-
-  run(): void {
-    this.work?.();
-
-    new Set(this.dependents).forEach((dependent) => {
-      dependent.run();
-    });
-  }
+export function unlinkWorkDependencies(work: LinkedWork): void {
+  work.dependencies.forEach((dependency) => {
+    dependency.dependents.delete(work);
+  });
 }

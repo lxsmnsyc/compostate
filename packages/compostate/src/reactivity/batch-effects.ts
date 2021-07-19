@@ -26,11 +26,12 @@
  * @copyright Alexis Munsayac 2021
  */
 import { BATCH_EFFECTS } from './contexts';
-import LinkedWork from '../linked-work';
+import { LinkedWork, runLinkedWork } from '../linked-work';
+import { pushContext } from '../context';
 
 export default function batchEffects(callback: () => void): () => void {
   const batchedWork = new Set<LinkedWork>();
-  const popBatchEffects = BATCH_EFFECTS.push(batchedWork);
+  const popBatchEffects = pushContext(BATCH_EFFECTS, batchedWork);
   try {
     callback();
   } finally {
@@ -38,7 +39,7 @@ export default function batchEffects(callback: () => void): () => void {
   }
   return () => {
     batchedWork.forEach((work) => {
-      work.run();
+      runLinkedWork(work);
     });
     batchedWork.clear();
   };

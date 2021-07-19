@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-types */
+import { trackAtom } from './reactive-atom';
 import ReactiveMap from './reactive-map';
 import ReactiveSet from './reactive-set';
 import ReactiveWeakMap from './reactive-weak-map';
@@ -14,7 +15,7 @@ function track<K extends object, V>(source: WeakMap<K, V>): ReactiveWeakMap<K, V
 function track(source: any): any {
   const atom = getTrackableAtom(source);
   if (atom) {
-    atom.track();
+    trackAtom(atom);
   }
   return source;
 }

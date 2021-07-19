@@ -25,15 +25,15 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import ReactiveAtom from './reactive-atom';
-import ReactiveWeakKeys from './reactive-weak-keys';
+import { createReactiveAtom, notifyAtom } from './reactive-atom';
+import { createReactiveWeakKeys, notifyWeakKey, trackWeakKey } from './reactive-weak-keys';
 import { registerTrackable } from './track-map';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
-  private atom = new ReactiveAtom();
+  private atom = createReactiveAtom();
 
-  private collection = new ReactiveWeakKeys<V>();
+  private collection = createReactiveWeakKeys<V>();
 
   private source: WeakSet<V>;
 
@@ -46,8 +46,8 @@ export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
   delete(value: V): boolean {
     const result = this.source.delete(value);
     if (result) {
-      this.collection.notify(value);
-      this.atom.notify();
+      notifyWeakKey(this.collection, value);
+      notifyAtom(this.atom);
     }
     return result;
   }
@@ -60,14 +60,14 @@ export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
     const shouldNotify = !this.source.has(value);
     this.source.add(value);
     if (shouldNotify) {
-      this.collection.notify(value);
-      this.atom.notify();
+      notifyWeakKey(this.collection, value);
+      notifyAtom(this.atom);
     }
     return this;
   }
 
   has(value: V): boolean {
-    this.collection.track(value);
+    trackWeakKey(this.collection, value);
     return this.source.has(value);
   }
 }

@@ -25,16 +25,20 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import ReactiveAtom from './reactive-atom';
-import ReactiveKeys from './reactive-keys';
+import {
+  createReactiveAtom, notifyAtom,
+} from './reactive-atom';
+import {
+  createReactiveKeys, notifyAllKeys, notifyKey, trackKey,
+} from './reactive-keys';
 import { registerTrackable } from './track-map';
 
 export default class ReactiveMap<K, V> implements Map<K, V> {
   private source: Map<K, V>;
 
-  private atom = new ReactiveAtom();
+  private atom = createReactiveAtom();
 
-  private collection = new ReactiveKeys<K>();
+  private collection = createReactiveKeys<K>();
 
   constructor(source: Map<K, V>) {
     this.source = source;
@@ -44,15 +48,15 @@ export default class ReactiveMap<K, V> implements Map<K, V> {
 
   clear(): void {
     this.source.clear();
-    this.collection.notifyAll();
-    this.atom.notify();
+    notifyAllKeys(this.collection);
+    notifyAtom(this.atom);
   }
 
   delete(key: K): boolean {
     const result = this.source.delete(key);
     if (result) {
-      this.collection.notify(key);
-      this.atom.notify();
+      notifyKey(this.collection, key);
+      notifyAtom(this.atom);
     }
     return result;
   }
@@ -89,7 +93,7 @@ export default class ReactiveMap<K, V> implements Map<K, V> {
   }
 
   get(key: K): V | undefined {
-    this.collection.track(key);
+    trackKey(this.collection, key);
     return this.source.get(key);
   }
 
@@ -97,14 +101,14 @@ export default class ReactiveMap<K, V> implements Map<K, V> {
     const current = this.source.get(key);
     if (!Object.is(current, value)) {
       this.source.set(key, value);
-      this.collection.notify(key);
-      this.atom.notify();
+      notifyKey(this.collection, key);
+      notifyAtom(this.atom);
     }
     return this;
   }
 
   has(key: K): boolean {
-    this.collection.track(key);
+    trackKey(this.collection, key);
     return this.source.has(key);
   }
 }

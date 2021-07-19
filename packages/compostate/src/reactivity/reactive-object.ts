@@ -25,31 +25,35 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import ReactiveAtom from './reactive-atom';
-import ReactiveKeys from './reactive-keys';
+import {
+  createReactiveAtom, notifyAtom,
+} from './reactive-atom';
+import {
+  createReactiveKeys, notifyKey, trackKey,
+} from './reactive-keys';
 import { registerTrackable } from './track-map';
 import { ReactiveObject } from './types';
 
 export default function createReactiveObject<T extends ReactiveObject>(
   source: T,
 ): T {
-  const collection = new ReactiveKeys<string | symbol | number>();
-  const atom = new ReactiveAtom();
+  const collection = createReactiveKeys<string | symbol | number>();
+  const atom = createReactiveAtom();
 
   const proxy = new Proxy(source, {
     get(target, key, receiver) {
-      collection.track(key);
+      trackKey(collection, key);
       return Reflect.get(target, key, receiver);
     },
     has(target, key) {
-      collection.track(key);
+      trackKey(collection, key);
       return Reflect.has(target, key);
     },
     deleteProperty(target, key) {
       const deleted = Reflect.deleteProperty(target, key);
       if (deleted) {
-        collection.notify(key);
-        atom.notify();
+        notifyKey(collection, key);
+        notifyAtom(atom);
       }
       return deleted;
     },
@@ -59,8 +63,8 @@ export default function createReactiveObject<T extends ReactiveObject>(
       const result = Reflect.set(target, key, value, receiver);
 
       if (result && !Object.is(current, value)) {
-        collection.notify(key);
-        atom.notify();
+        notifyKey(collection, key);
+        notifyAtom(atom);
       }
 
       return result;

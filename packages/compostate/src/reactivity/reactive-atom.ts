@@ -25,26 +25,32 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import LinkedWork from '../linked-work';
+import { createLinkedWork, LinkedWork, runLinkedWork } from '../linked-work';
 import { BATCH_UPDATES, TRACKING } from './contexts';
 
-export default class ReactiveAtom {
-  private work = new LinkedWork();
+export interface ReactiveAtom {
+  work: LinkedWork;
+}
 
-  notify(): void {
-    const batching = BATCH_UPDATES.getContext();
-    if (batching) {
-      batching.add(this.work);
-    } else {
-      this.work.run();
-    }
+export function createReactiveAtom(): ReactiveAtom {
+  return {
+    work: createLinkedWork(),
+  };
+}
+
+export function notifyAtom(atom: ReactiveAtom): void {
+  const batching = BATCH_UPDATES.current;
+  if (batching) {
+    batching.add(atom.work);
+  } else {
+    runLinkedWork(atom.work);
   }
+}
 
-  track(): void {
-    const tracking = TRACKING.getContext();
-    if (tracking) {
-      this.work.addDependent(tracking);
-      tracking.addDependency(this.work);
-    }
+export function trackAtom(atom: ReactiveAtom): void {
+  const tracking = TRACKING.current;
+  if (tracking) {
+    atom.work.dependents.add(tracking);
+    tracking.dependencies.add(atom.work);
   }
 }
