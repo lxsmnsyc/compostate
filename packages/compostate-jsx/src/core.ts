@@ -2,7 +2,6 @@ import { Ref } from 'compostate';
 import {
   VNode,
   Reactive,
-  WithChildren,
   VComponent,
   Attributes,
   BaseProps,
@@ -36,7 +35,7 @@ export function c<P extends DOMAttributes<T>, T extends Element>(
 ): VElement;
 export function c(
   type: ShallowReactive<VFragment>,
-  props: Reactive<Attributes & WithChildren>,
+  props: Reactive<Attributes & FragmentProps>,
   ...children: VNode[]
 ): VElement;
 export function c(
@@ -79,6 +78,10 @@ export function c<P extends BaseProps<P>>(
       ],
     },
   };
+}
+
+export interface FragmentProps {
+  children?: VNode[];
 }
 
 export interface SuspenseProps {

@@ -33,7 +33,9 @@ const initialData = new Array(1000)
     })
   ));
 
-const list = reactive<TodoItem[]>(initialData);
+const USE_INITIAL = true;
+
+const list = reactive<TodoItem[]>(USE_INITIAL ? initialData : []);
 
 interface TodoListItemProps {
   item: TodoItem;

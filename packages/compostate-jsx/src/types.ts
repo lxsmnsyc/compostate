@@ -1,9 +1,13 @@
 import { Ref } from 'compostate';
 
-export type VElement<P extends Record<string, any> = Record<string, any>> = ShallowReactive<{
+export type VRawElement<P extends Record<string, any> = Record<string, any>> = {
   type: VConstructor;
   props: P;
-}>;
+};
+
+export type VElement<P extends Record<string, any> = Record<string, any>> = (
+  ShallowReactive<VRawElement<P>>
+);
 
 export type VText = string | number;
 export type VNull = boolean | null | undefined;
@@ -40,7 +44,7 @@ export type ReactiveProperty<K, V> =
     : ShallowReactive<V>;
 
 export type Reactive<P> =
-  P extends BaseProps<any>
+  P extends Record<string, any>
     ? { [K in keyof P]: ReactiveProperty<K, P[K]> }
     :
   P extends Array<infer U>

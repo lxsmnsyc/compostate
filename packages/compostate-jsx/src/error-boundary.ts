@@ -1,3 +1,5 @@
+import { onError } from 'compostate';
+
 export type ErrorCapture = (error: Error) => void;
 
 export default class ErrorBoundary {
@@ -36,4 +38,18 @@ export default class ErrorBoundary {
       throw error;
     }
   }
+}
+
+export function handleError(boundary: ErrorBoundary | undefined, error: Error): void {
+  if (boundary) {
+    boundary.capture(error);
+  } else {
+    throw error;
+  }
+}
+
+export function setupErrorBoundary(boundary?: ErrorBoundary): void {
+  onError((error) => {
+    handleError(boundary, error);
+  });
 }
