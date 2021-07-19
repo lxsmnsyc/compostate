@@ -25,7 +25,7 @@ export default function renderForNode<T>(
   props: ForProps<T>,
   renderChildren: RenderChildren,
   marker: ShallowReactive<Marker | null> = null,
-  suspended: Ref<boolean> | boolean = false,
+  suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   // The memoized array based on the source array
   const memory: any[] = [];

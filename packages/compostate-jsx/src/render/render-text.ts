@@ -7,7 +7,7 @@ export default function renderText(
   root: HTMLElement,
   children: string | number,
   marker: ShallowReactive<Marker | null> = null,
-  suspended: Ref<boolean> | boolean = false,
+  suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): EffectCleanup {
   const node = createText(`${children}`);
 

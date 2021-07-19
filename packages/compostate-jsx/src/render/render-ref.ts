@@ -3,7 +3,6 @@ import { Marker } from '../dom';
 import { setupErrorBoundary } from '../error-boundary';
 import { ShallowReactive, VNode } from '../types';
 import { Boundary, RenderChildren } from './types';
-import unwrapRef from './unwrap-ref';
 
 export default function renderRef(
   boundary: Boundary,
@@ -11,7 +10,7 @@ export default function renderRef(
   children: Ref<VNode>,
   renderChildren: RenderChildren,
   marker: ShallowReactive<Marker | null> = null,
-  suspended: Ref<boolean> | boolean = false,
+  suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): EffectCleanup {
   return effect(() => {
     setupErrorBoundary(boundary.error);
@@ -19,7 +18,7 @@ export default function renderRef(
     renderChildren(
       boundary,
       root,
-      unwrapRef(children),
+      children.value,
       marker,
       suspended,
     );

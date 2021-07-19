@@ -16,5 +16,5 @@ export type RenderChildren = (
   root: HTMLElement,
   children: VNode,
   marker?: ShallowReactive<Marker | null>,
-  suspended?: Ref<boolean> | boolean,
+  suspended?: Ref<boolean | undefined> | boolean | undefined,
 ) => EffectCleanup;

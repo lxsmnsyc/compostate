@@ -2,7 +2,6 @@ import {
   computed,
   effect,
   reactive,
-  ref,
   Ref,
   Resource,
   track,
@@ -20,11 +19,8 @@ export default function renderSuspenseNode(
   props: SuspenseProps,
   renderChildren: RenderChildren,
   marker: ShallowReactive<Marker | null> = null,
-  suspended: Ref<boolean> | boolean = false,
+  suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
-  // Suspense
-  const suspend = ref(false);
-
   // This contains all of the tracked
   // resource instances that were suspended
   const resources = reactive<Set<Resource<any>>>(new Set());
@@ -32,9 +28,7 @@ export default function renderSuspenseNode(
   // Track the resource size and set the value
   // of suspend to false when the resource size
   // becomes zero (no suspended resources)
-  effect(() => {
-    suspend.value = unwrapRef(suspended) || track(resources).size > 0;
-  });
+  const suspend = computed(() => unwrapRef(suspended) || track(resources).size > 0);
 
   // Track the resources and remove all
   // failed an successful resource

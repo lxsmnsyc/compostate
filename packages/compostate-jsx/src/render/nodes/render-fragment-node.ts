@@ -10,7 +10,7 @@ export default function renderFragmentNode(
   props: FragmentProps,
   renderChildren: RenderChildren,
   marker: ShallowReactive<Marker | null> = null,
-  suspended: Ref<boolean> | boolean = false,
+  suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   // Fragment renderer
   renderChildren(

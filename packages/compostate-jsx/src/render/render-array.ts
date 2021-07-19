@@ -13,7 +13,7 @@ export default function renderArray(
   children: VNode[],
   renderChild: RenderChildren,
   marker: ShallowReactive<Marker | null> = null,
-  suspended: Ref<boolean> | boolean = false,
+  suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): EffectCleanup {
   return effect(() => {
     // Bridge error boundary across untrack

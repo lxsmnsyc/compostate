@@ -12,7 +12,7 @@ export default function renderChildren(
   root: HTMLElement,
   children: VNode,
   marker: ShallowReactive<Marker | null> = null,
-  suspended: Ref<boolean> | boolean = false,
+  suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): EffectCleanup {
   if (Array.isArray(children)) {
     return renderArray(

@@ -20,7 +20,6 @@ import {
   WithChildren,
 } from '../../types';
 import { Boundary, RenderChildren } from '../types';
-import unwrapRef from '../unwrap-ref';
 
 export default function renderComponentNode<P extends Record<string, any>>(
   boundary: Boundary,
@@ -29,7 +28,7 @@ export default function renderComponentNode<P extends Record<string, any>>(
   props: Reactive<P>,
   renderChildren: RenderChildren,
   marker: ShallowReactive<Marker | null> = null,
-  suspended: Ref<boolean> | boolean = false,
+  suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   // Create a reactive object form for the props
   const unwrappedProps = reactive<P>({} as P);
@@ -37,17 +36,18 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // Track individual props
   Object.keys(props).forEach((key: keyof typeof props) => {
     if (key === 'ref') {
-      effect(() => {
-        (unwrappedProps as RefAttributes<any>).ref = (props as RefAttributes<any>).ref;
-      });
+      (unwrappedProps as RefAttributes<any>).ref = (props as RefAttributes<any>).ref;
     } else if (key === 'children') {
-      effect(() => {
-        (unwrappedProps as WithChildren).children = (props as WithChildren).children;
-      });
+      (unwrappedProps as WithChildren).children = (props as WithChildren).children;
     } else {
-      effect(() => {
-        unwrappedProps[key] = unwrapRef(props[key]);
-      });
+      const property = props[key];
+      if ('value' in property) {
+        effect(() => {
+          unwrappedProps[key] = property.value;
+        });
+      } else {
+        unwrappedProps[key] = property;
+      }
     }
   });
 

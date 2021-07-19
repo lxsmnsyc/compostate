@@ -40,7 +40,7 @@ export default function renderSpecialNode(
   node: SpecialNode,
   renderChildren: RenderChildren,
   marker: ShallowReactive<Marker | null> = null,
-  suspended: Ref<boolean> | boolean = false,
+  suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   switch (node.constructor) {
     case Fragment:

@@ -18,7 +18,7 @@ export default function renderNode(
   node: VRawElement,
   renderChildren: RenderChildren,
   marker: ShallowReactive<Marker | null> = null,
-  suspended: Ref<boolean> | boolean = false,
+  suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): EffectCleanup {
   return effect(() => {
     // Setup parent error boundary
