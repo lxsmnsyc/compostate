@@ -8,6 +8,7 @@ export function watchMarkerForMarker(
   parent: ShallowReactive<Marker | null>,
   child: Marker,
 ): EffectCleanup {
+  let initialCall = true;
   if (parent) {
     let parentVersion: number | undefined;
     if ('value' in parent) {
@@ -24,11 +25,14 @@ export function watchMarkerForMarker(
           if (parentVersion !== actualParent.version.value) {
             parentVersion = actualParent.version.value;
             insert(root, child.node, actualParent.node);
-            child.version.value += 1;
+            if (!initialCall) {
+              child.version.value += 1;
+            }
           }
         } else {
           insert(root, child.node);
         }
+        initialCall = false;
 
         return () => {
           remove(child.node);
@@ -40,11 +44,14 @@ export function watchMarkerForMarker(
         if (parentVersion !== parent.version.value) {
           parentVersion = parent.version.value;
           insert(root, child.node, parent.node);
-          child.version.value += 1;
+          if (!initialCall) {
+            child.version.value += 1;
+          }
         }
       } else {
         insert(root, child.node);
       }
+      initialCall = false;
 
       return () => {
         remove(child.node);
