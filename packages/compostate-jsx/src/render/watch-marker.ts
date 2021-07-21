@@ -21,10 +21,10 @@ export function watchMarkerForMarker(
           previousParent = actualParent;
         }
         if (actualParent) {
-          if (parentVersion !== actualParent.version) {
-            parentVersion = actualParent.version;
+          if (parentVersion !== actualParent.version.value) {
+            parentVersion = actualParent.version.value;
             insert(root, child.node, actualParent.node);
-            child.version += 1;
+            child.version.value += 1;
           }
         } else {
           insert(root, child.node);
@@ -37,10 +37,10 @@ export function watchMarkerForMarker(
     }
     return effect(() => {
       if (parent) {
-        if (parentVersion !== parent.version) {
-          parentVersion = parent.version;
+        if (parentVersion !== parent.version.value) {
+          parentVersion = parent.version.value;
           insert(root, child.node, parent.node);
-          child.version += 1;
+          child.version.value += 1;
         }
       } else {
         insert(root, child.node);
@@ -80,8 +80,8 @@ export function watchMarkerForNode(
           if (suspended.value) {
             if (actualParent) {
               // Check if the parent marker has changed position
-              if (parentVersion !== actualParent.version) {
-                parentVersion = actualParent.version;
+              if (parentVersion !== actualParent.version.value) {
+                parentVersion = actualParent.version.value;
                 insert(root, child, actualParent.node);
               }
             } else {
@@ -106,8 +106,8 @@ export function watchMarkerForNode(
         }
         if (actualParent) {
           // Check if the parent marker has changed position
-          if (parentVersion !== actualParent.version) {
-            parentVersion = actualParent.version;
+          if (parentVersion !== actualParent.version.value) {
+            parentVersion = actualParent.version.value;
             insert(root, child, actualParent.node);
           }
         } else {
@@ -122,8 +122,8 @@ export function watchMarkerForNode(
     }
     if (typeof suspended === 'object') {
       return effect(() => {
-        if (suspended.value && parentVersion !== parent.version) {
-          parentVersion = parent.version;
+        if (suspended.value && parentVersion !== parent.version.value) {
+          parentVersion = parent.version.value;
           insert(root, child, parent.node);
         }
 
@@ -136,8 +136,8 @@ export function watchMarkerForNode(
       return () => { /* no-op */ };
     }
     return effect(() => {
-      if (parentVersion !== parent.version) {
-        parentVersion = parent.version;
+      if (parentVersion !== parent.version.value) {
+        parentVersion = parent.version.value;
         insert(root, child, parent.node);
       }
 
