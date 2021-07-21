@@ -1,6 +1,7 @@
 import {
   batch,
   effect,
+  EffectCleanup,
   Ref,
   untrack,
 } from 'compostate';
@@ -11,6 +12,39 @@ import { Reactive, RefAttributes, ShallowReactive } from '../../types';
 import { DOMAttributes } from '../../types/dom';
 import { Boundary, RenderChildren } from '../types';
 import { watchMarkerForNode } from '../watch-marker';
+
+function applyHostProperty(
+  boundary: Boundary,
+  el: HTMLElement,
+  key: string,
+  property: any,
+): EffectCleanup | undefined {
+  if (key.startsWith('on')) {
+    const wrappedEvent = <E extends Event>(evt: E) => {
+      // In case of synchronous calls
+      untrack(() => {
+        // Allow update batching
+        try {
+          batch(() => {
+            (property as unknown as EventListener)(evt);
+          });
+        } catch (error) {
+          handleError(boundary.error, error);
+        }
+      });
+    };
+
+    return registerEvent(el, key, wrappedEvent);
+  }
+  if (key === 'style') {
+    // TODO Style Object parsing
+  } else if (typeof property === 'boolean') {
+    setAttribute(el, key, property ? 'true' : null);
+  } else {
+    setAttribute(el, key, property as string);
+  }
+  return undefined;
+}
 
 export default function renderHostNode<P extends DOMAttributes<Element>>(
   boundary: Boundary,
@@ -48,59 +82,14 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
       renderChildren(boundary, el, props.children);
     } else {
       const rawProperty = props[key as keyof typeof props];
-      if ('value' in rawProperty) {
-        effect(() => {
-          const property = rawProperty.value;
-
-          // Event Handlers
-          if (key.startsWith('on')) {
-            const wrappedEvent = <E extends Event>(evt: E) => {
-              // In case of synchronous calls
-              untrack(() => {
-                // Allow update batching
-                try {
-                  batch(() => {
-                    (property as unknown as EventListener)(evt);
-                  });
-                } catch (error) {
-                  handleError(boundary.error, error);
-                }
-              });
-            };
-
-            return registerEvent(el, key, wrappedEvent);
-          }
-          if (key === 'style') {
-            // TODO Style Object parsing
-          } else if (typeof property === 'boolean') {
-            setAttribute(el, key, property ? 'true' : null);
-          } else {
-            setAttribute(el, key, property as string);
-          }
-          return undefined;
-        });
-      } else if (key.startsWith('on')) {
-        const wrappedEvent = <E extends Event>(evt: E) => {
-          // In case of synchronous calls
-          untrack(() => {
-            // Allow update batching
-            try {
-              batch(() => {
-                (rawProperty as unknown as EventListener)(evt);
-              });
-            } catch (error) {
-              handleError(boundary.error, error);
-            }
-          });
-        };
-
-        effect(() => registerEvent(el, key, wrappedEvent));
-      } else if (key === 'style') {
-        // TODO Style Object parsing
-      } else if (typeof rawProperty === 'boolean') {
-        setAttribute(el, key, rawProperty ? 'true' : null);
+      if (typeof rawProperty === 'object' && 'value' in rawProperty) {
+        effect(() => (
+          applyHostProperty(boundary, el, key, rawProperty.value)
+        ));
       } else {
-        setAttribute(el, key, rawProperty as string);
+        effect(() => (
+          applyHostProperty(boundary, el, key, rawProperty)
+        ));
       }
     }
   });

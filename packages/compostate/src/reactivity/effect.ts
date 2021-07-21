@@ -25,95 +25,20 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { pushContext } from '../context';
-import { createLinkedWork, runLinkedWork, unlinkWorkDependencies } from '../linked-work';
-import batch from './batch';
-import {
-  TRACKING,
-  EFFECT,
-  BATCH_EFFECTS,
-  ERROR,
-} from './contexts';
-import ErrorBoundary from './error-boundary';
-
-export type EffectCleanup = () => void;
-export type Effect = () => EffectCleanup | undefined | void;
+import EffectNode, { BATCH_EFFECTS } from './nodes/effect';
+import { Effect, EffectCleanup } from './types';
 
 export default function effect(callback: Effect): EffectCleanup {
-  const parentError = ERROR.current;
+  const instance = new EffectNode(callback);
 
-  const errorBoundary = new ErrorBoundary(parentError);
-
-  let currentCleanup: EffectCleanup;
-
-  const cleanupWork = createLinkedWork(() => {
-    if (currentCleanup) {
-      try {
-        currentCleanup();
-      } catch (error) {
-        if (parentError) {
-          parentError.capture(error);
-        } else {
-          throw error;
-        }
-      }
-    }
-  });
-
-  const revalidate = createLinkedWork(() => {
-    runLinkedWork(cleanupWork);
-    cleanupWork.dependents.clear();
-    const popTracking = pushContext(TRACKING, revalidate);
-    const popEffect = pushContext(EFFECT, cleanupWork);
-    const popError = pushContext(ERROR, errorBoundary);
-    const popBatchEffects = pushContext(BATCH_EFFECTS, undefined);
-    try {
-      let newCleanup: ReturnType<Effect>;
-
-      // Batch updates inside effect.
-      batch(() => {
-        newCleanup = callback();
-      });
-
-      currentCleanup = () => {
-        if (newCleanup) {
-          newCleanup();
-        }
-        unlinkWorkDependencies(revalidate);
-      };
-    } catch (error) {
-      if (parentError) {
-        parentError.capture(error);
-      } else {
-        throw error;
-      }
-    } finally {
-      popBatchEffects();
-      popError();
-      popEffect();
-      popTracking();
-    }
-  });
-
-  const flush = createLinkedWork(() => {
-    runLinkedWork(revalidate);
-
-    const currentEffect = EFFECT.current;
-
-    if (currentEffect) {
-      currentEffect.dependents.add(cleanupWork);
-    }
-  });
-
-  const batching = BATCH_EFFECTS.current;
-
+  const batching = BATCH_EFFECTS.getContext();
   if (batching) {
-    batching.add(flush);
+    batching.add(instance);
   } else {
-    runLinkedWork(flush);
+    instance.flush();
   }
 
   return () => {
-    runLinkedWork(cleanupWork);
+    instance.stop();
   };
 }

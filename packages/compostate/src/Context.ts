@@ -25,22 +25,19 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
+export default class Context<T> {
+  private current: T | undefined;
 
-export interface Context<T> {
-  current: T | undefined;
-}
+  push(value: T): () => T {
+    const parent = this.current;
+    this.current = value;
+    return () => {
+      this.current = parent;
+      return value;
+    };
+  }
 
-export function createContext<T>(): Context<T> {
-  return {
-    current: undefined,
-  };
-}
-
-export function pushContext<T>(context: Context<T>, value: T): () => T {
-  const parent = context.current;
-  context.current = value;
-  return () => {
-    context.current = parent;
-    return value;
-  };
+  getContext(): T | undefined {
+    return this.current;
+  }
 }

@@ -1,14 +1,12 @@
-import { pushContext } from '../context';
-import { ERROR } from './contexts';
 import effect from './effect';
-import ErrorBoundary, { ErrorCapture } from './error-boundary';
+import ErrorBoundary, { ERROR, ErrorCapture } from './nodes/error-boundary';
 
 export const GLOBAL = new ErrorBoundary();
 
-pushContext(ERROR, GLOBAL);
+ERROR.push(GLOBAL);
 
 export default function onError(callback: ErrorCapture): void {
-  const collection = ERROR.current;
+  const collection = ERROR.getContext();
 
   if (collection) {
     effect(() => collection.register(callback));

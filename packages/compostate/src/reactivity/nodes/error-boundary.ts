@@ -1,7 +1,11 @@
+import Context from '../../context';
+
 export type ErrorCapture = (error: Error) => void;
 
+export const ERROR = new Context<ErrorBoundary>();
+
 export default class ErrorBoundary {
-  private collection = new Set<ErrorCapture>();
+  private collection?: Set<ErrorCapture>;
 
   private parent?: ErrorBoundary;
 
@@ -10,14 +14,17 @@ export default class ErrorBoundary {
   }
 
   register(callback: ErrorCapture): () => void {
+    if (!this.collection) {
+      this.collection = new Set();
+    }
     this.collection.add(callback);
     return () => {
-      this.collection.delete(callback);
+      this.collection?.delete(callback);
     };
   }
 
   capture(error: Error): void {
-    if (this.collection.size) {
+    if (this.collection?.size) {
       try {
         new Set(this.collection).forEach((capture) => {
           capture(error);

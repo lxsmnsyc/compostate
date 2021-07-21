@@ -1,4 +1,4 @@
-import { ReactiveAtom } from './reactive-atom';
+import ReactiveAtom from './reactive-atom';
 
 const TRACK_MAP = new WeakMap<any, ReactiveAtom>();
 

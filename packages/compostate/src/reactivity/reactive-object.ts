@@ -25,53 +25,62 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import {
-  createReactiveAtom, notifyAtom,
-} from './reactive-atom';
-import {
-  createReactiveKeys, notifyKey, trackKey,
-} from './reactive-keys';
-import { registerTrackable } from './track-map';
+import ReactiveAtom from './nodes/reactive-atom';
+import ReactiveKeys from './nodes/reactive-keys';
+import { registerTrackable } from './nodes/track-map';
 import { ReactiveObject } from './types';
+
+class ReactiveObjectHandler<T extends ReactiveObject> {
+  collection?: ReactiveKeys<string | symbol | number>;
+
+  atom = new ReactiveAtom();
+
+  get(target: T, key: string | symbol, receiver: any) {
+    if (!this.collection) {
+      this.collection = new ReactiveKeys();
+    }
+    this.collection.track(key);
+    return Reflect.get(target, key, receiver);
+  }
+
+  has(target: T, key: string | symbol) {
+    if (!this.collection) {
+      this.collection = new ReactiveKeys();
+    }
+    this.collection.track(key);
+    return Reflect.has(target, key);
+  }
+
+  deleteProperty(target: T, key: string | symbol) {
+    const deleted = Reflect.deleteProperty(target, key);
+    if (deleted) {
+      this.collection?.notify(key);
+      this.atom.notify();
+    }
+    return deleted;
+  }
+
+  set(target: T, key: string | symbol, value: any, receiver: any) {
+    const current = Reflect.get(target, key, receiver);
+
+    const result = Reflect.set(target, key, value, receiver);
+
+    if (result && !Object.is(current, value)) {
+      this.collection?.notify(key);
+      this.atom.notify();
+    }
+
+    return result;
+  }
+}
 
 export default function createReactiveObject<T extends ReactiveObject>(
   source: T,
 ): T {
-  const collection = createReactiveKeys<string | symbol | number>();
-  const atom = createReactiveAtom();
+  const handler = new ReactiveObjectHandler();
+  const proxy = new Proxy(source, handler);
 
-  const proxy = new Proxy(source, {
-    get(target, key, receiver) {
-      trackKey(collection, key);
-      return Reflect.get(target, key, receiver);
-    },
-    has(target, key) {
-      trackKey(collection, key);
-      return Reflect.has(target, key);
-    },
-    deleteProperty(target, key) {
-      const deleted = Reflect.deleteProperty(target, key);
-      if (deleted) {
-        notifyKey(collection, key);
-        notifyAtom(atom);
-      }
-      return deleted;
-    },
-    set(target, key, value, receiver) {
-      const current = Reflect.get(target, key, receiver);
+  registerTrackable(handler.atom, proxy);
 
-      const result = Reflect.set(target, key, value, receiver);
-
-      if (result && !Object.is(current, value)) {
-        notifyKey(collection, key);
-        notifyAtom(atom);
-      }
-
-      return result;
-    },
-  });
-
-  registerTrackable(atom, proxy);
-
-  return proxy;
+  return proxy as T;
 }

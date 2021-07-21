@@ -25,39 +25,27 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import {
-  createReactiveAtom,
-  notifyAtom,
-  ReactiveAtom,
-  trackAtom,
-} from './reactive-atom';
+import ReactiveAtom from './reactive-atom';
 
-export interface ReactiveKeys<K> {
-  works: Map<K, ReactiveAtom>;
-}
+// eslint-disable-next-line @typescript-eslint/ban-types
+export default class ReactiveWeakKeys<K extends object> {
+  private atoms = new WeakMap<K, ReactiveAtom>();
 
-export function createReactiveKeys<K>(): ReactiveKeys<K> {
-  return {
-    works: new Map<K, ReactiveAtom>(),
-  };
-}
+  private getAtom(key: K): ReactiveAtom {
+    const current = this.atoms.get(key);
+    if (current) {
+      return current;
+    }
+    const atom = new ReactiveAtom();
+    this.atoms.set(key, atom);
+    return atom;
+  }
 
-function getAtom<K>(keys: ReactiveKeys<K>, key: K): ReactiveAtom {
-  const current = keys.works.get(key) ?? createReactiveAtom();
-  keys.works.set(key, current);
-  return current;
-}
+  notify(key: K): void {
+    this.getAtom(key).notify();
+  }
 
-export function notifyKey<K>(keys: ReactiveKeys<K>, key: K): void {
-  notifyAtom(getAtom(keys, key));
-}
-
-export function trackKey<K>(keys: ReactiveKeys<K>, key: K): void {
-  trackAtom(getAtom(keys, key));
-}
-
-export function notifyAllKeys<K>(keys: ReactiveKeys<K>): void {
-  keys.works.forEach((atom) => {
-    notifyAtom(atom);
-  });
+  track(key: K): void {
+    this.getAtom(key).track();
+  }
 }

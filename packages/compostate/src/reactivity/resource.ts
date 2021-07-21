@@ -1,11 +1,10 @@
 import batch from './batch';
-import computed from './computed';
 import effect from './effect';
 import reactive from './reactive';
 
-export interface ResourcePending<T> {
+export interface ResourcePending {
   status: 'pending';
-  value: Promise<T>;
+  value?: undefined;
 }
 
 export interface ResourceFailure {
@@ -19,7 +18,7 @@ export interface ResourceSuccess<T> {
 }
 
 export type Resource<T> =
-  | ResourcePending<T>
+  | ResourcePending
   | ResourceFailure
   | ResourceSuccess<T>;
 
@@ -32,16 +31,16 @@ export default function resource<T>(
   fetcher: () => Promise<T>,
   options: ResourceOptions<T> = {},
 ): Resource<T> {
-  const promise = computed(() => fetcher());
-
   const baseState: Resource<T> = options.initialValue != null
     ? { status: 'success', value: options.initialValue }
-    : { status: 'pending', value: promise.value };
+    : { status: 'pending' };
 
   const state = reactive<Resource<T>>(baseState);
 
   effect(() => {
     let alive = true;
+
+    const promise = fetcher();
 
     const stop = effect(() => {
       // If there's a transition timeout,
@@ -52,7 +51,6 @@ export default function resource<T>(
           // fallback to pending state.
           batch(() => {
             state.status = 'pending';
-            state.value = promise.value;
           });
         }, options.timeoutMS);
 
@@ -61,11 +59,10 @@ export default function resource<T>(
         };
       }
       state.status = 'pending';
-      state.value = promise.value;
       return undefined;
     });
 
-    promise.value.then(
+    promise.then(
       (value) => {
         if (alive) {
           stop();

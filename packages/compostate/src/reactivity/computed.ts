@@ -25,36 +25,9 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { pushContext } from '../context';
-import { createLinkedWork, runLinkedWork, unlinkWorkDependencies } from '../linked-work';
-import { TRACKING } from './contexts';
-import { Ref } from './ref';
 
-export default function computed<T>(compute: () => T): Readonly<Ref<T>> {
-  let value: T;
+import ComputedNode from './nodes/computed';
 
-  const work = createLinkedWork(() => {
-    unlinkWorkDependencies(work);
-    const popTracking = pushContext(TRACKING, work);
-    try {
-      value = compute();
-    } finally {
-      popTracking();
-    }
-  });
-
-  runLinkedWork(work);
-
-  return {
-    get value() {
-      const tracking = TRACKING.current;
-
-      if (tracking) {
-        work.dependents.add(tracking);
-        tracking.dependencies.add(work);
-      }
-
-      return value;
-    },
-  };
+export default function computed<T>(compute: () => T): ComputedNode<T> {
+  return new ComputedNode(compute);
 }

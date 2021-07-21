@@ -1,4 +1,4 @@
-import { reactive } from 'compostate';
+import { ref, Ref } from 'compostate';
 
 /* eslint-disable no-param-reassign */
 export function insert(
@@ -22,20 +22,23 @@ export function createText(value: string): Node {
 }
 
 export interface Marker {
-  version: number;
+  id: number;
+  version: Ref<number>;
   node: Node;
 }
 
 let id = 0;
 
+const USE_COMMENT = false;
+
 export function createMarker(): Marker {
   const newID = id;
   id += 1;
-  return reactive({
+  return {
     id: newID,
-    version: 0,
-    node: createText(''),
-  });
+    version: ref(0),
+    node: USE_COMMENT ? document.createComment(`${newID}`) : createText(''),
+  };
 }
 
 function setAttributeSafe(el: Element, attribute: string, value: string | null): void {
