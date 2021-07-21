@@ -87,9 +87,10 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
           applyHostProperty(boundary, el, key, rawProperty.value)
         ));
       } else {
-        effect(() => (
-          applyHostProperty(boundary, el, key, rawProperty)
-        ));
+        const cleanup = applyHostProperty(boundary, el, key, rawProperty);
+        if (cleanup) {
+          effect(() => cleanup);
+        }
       }
     }
   });
