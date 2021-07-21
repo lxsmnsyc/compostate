@@ -51,9 +51,7 @@ export default function renderForNode<T>(
         markers[i] = createMarker();
         markersLifecycle[i] = watchMarkerForMarker(root, marker, markers[i]);
       }
-    });
-    // Untrack for un-intended tracking
-    untrack(() => {
+
       function getNode(index: number, item: any) {
         const position = ref(index);
         const each = (() => {
@@ -96,10 +94,10 @@ export default function renderForNode<T>(
 
           if (occurence) {
             const currentOccurence = (occurences.get(item) ?? 0) + 1;
-            occurence[currentOccurence] = getNode(i);
+            occurence[currentOccurence] = getNode(i, item);
             occurences.set(item, currentOccurence);
           } else {
-            memoryMap.set(item, [getNode(i)]);
+            memoryMap.set(item, [getNode(i, item)]);
             occurences.set(item, 0);
           }
           memory[i] = item;
@@ -120,12 +118,12 @@ export default function renderForNode<T>(
             if (currentItem) {
               currentItem.position.value = i;
             } else {
-              occurence[currentOccurence] = getNode(i);
+              occurence[currentOccurence] = getNode(i, item);
             }
             flagged.add(occurence[currentOccurence]);
             occurences.set(item, currentOccurence + 1);
           } else {
-            const node = getNode(i);
+            const node = getNode(i, item);
             memoryMap.set(item, [node]);
             occurences.set(item, 0);
 
