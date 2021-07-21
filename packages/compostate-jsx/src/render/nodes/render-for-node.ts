@@ -9,7 +9,7 @@ import {
 } from 'compostate';
 import { ForProps } from '../../core';
 import { createMarker, Marker } from '../../dom';
-import { ShallowReactive } from '../../types';
+import { Reactive, ShallowReactive } from '../../types';
 import { Boundary, RenderChildren } from '../types';
 import unwrapRef from '../unwrap-ref';
 import { watchMarkerForMarker } from '../watch-marker';
@@ -22,7 +22,7 @@ interface MemoryItem {
 export default function renderForNode<T>(
   boundary: Boundary,
   root: HTMLElement,
-  props: ForProps<T>,
+  props: Reactive<ForProps<T>>,
   renderChildren: RenderChildren,
   marker: ShallowReactive<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
@@ -49,34 +49,32 @@ export default function renderForNode<T>(
       // }
       for (let i = markers.length; i < tracked.length; i += 1) {
         markers[i] = createMarker();
-        markersLifecycle[i] = untrack(() => (
-          watchMarkerForMarker(root, marker, markers[i])
-        ));
+        markersLifecycle[i] = watchMarkerForMarker(root, marker, markers[i]);
       }
     });
     // Untrack for un-intended tracking
     untrack(() => {
-      function getNode(index: number) {
+      function getNode(index: number, item: any) {
         const position = ref(index);
+        const each = (() => {
+          if ('value' in props.each) {
+            const factory = props.each.value;
+            return computed(() => factory(item, position));
+          }
+          return props.each(item, position);
+        })();
         return {
           position,
-          cleanup: untrack(() => (
-            renderChildren(
-              boundary,
-              root,
-              // Reactively track changes
-              // on the produced children
-              computed(() => (
-                unwrapRef(props.each)(
-                  untrack(() => tracked[index]),
-                  position,
-                )
-              )),
-              // Track marker positions
-              computed(() => markers[position.value]),
-              suspended,
-            )
-          )),
+          cleanup: renderChildren(
+            boundary,
+            root,
+            // Reactively track changes
+            // on the produced children
+            each,
+            // Track marker positions
+            computed(() => markers[position.value]),
+            suspended,
+          ),
         };
       }
       // Shortcut for empty tracked array
