@@ -41,7 +41,7 @@ export default function renderComponentNode<P extends Record<string, any>>(
       (unwrappedProps as WithChildren).children = (props as WithChildren).children;
     } else {
       const property = props[key];
-      if ('value' in property) {
+      if (typeof property === 'object' && 'value' in property) {
         effect(() => {
           unwrappedProps[key] = property.value;
         });

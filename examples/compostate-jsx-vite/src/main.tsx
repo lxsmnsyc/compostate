@@ -4,15 +4,12 @@ import {
   c,
   For,
   Fragment,
-  hydrate,
   render,
 } from 'compostate-jsx';
 import {
   computed,
-  track,
   reactive,
   ref,
-  effect,
 } from 'compostate';
 
 import './style.css';

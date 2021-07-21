@@ -25,22 +25,20 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { BATCH_EFFECTS } from './contexts';
-import { LinkedWork, runLinkedWork } from '../linked-work';
-import { pushContext } from '../context';
+import EffectNode, { BATCH_EFFECTS } from './nodes/effect';
 
 export default function batchEffects(callback: () => void): () => void {
-  const batchedWork = new Set<LinkedWork>();
-  const popBatchEffects = pushContext(BATCH_EFFECTS, batchedWork);
+  const batchedEffects = new Set<EffectNode>();
+  const popBatchEffects = BATCH_EFFECTS.push(batchedEffects);
   try {
     callback();
   } finally {
     popBatchEffects();
   }
   return () => {
-    batchedWork.forEach((work) => {
-      runLinkedWork(work);
+    batchedEffects.forEach((effect) => {
+      effect.flush();
     });
-    batchedWork.clear();
+    batchedEffects.clear();
   };
 }

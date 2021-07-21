@@ -19,12 +19,18 @@ export default function renderArray(
     // Bridge error boundary across untrack
     setupErrorBoundary(boundary.error);
 
+    const markers: Marker[] = [];
+
     for (let i = 0; i < children.length; i += 1) {
       // Create a marker for each child
       const childMarker = createMarker();
 
       watchMarkerForMarker(root, marker, childMarker);
 
+      markers[i] = childMarker;
+    }
+
+    for (let i = 0; i < children.length; i += 1) {
       const child = isReactive(children)
         ? computed(() => children[i])
         : children[i];
@@ -35,7 +41,7 @@ export default function renderArray(
         root,
         // In case that the child comes from a reactive array
         child,
-        childMarker,
+        markers[i],
         suspended,
       );
     }

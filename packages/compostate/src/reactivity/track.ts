@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-types */
-import { trackAtom } from './reactive-atom';
 import ReactiveMap from './reactive-map';
 import ReactiveSet from './reactive-set';
 import ReactiveWeakMap from './reactive-weak-map';
 import ReactiveWeakSet from './reactive-weak-set';
-import { getTrackableAtom } from './track-map';
+import { getTrackableAtom } from './nodes/track-map';
 
 function track<T extends any[]>(source: T): T;
 function track<T extends Record<string | symbol, any>>(source: T): T;
@@ -15,7 +14,7 @@ function track<K extends object, V>(source: WeakMap<K, V>): ReactiveWeakMap<K, V
 function track(source: any): any {
   const atom = getTrackableAtom(source);
   if (atom) {
-    trackAtom(atom);
+    atom.track();
   }
   return source;
 }

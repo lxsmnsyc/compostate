@@ -28,13 +28,15 @@ export interface Marker {
 
 let id = 0;
 
+const USE_COMMENT = true;
+
 export function createMarker(): Marker {
   const newID = id;
   id += 1;
   return reactive({
     id: newID,
     version: 0,
-    node: createText(''),
+    node: USE_COMMENT ? document.createComment(`${newID}`) : createText(''),
   });
 }
 

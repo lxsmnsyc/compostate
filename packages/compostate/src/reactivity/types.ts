@@ -36,3 +36,6 @@ export type ReactiveCollection =
   | WeakSet<any>
 
 export type ReactiveBaseObject = ReactiveObject | ReactiveCollection;
+
+export type EffectCleanup = () => void;
+export type Effect = () => EffectCleanup | undefined | void;

@@ -25,20 +25,16 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import {
-  createReactiveAtom, notifyAtom,
-} from './reactive-atom';
-import {
-  createReactiveKeys, notifyAllKeys, notifyKey, trackKey,
-} from './reactive-keys';
-import { registerTrackable } from './track-map';
+import ReactiveAtom from './nodes/reactive-atom';
+import ReactiveKeys from './nodes/reactive-keys';
+import { registerTrackable } from './nodes/track-map';
 
 export default class ReactiveMap<K, V> implements Map<K, V> {
   private source: Map<K, V>;
 
-  private atom = createReactiveAtom();
+  private atom = new ReactiveAtom();
 
-  private collection = createReactiveKeys<K>();
+  private collection?: ReactiveKeys<K>;
 
   constructor(source: Map<K, V>) {
     this.source = source;
@@ -48,15 +44,15 @@ export default class ReactiveMap<K, V> implements Map<K, V> {
 
   clear(): void {
     this.source.clear();
-    notifyAllKeys(this.collection);
-    notifyAtom(this.atom);
+    this.collection?.notifyAll();
+    this.atom.notify();
   }
 
   delete(key: K): boolean {
     const result = this.source.delete(key);
     if (result) {
-      notifyKey(this.collection, key);
-      notifyAtom(this.atom);
+      this.collection?.notify(key);
+      this.atom.notify();
     }
     return result;
   }
@@ -93,7 +89,10 @@ export default class ReactiveMap<K, V> implements Map<K, V> {
   }
 
   get(key: K): V | undefined {
-    trackKey(this.collection, key);
+    if (!this.collection) {
+      this.collection = new ReactiveKeys();
+    }
+    this.collection.track(key);
     return this.source.get(key);
   }
 
@@ -101,14 +100,17 @@ export default class ReactiveMap<K, V> implements Map<K, V> {
     const current = this.source.get(key);
     if (!Object.is(current, value)) {
       this.source.set(key, value);
-      notifyKey(this.collection, key);
-      notifyAtom(this.atom);
+      this.collection?.notify(key);
+      this.atom.notify();
     }
     return this;
   }
 
   has(key: K): boolean {
-    trackKey(this.collection, key);
+    if (!this.collection) {
+      this.collection = new ReactiveKeys();
+    }
+    this.collection.track(key);
     return this.source.has(key);
   }
 }

@@ -25,14 +25,13 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import reactive from './reactive';
+
+import RefNode from './nodes/ref';
 
 export interface Ref<T> {
   value: T;
 }
 
 export default function ref<T>(value: T): Ref<T> {
-  return reactive({
-    value,
-  });
+  return new RefNode(value);
 }

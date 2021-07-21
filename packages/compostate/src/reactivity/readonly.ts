@@ -33,16 +33,18 @@ export function isReadonly<T extends ReactiveBaseObject>(object: T): boolean {
   return readonlies.has(object);
 }
 
+const HANDLER = {
+  set() {
+    return true;
+  },
+};
+
 export default function readonly<T extends ReactiveBaseObject>(object: T): T {
   const currentReadonly = readonlies.get(object);
   if (currentReadonly) {
     return currentReadonly;
   }
-  const newReadonly = new Proxy(object, {
-    set() {
-      return true;
-    },
-  });
+  const newReadonly = new Proxy(object, HANDLER);
   readonlies.set(object, newReadonly);
   return newReadonly;
 }

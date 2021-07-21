@@ -25,22 +25,17 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { pushContext } from '../context';
-import {
-  TRACKING,
-  BATCH_EFFECTS,
-  EFFECT,
-  BATCH_UPDATES,
-  ERROR,
-} from './contexts';
+import { BATCH_EFFECTS, EFFECT } from './nodes/effect';
+import { ERROR } from './nodes/error-boundary';
+import { BATCH_UPDATES, TRACKING } from './nodes/linked-work';
 import { GLOBAL } from './on-error';
 
 export default function untrack<T>(callback: () => T): T {
-  const popTracking = pushContext(TRACKING, undefined);
-  const popBatchEffects = pushContext(BATCH_EFFECTS, undefined);
-  const popBatchUpdates = pushContext(BATCH_UPDATES, undefined);
-  const popEffect = pushContext(EFFECT, undefined);
-  const popError = pushContext(ERROR, GLOBAL);
+  const popTracking = TRACKING.push(undefined);
+  const popBatchEffects = BATCH_EFFECTS.push(undefined);
+  const popBatchUpdates = BATCH_UPDATES.push(undefined);
+  const popEffect = EFFECT.push(undefined);
+  const popError = ERROR.push(GLOBAL);
   try {
     return callback();
   } finally {
