@@ -62,6 +62,10 @@ export type VOffscreen = 3;
 export type VPortal = 4;
 export type VFor = 5;
 
+// Considerations
+// export type VErrorBoundary = 255;
+// export type VProvider = 254;
+
 export type VSpecialConstructor =
   | VFragment
   | VSuspense
