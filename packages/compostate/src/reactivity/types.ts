@@ -39,3 +39,7 @@ export type ReactiveBaseObject = ReactiveObject | ReactiveCollection;
 
 export type EffectCleanup = () => void;
 export type Effect = () => EffectCleanup | undefined | void;
+
+export interface EffectOptions {
+  onError: (error: Error) => void;
+}

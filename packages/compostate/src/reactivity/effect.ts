@@ -26,10 +26,10 @@
  * @copyright Alexis Munsayac 2021
  */
 import EffectNode, { BATCH_EFFECTS } from './nodes/effect';
-import { Effect, EffectCleanup } from './types';
+import { Effect, EffectCleanup, EffectOptions } from './types';
 
-export default function effect(callback: Effect): EffectCleanup {
-  const instance = new EffectNode(callback);
+export default function effect(callback: Effect, options?: EffectOptions): EffectCleanup {
+  const instance = new EffectNode(callback, options);
 
   const batching = BATCH_EFFECTS.getContext();
   if (batching) {

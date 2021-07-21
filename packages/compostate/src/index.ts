@@ -36,7 +36,6 @@ export { default as ref, Ref } from './reactivity/ref';
 export { default as untrack } from './reactivity/untrack';
 export { default as track } from './reactivity/track';
 export { default as resource } from './reactivity/resource';
-export { default as onError } from './reactivity/on-error';
 export { default as spread } from './reactivity/spread';
 export * from './reactivity/resource';
 export { Effect, EffectCleanup } from './reactivity/types';

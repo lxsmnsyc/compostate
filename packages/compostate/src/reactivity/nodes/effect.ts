@@ -1,6 +1,5 @@
 import Context from '../../context';
-import { Effect } from '../types';
-import ErrorBoundary, { ERROR } from './error-boundary';
+import { Effect, EffectOptions } from '../types';
 import LinkedWork, { TRACKING } from './linked-work';
 
 export const EFFECT = new Context<EffectNode | undefined>();
@@ -13,18 +12,17 @@ export default class EffectNode {
 
   private effect: Effect;
 
-  private parentError?: ErrorBoundary;
+  private parent?: EffectNode;
 
   private children?: Set<EffectNode>;
 
   private revalidateWork?: LinkedWork;
 
-  private errorBoundary: ErrorBoundary;
+  private options?: Partial<EffectOptions>;
 
-  constructor(effect: Effect) {
+  constructor(effect: Effect, options?: Partial<EffectOptions>) {
     this.effect = effect;
-    this.parentError = ERROR.getContext();
-    this.errorBoundary = new ErrorBoundary(this.parentError);
+    this.options = options;
   }
 
   cleanup(): void {
@@ -41,8 +39,8 @@ export default class EffectNode {
         try {
           this.currentCleanup();
         } catch (error) {
-          if (this.parentError) {
-            this.parentError.capture(error);
+          if (this.parent?.options?.onError) {
+            this.parent.options.onError(error);
           } else {
             throw error;
           }
@@ -73,6 +71,7 @@ export default class EffectNode {
           currentEffect.children = new Set();
         }
         currentEffect.children.add(this);
+        this.parent = currentEffect;
       }
     }
   }
@@ -82,19 +81,17 @@ export default class EffectNode {
       this.cleanup();
       const popTracking = TRACKING.push(this.revalidateWork);
       const popEffect = EFFECT.push(this);
-      const popError = ERROR.push(this.errorBoundary);
       const popBatchEffects = BATCH_EFFECTS.push(undefined);
       try {
         this.currentCleanup = this.effect();
       } catch (error) {
-        if (this.parentError) {
-          this.parentError.capture(error);
+        if (this.parent?.options?.onError) {
+          this.parent.options.onError(error);
         } else {
           throw error;
         }
       } finally {
         popBatchEffects();
-        popError();
         popEffect();
         popTracking();
       }

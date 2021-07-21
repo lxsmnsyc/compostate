@@ -26,20 +26,16 @@
  * @copyright Alexis Munsayac 2021
  */
 import { BATCH_EFFECTS, EFFECT } from './nodes/effect';
-import { ERROR } from './nodes/error-boundary';
 import { BATCH_UPDATES, TRACKING } from './nodes/linked-work';
-import { GLOBAL } from './on-error';
 
 export default function untrack<T>(callback: () => T): T {
   const popTracking = TRACKING.push(undefined);
   const popBatchEffects = BATCH_EFFECTS.push(undefined);
   const popBatchUpdates = BATCH_UPDATES.push(undefined);
   const popEffect = EFFECT.push(undefined);
-  const popError = ERROR.push(GLOBAL);
   try {
     return callback();
   } finally {
-    popError();
     popEffect();
     popBatchEffects();
     popBatchUpdates();
