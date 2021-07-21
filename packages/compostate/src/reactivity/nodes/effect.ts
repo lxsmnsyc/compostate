@@ -25,6 +25,27 @@ export default class EffectNode {
     this.options = options;
   }
 
+  forwardError(error: Error): void {
+    if (this.parent) {
+      this.parent.handleError(error);
+    } else {
+      throw error;
+    }
+  }
+
+  handleError(error: Error): void {
+    if (this.options?.onError) {
+      try {
+        this.options.onError(error);
+      } catch (newError) {
+        this.forwardError(error);
+        this.forwardError(newError);
+      }
+    } else {
+      this.forwardError(error);
+    }
+  }
+
   cleanup(): void {
     if (this.alive) {
       this.revalidateWork?.unlinkDependencies();
@@ -39,11 +60,7 @@ export default class EffectNode {
         try {
           this.currentCleanup();
         } catch (error) {
-          if (this.parent?.options?.onError) {
-            this.parent.options.onError(error);
-          } else {
-            throw error;
-          }
+          this.handleError(error);
         }
 
         this.currentCleanup = undefined;
@@ -85,11 +102,7 @@ export default class EffectNode {
       try {
         this.currentCleanup = this.effect();
       } catch (error) {
-        if (this.parent?.options?.onError) {
-          this.parent.options.onError(error);
-        } else {
-          throw error;
-        }
+        this.handleError(error);
       } finally {
         popBatchEffects();
         popEffect();
