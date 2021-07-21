@@ -10,9 +10,9 @@ export default class ComputedNode<T> {
   private work: LinkedWork;
 
   constructor(compute: () => T) {
-    this.work = new LinkedWork(() => {
-      this.work?.unlinkDependencies();
-      const popTracking = TRACKING.push(this.work);
+    const work = new LinkedWork(() => {
+      work.unlinkDependencies();
+      const popTracking = TRACKING.push(work);
       try {
         this.val = {
           value: compute(),
@@ -22,7 +22,9 @@ export default class ComputedNode<T> {
       }
     });
 
-    this.work.run();
+    work.run();
+
+    this.work = work;
   }
 
   get value(): T {
