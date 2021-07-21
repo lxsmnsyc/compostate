@@ -95,8 +95,13 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // We do this since if we use compostate's
   // onError, it gets registered to the parent
   // handler.
-  errors.forEach((handler) => {
-    effect(() => errorBoundary.register(handler));
+  effect(() => {
+    const cleanups = errors.map((item) => errorBoundary.register(item));
+    return () => {
+      cleanups.forEach((cleanup) => {
+        cleanup();
+      });
+    };
   });
 
   // Create an effect scope
