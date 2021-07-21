@@ -4,7 +4,7 @@ import {
   Ref,
 } from 'compostate';
 import { Marker } from '../dom';
-import { setupErrorBoundary } from '../error-boundary';
+import { handleError } from '../error-boundary';
 import { ShallowReactive, VRawElement } from '../types';
 import renderComponentNode from './nodes/render-component-node';
 import renderHostNode from './nodes/render-host-node';
@@ -21,10 +21,6 @@ export default function renderNode(
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): EffectCleanup {
   return effect(() => {
-    // Setup parent error boundary
-    // because of untrack scope
-    setupErrorBoundary(boundary.error);
-
     effect(() => {
       // Unwrap constructor (useful if constructor is reactively changed).
       const constructor = unwrapRef(node.type);
@@ -69,5 +65,9 @@ export default function renderNode(
         );
       }
     });
+  }, {
+    onError(error) {
+      handleError(boundary.error, error);
+    },
   });
 }

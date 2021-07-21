@@ -1,6 +1,6 @@
 import { effect, EffectCleanup, Ref } from 'compostate';
 import { Marker } from '../dom';
-import { setupErrorBoundary } from '../error-boundary';
+import { handleError } from '../error-boundary';
 import { ShallowReactive, VNode } from '../types';
 import { Boundary, RenderChildren } from './types';
 
@@ -13,8 +13,6 @@ export default function renderRef(
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): EffectCleanup {
   return effect(() => {
-    setupErrorBoundary(boundary.error);
-
     renderChildren(
       boundary,
       root,
@@ -22,5 +20,9 @@ export default function renderRef(
       marker,
       suspended,
     );
+  }, {
+    onError(error) {
+      handleError(boundary.error, error);
+    },
   });
 }

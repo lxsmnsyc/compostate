@@ -7,7 +7,7 @@ import {
   untrack,
 } from 'compostate';
 import { Marker } from '../../dom';
-import ErrorBoundary, { setupErrorBoundary } from '../../error-boundary';
+import ErrorBoundary, { handleError } from '../../error-boundary';
 import { MOUNT, UNMOUNT, ERROR } from '../../lifecycle';
 import { PROVIDER } from '../../provider';
 import { SUSPENSE } from '../../suspense';
@@ -108,8 +108,6 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // this is to properly setup
   // the error boundary
   effect(() => {
-    setupErrorBoundary(errorBoundary);
-
     const newBoundary = {
       suspense: boundary.suspense,
       error: errorBoundary,
@@ -144,5 +142,9 @@ export default function renderComponentNode<P extends Record<string, any>>(
     effect(() => {
       flushEffects();
     });
+  }, {
+    onError(error) {
+      handleError(errorBoundary, error);
+    },
   });
 }
