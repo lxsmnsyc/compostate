@@ -2,6 +2,7 @@ import { Ref } from 'compostate';
 import { FragmentProps } from '../../core';
 import { Marker } from '../../dom';
 import { ShallowReactive } from '../../types';
+import renderArray from '../render-array';
 import { Boundary, RenderChildren } from '../types';
 
 export default function renderFragmentNode(
@@ -13,11 +14,14 @@ export default function renderFragmentNode(
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   // Fragment renderer
-  renderChildren(
-    boundary,
-    root,
-    props.children,
-    marker,
-    suspended,
-  );
+  if (props.children) {
+    renderArray(
+      boundary,
+      root,
+      props.children,
+      renderChildren,
+      marker,
+      suspended,
+    );
+  }
 }
