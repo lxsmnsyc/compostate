@@ -8,9 +8,9 @@ import {
 import { Marker, registerEvent, setAttribute } from '../../dom';
 import { handleError } from '../../error-boundary';
 import { claimHydration, HYDRATION } from '../../hydration';
-import { Reactive, RefAttributes, ShallowReactive } from '../../types';
+import { Reactive, RefAttributes } from '../../types';
 import { DOMAttributes } from '../../types/dom';
-import { Boundary, RenderChildren } from '../types';
+import { Boundary, Lazy, RenderChildren } from '../types';
 import { watchMarkerForNode } from '../watch-marker';
 
 function applyHostProperty(
@@ -52,7 +52,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
   constructor: string,
   props: Reactive<P> & RefAttributes<Element>,
   renderChildren: RenderChildren,
-  marker: ShallowReactive<Marker | null> = null,
+  marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   const hydration = HYDRATION.getContext();

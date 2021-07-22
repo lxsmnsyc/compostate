@@ -2,21 +2,22 @@
 import { EffectCleanup, effect, Ref } from 'compostate';
 import { Marker, insert, remove } from '../dom';
 import { ShallowReactive } from '../types';
+import { Lazy } from './types';
 
 export function watchMarkerForMarker(
   root: HTMLElement,
-  parent: ShallowReactive<Marker | null>,
+  parent: Lazy<Marker | null>,
   child: Marker,
 ): EffectCleanup {
   let initialCall = true;
   if (parent) {
     let parentVersion: number | undefined;
-    if ('value' in parent) {
+    if (typeof parent === 'function') {
       let previousParent: Marker | null = null;
 
       return effect(() => {
         // Insert new marker before the parent marker
-        const actualParent = parent.value;
+        const actualParent = parent();
         if (actualParent !== previousParent) {
           parentVersion = undefined;
           previousParent = actualParent;
@@ -68,18 +69,18 @@ export function watchMarkerForMarker(
 
 export function watchMarkerForNode(
   root: HTMLElement,
-  parent: ShallowReactive<Marker | null>,
+  parent: Lazy<Marker | null>,
   child: Node,
-  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+  suspended: ShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   if (parent) {
     let parentVersion: number | undefined;
-    if ('value' in parent) {
+    if (typeof parent === 'function') {
       let previousParent: Marker | null = null;
       if (typeof suspended === 'object') {
         return effect(() => {
           // Do not insert node if the tree is suspended
-          const actualParent = parent.value;
+          const actualParent = parent();
           if (actualParent !== previousParent) {
             parentVersion = undefined;
             previousParent = actualParent;
@@ -106,7 +107,7 @@ export function watchMarkerForNode(
         return () => { /* no-op */ };
       }
       return effect(() => {
-        const actualParent = parent.value;
+        const actualParent = parent();
         if (actualParent !== previousParent) {
           parentVersion = undefined;
           previousParent = actualParent;

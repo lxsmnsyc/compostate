@@ -1,8 +1,8 @@
 import { computed, Ref } from 'compostate';
 import { OffscreenProps } from '../../core';
 import { createMarker, Marker } from '../../dom';
-import { Reactive, ShallowReactive } from '../../types';
-import { Boundary, RenderChildren } from '../types';
+import { Reactive } from '../../types';
+import { Boundary, Lazy, RenderChildren } from '../types';
 import { watchMarkerForMarker } from '../watch-marker';
 
 export default function renderOffscreenNode(
@@ -10,7 +10,7 @@ export default function renderOffscreenNode(
   root: HTMLElement,
   props: Reactive<OffscreenProps>,
   renderChildren: RenderChildren,
-  marker: ShallowReactive<Marker | null> = null,
+  marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   const offscreenMarker = createMarker();

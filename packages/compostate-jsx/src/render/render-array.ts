@@ -3,8 +3,8 @@ import {
 } from 'compostate';
 import { Marker, createMarker } from '../dom';
 import { handleError } from '../error-boundary';
-import { ShallowReactive, VNode } from '../types';
-import { Boundary, RenderChildren } from './types';
+import { VNode } from '../types';
+import { Boundary, Lazy, RenderChildren } from './types';
 import { watchMarkerForMarker } from './watch-marker';
 
 export default function renderArray(
@@ -12,7 +12,7 @@ export default function renderArray(
   root: HTMLElement,
   children: VNode[],
   renderChild: RenderChildren,
-  marker: ShallowReactive<Marker | null> = null,
+  marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): EffectCleanup {
   return effect(() => {

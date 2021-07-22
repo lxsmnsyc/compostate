@@ -5,11 +5,11 @@ import {
 } from 'compostate';
 import { Marker } from '../dom';
 import { handleError } from '../error-boundary';
-import { ShallowReactive, VRawElement } from '../types';
+import { VRawElement } from '../types';
 import renderComponentNode from './nodes/render-component-node';
 import renderHostNode from './nodes/render-host-node';
 import renderSpecialNode, { SpecialNode } from './nodes/render-special-node';
-import { Boundary, RenderChildren } from './types';
+import { Boundary, Lazy, RenderChildren } from './types';
 import unwrapRef from './unwrap-ref';
 
 export default function renderNode(
@@ -17,7 +17,7 @@ export default function renderNode(
   root: HTMLElement,
   node: VRawElement,
   renderChildren: RenderChildren,
-  marker: ShallowReactive<Marker | null> = null,
+  marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): EffectCleanup {
   return effect(() => {

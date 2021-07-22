@@ -2,7 +2,7 @@ import { EffectCleanup, Ref } from 'compostate';
 import { VNode, ShallowReactive } from '../types';
 import { Marker } from '../dom';
 import renderArray from './render-array';
-import { Boundary } from './types';
+import { Boundary, Lazy } from './types';
 import renderText from './render-text';
 import renderRef from './render-ref';
 import renderNode from './render-node';
@@ -11,7 +11,7 @@ export default function renderChildren(
   boundary: Boundary,
   root: HTMLElement,
   children: VNode,
-  marker: ShallowReactive<Marker | null> = null,
+  marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): EffectCleanup {
   if (Array.isArray(children)) {

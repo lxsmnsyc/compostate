@@ -8,8 +8,7 @@ import {
 } from 'compostate';
 import { SuspenseProps } from '../../core';
 import { createMarker, Marker } from '../../dom';
-import { ShallowReactive } from '../../types';
-import { Boundary, RenderChildren } from '../types';
+import { Boundary, Lazy, RenderChildren } from '../types';
 import unwrapRef from '../unwrap-ref';
 import { watchMarkerForMarker } from '../watch-marker';
 
@@ -18,7 +17,7 @@ export default function renderSuspenseNode(
   root: HTMLElement,
   props: SuspenseProps,
   renderChildren: RenderChildren,
-  marker: ShallowReactive<Marker | null> = null,
+  marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   // This contains all of the tracked

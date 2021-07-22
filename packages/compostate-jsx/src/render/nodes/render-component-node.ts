@@ -14,12 +14,11 @@ import { SUSPENSE } from '../../suspense';
 import {
   Reactive,
   RefAttributes,
-  ShallowReactive,
   VComponent,
   VNode,
   WithChildren,
 } from '../../types';
-import { Boundary, RenderChildren } from '../types';
+import { Boundary, Lazy, RenderChildren } from '../types';
 
 export default function renderComponentNode<P extends Record<string, any>>(
   boundary: Boundary,
@@ -27,7 +26,7 @@ export default function renderComponentNode<P extends Record<string, any>>(
   constructor: VComponent<P>,
   props: Reactive<P>,
   renderChildren: RenderChildren,
-  marker: ShallowReactive<Marker | null> = null,
+  marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   // Create a reactive object form for the props

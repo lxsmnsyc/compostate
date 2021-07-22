@@ -15,6 +15,8 @@ export type RenderChildren = (
   boundary: Boundary,
   root: HTMLElement,
   children: VNode,
-  marker?: ShallowReactive<Marker | null>,
+  marker?: Lazy<Marker | null>,
   suspended?: Ref<boolean | undefined> | boolean | undefined,
 ) => EffectCleanup;
+
+export type Lazy<T> = T | (() => T);

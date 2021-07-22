@@ -13,14 +13,13 @@ import {
 } from '../../core';
 import { Marker } from '../../dom';
 import {
-  ShallowReactive,
   VFor,
   VFragment,
   VOffscreen,
   VPortal,
   VSuspense,
 } from '../../types';
-import { Boundary, RenderChildren } from '../types';
+import { Boundary, Lazy, RenderChildren } from '../types';
 import renderForNode from './render-for-node';
 import renderFragmentNode from './render-fragment-node';
 import renderOffscreenNode from './render-offscreen-node';
@@ -39,7 +38,7 @@ export default function renderSpecialNode(
   root: HTMLElement,
   node: SpecialNode,
   renderChildren: RenderChildren,
-  marker: ShallowReactive<Marker | null> = null,
+  marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   switch (node.constructor) {

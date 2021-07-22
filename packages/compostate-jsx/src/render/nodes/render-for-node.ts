@@ -10,8 +10,8 @@ import {
 } from 'compostate';
 import { ForProps } from '../../core';
 import { createMarker, Marker } from '../../dom';
-import { Reactive, ShallowReactive } from '../../types';
-import { Boundary, RenderChildren } from '../types';
+import { Reactive } from '../../types';
+import { Boundary, Lazy, RenderChildren } from '../types';
 import unwrapRef from '../unwrap-ref';
 import { watchMarkerForMarker } from '../watch-marker';
 
@@ -25,7 +25,7 @@ export default function renderForNode<T>(
   root: HTMLElement,
   props: Reactive<ForProps<T>>,
   renderChildren: RenderChildren,
-  marker: ShallowReactive<Marker | null> = null,
+  marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   // The memoized array based on the source array
@@ -56,7 +56,7 @@ export default function renderForNode<T>(
         // on the produced children
         each,
         // Track marker positions
-        computed(() => markers[position.value]),
+        () => markers[position.value],
         suspended,
       ),
     };

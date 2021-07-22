@@ -1,14 +1,14 @@
 import { effect, Ref } from 'compostate';
 import { PortalProps } from '../../core';
 import { Marker } from '../../dom';
-import { Reactive, ShallowReactive } from '../../types';
-import { Boundary, RenderChildren } from '../types';
+import { Reactive } from '../../types';
+import { Boundary, Lazy, RenderChildren } from '../types';
 
 export default function renderPortalNode(
   boundary: Boundary,
   props: Reactive<PortalProps>,
   renderChildren: RenderChildren,
-  marker: ShallowReactive<Marker | null> = null,
+  marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): void {
   if (props.target instanceof HTMLElement) {
