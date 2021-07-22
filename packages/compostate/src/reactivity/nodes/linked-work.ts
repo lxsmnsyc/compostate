@@ -1,5 +1,6 @@
 import Context from '../../context';
 import {
+  cloneList,
   createLinkedList,
   createLinkedListNode,
   insertTail,
@@ -32,7 +33,7 @@ export default class LinkedWork {
 
   private dependents?: LinkedList<LinkedWork>;
 
-  private dependentsPosition?: Record<string, LinkedListNode<LinkedWork>>;
+  private dependentsPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
 
   addDependent(dependent: LinkedWork): void {
     if (this.alive) {
@@ -40,7 +41,7 @@ export default class LinkedWork {
         this.dependents = createLinkedList();
         this.dependentsPosition = {};
       }
-      if (!(dependent.id in this.dependentsPosition)) {
+      if (!this.dependentsPosition[dependent.id]) {
         const node = createLinkedListNode(dependent);
         this.dependentsPosition[dependent.id] = node;
         insertTail(this.dependents, node);
@@ -52,14 +53,16 @@ export default class LinkedWork {
     if (!this.dependents || !this.dependentsPosition) {
       return;
     }
-    if (dependent.id in this.dependentsPosition) {
-      removeNode(this.dependents, this.dependentsPosition[dependent.id]);
+    const node = this.dependentsPosition[dependent.id];
+    if (node) {
+      removeNode(this.dependents, node);
+      this.dependentsPosition[dependent.id] = undefined;
     }
   }
 
   private dependencies?: LinkedList<LinkedWork>;
 
-  private dependenciesPosition?: Record<string, LinkedListNode<LinkedWork>>;
+  private dependenciesPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
 
   addDependency(dependency: LinkedWork): void {
     if (this.alive) {
@@ -67,7 +70,7 @@ export default class LinkedWork {
         this.dependencies = createLinkedList();
         this.dependenciesPosition = {};
       }
-      if (!(dependency.id in this.dependenciesPosition)) {
+      if (!this.dependenciesPosition[dependency.id]) {
         const node = createLinkedListNode(dependency);
         this.dependenciesPosition[dependency.id] = node;
         insertTail(this.dependencies, node);
@@ -79,8 +82,10 @@ export default class LinkedWork {
     if (!this.dependencies || !this.dependenciesPosition) {
       return;
     }
-    if (dependency.id in this.dependenciesPosition) {
-      removeNode(this.dependencies, this.dependenciesPosition[dependency.id]);
+    const node = this.dependenciesPosition[dependency.id];
+    if (node) {
+      removeNode(this.dependencies, node);
+      this.dependenciesPosition[dependency.id] = undefined;
     }
   }
 
@@ -88,19 +93,25 @@ export default class LinkedWork {
     if (this.alive) {
       this.work?.();
 
-      let node = this.dependents?.head;
-      while (node) {
-        node.value.run();
-        node = node.next;
+      if (this.dependents) {
+        const list = cloneList(this.dependents);
+        let node = list.head;
+        while (node) {
+          node.value.run();
+          node = node.next;
+        }
       }
     }
   }
 
   unlinkDependencies(): void {
-    let node = this.dependencies?.head;
-    while (node) {
-      node.value.removeDependent(this);
-      node = node.next;
+    if (this.dependencies) {
+      const list = cloneList(this.dependencies);
+      let node = list.head;
+      while (node) {
+        node.value.removeDependent(this);
+        node = node.next;
+      }
     }
   }
 
