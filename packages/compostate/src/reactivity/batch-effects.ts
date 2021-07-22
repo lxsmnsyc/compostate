@@ -28,7 +28,7 @@
 import EffectNode, { BATCH_EFFECTS } from './nodes/effect';
 
 export default function batchEffects(callback: () => void): () => void {
-  const batchedEffects = new Set<EffectNode>();
+  const batchedEffects: EffectNode[] = [];
   const popBatchEffects = BATCH_EFFECTS.push(batchedEffects);
   try {
     callback();
@@ -39,6 +39,5 @@ export default function batchEffects(callback: () => void): () => void {
     batchedEffects.forEach((effect) => {
       effect.flush();
     });
-    batchedEffects.clear();
   };
 }

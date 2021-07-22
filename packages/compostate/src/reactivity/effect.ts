@@ -33,7 +33,7 @@ export default function effect(callback: Effect, options?: EffectOptions): Effec
 
   const batching = BATCH_EFFECTS.getContext();
   if (batching) {
-    batching.add(instance);
+    batching.push(instance);
   } else {
     instance.flush();
   }

@@ -4,7 +4,7 @@ import { Effect, EffectOptions } from '../types';
 import LinkedWork, { TRACKING } from './linked-work';
 
 export const EFFECT = new Context<EffectNode | undefined>();
-export const BATCH_EFFECTS = new Context<Set<EffectNode> | undefined>();
+export const BATCH_EFFECTS = new Context<EffectNode[] | undefined>();
 
 export default class EffectNode {
   private alive = true;
