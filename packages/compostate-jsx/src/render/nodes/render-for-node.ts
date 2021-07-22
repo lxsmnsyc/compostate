@@ -63,30 +63,7 @@ export default function renderForNode<T>(
   }
 
   effect(() => {
-    const array = props.in;
-    if (Array.isArray(array) && !isReactive(array)) {
-      const mappedChildren = (() => {
-        const factory = props.each;
-        if ('value' in factory) {
-          const unwrapped = factory.value;
-          return computed(() => array.map((item, index) => (
-            unwrapped(item, ref(index))
-          )));
-        }
-        return array.map((item, index) => (
-          factory(item, ref(index))
-        ));
-      })();
-      renderChildren(
-        boundary,
-        root,
-        mappedChildren,
-        marker,
-        suspended,
-      );
-      return undefined;
-    }
-    const tracked = unwrapRef(track(array));
+    const tracked = unwrapRef(track(props.in));
     // Expand markers if the tracked array has suffix inserts
     untrack(() => {
       // for (let i = tracked.length; i < markers.length; i += 1) {
