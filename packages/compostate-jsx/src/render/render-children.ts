@@ -1,5 +1,5 @@
 import { EffectCleanup, Ref } from 'compostate';
-import { VNode, ShallowReactive } from '../types';
+import { VNode } from '../types';
 import { Marker } from '../dom';
 import renderArray from './render-array';
 import { Boundary, Lazy } from './types';

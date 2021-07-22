@@ -1,5 +1,5 @@
 /* eslint-disable no-param-reassign */
-import { EffectCleanup, effect, Ref } from 'compostate';
+import { EffectCleanup, effect } from 'compostate';
 import { Marker, insert, remove } from '../dom';
 import { ShallowReactive } from '../types';
 import { Lazy } from './types';
