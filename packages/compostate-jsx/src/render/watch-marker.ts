@@ -1,9 +1,12 @@
 /* eslint-disable no-param-reassign */
 import { EffectCleanup, effect } from 'compostate';
+import Context from '../context';
 import { Marker, insert, remove } from '../dom';
 import ErrorBoundary, { handleError } from '../error-boundary';
 import { ShallowReactive } from '../types';
 import { Lazy } from './types';
+
+export const UNMOUNTING = new Context<boolean | undefined>();
 
 export function watchMarkerForMarker(
   root: HTMLElement,
@@ -38,7 +41,9 @@ export function watchMarkerForMarker(
         initialCall = false;
 
         return () => {
-          remove(child.node);
+          if (!UNMOUNTING.getContext()) {
+            remove(child.node);
+          }
         };
       }, {
         onError(error) {
@@ -61,7 +66,9 @@ export function watchMarkerForMarker(
       initialCall = false;
 
       return () => {
-        remove(child.node);
+        if (!UNMOUNTING.getContext()) {
+          remove(child.node);
+        }
       };
     }, {
       onError(error) {
@@ -71,7 +78,9 @@ export function watchMarkerForMarker(
   }
   insert(root, child.node);
   return () => {
-    remove(child.node);
+    if (!UNMOUNTING.getContext()) {
+      remove(child.node);
+    }
   };
 }
 
@@ -108,7 +117,9 @@ export function watchMarkerForNode(
           }
 
           return () => {
-            remove(child);
+            if (!UNMOUNTING.getContext()) {
+              remove(child);
+            }
           };
         }, {
           onError(error) {
@@ -137,7 +148,9 @@ export function watchMarkerForNode(
         }
 
         return () => {
-          remove(child);
+          if (!UNMOUNTING.getContext()) {
+            remove(child);
+          }
         };
       }, {
         onError(error) {
@@ -153,7 +166,9 @@ export function watchMarkerForNode(
         }
 
         return () => {
-          remove(child);
+          if (!UNMOUNTING.getContext()) {
+            remove(child);
+          }
         };
       }, {
         onError(error) {
@@ -171,7 +186,9 @@ export function watchMarkerForNode(
       }
 
       return () => {
-        remove(child);
+        if (!UNMOUNTING.getContext()) {
+          remove(child);
+        }
       };
     }, {
       onError(error) {
@@ -185,7 +202,9 @@ export function watchMarkerForNode(
         insert(root, child);
       }
       return () => {
-        remove(child);
+        if (!UNMOUNTING.getContext()) {
+          remove(child);
+        }
       };
     }, {
       onError(error) {
@@ -199,6 +218,8 @@ export function watchMarkerForNode(
 
   insert(root, child);
   return () => {
-    remove(child);
+    if (!UNMOUNTING.getContext()) {
+      remove(child);
+    }
   };
 }

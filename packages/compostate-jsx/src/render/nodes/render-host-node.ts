@@ -11,7 +11,7 @@ import { claimHydration, HYDRATION } from '../../hydration';
 import { Reactive, RefAttributes } from '../../types';
 import { DOMAttributes } from '../../types/dom';
 import { Boundary, Lazy, RenderChildren } from '../types';
-import { watchMarkerForNode } from '../watch-marker';
+import { UNMOUNTING, watchMarkerForNode } from '../watch-marker';
 
 function applyHostProperty(
   boundary: Boundary,
@@ -81,7 +81,16 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
       }
     // Children handler
     } else if (key === 'children') {
-      cleanups.push(renderChildren(boundary, el, props.children));
+      const cleanup = renderChildren(boundary, el, props.children);
+      const children = () => {
+        const popUnmounting = UNMOUNTING.push(true);
+        try {
+          cleanup();
+        } finally {
+          popUnmounting();
+        }
+      };
+      cleanups.push(children);
     } else {
       const rawProperty = props[key as keyof typeof props];
       if (typeof rawProperty === 'object' && 'value' in rawProperty) {
