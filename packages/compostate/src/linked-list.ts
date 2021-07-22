@@ -95,3 +95,18 @@ export function removeNode<T>(
     node.next.prev = node.prev;
   }
 }
+
+export function cloneList<T>(
+  list: LinkedList<T>,
+): LinkedList<T> {
+  const newList = createLinkedList<T>();
+
+  let node = list.head;
+
+  while (node) {
+    insertTail(newList, createLinkedListNode(node.value));
+    node = node.next;
+  }
+
+  return newList;
+}
