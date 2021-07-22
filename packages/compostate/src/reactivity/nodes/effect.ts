@@ -1,4 +1,5 @@
 import Context from '../../context';
+import batch from '../batch';
 import { Effect, EffectOptions } from '../types';
 import LinkedWork, { TRACKING } from './linked-work';
 
@@ -100,7 +101,9 @@ export default class EffectNode {
       const popEffect = EFFECT.push(this);
       const popBatchEffects = BATCH_EFFECTS.push(undefined);
       try {
-        this.currentCleanup = this.effect();
+        batch(() => {
+          this.currentCleanup = this.effect();
+        });
       } catch (error) {
         this.handleError(error);
       } finally {
