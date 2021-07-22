@@ -25,7 +25,7 @@ export default function renderChildren(
     );
   }
   if (typeof children === 'string' || typeof children === 'number') {
-    return renderText(root, children, marker, suspended);
+    return renderText(boundary, root, children, marker, suspended);
   }
   if (children == null || typeof children === 'boolean') {
     return () => { /* no-op */ };

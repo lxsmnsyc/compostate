@@ -1,7 +1,7 @@
 import { Ref } from 'compostate';
 
 export type VRawElement<P extends Record<string, any> = Record<string, any>> = {
-  type: VConstructor;
+  type: VReactiveConstructor<P>;
   props: P;
 };
 
@@ -74,6 +74,9 @@ export type VSpecialConstructor =
   | VFor;
 
 export type VConstructor<P extends Record<string, any> = Record<string, any>> =
-  | ShallowReactive<string
+  | string
   | VComponent<P>
-  | VSpecialConstructor>;
+  | VSpecialConstructor;
+
+export type VReactiveConstructor<P extends Record<string, any> = Record<string, any>> =
+  ShallowReactive<VConstructor<P>>;

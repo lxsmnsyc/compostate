@@ -1,8 +1,7 @@
 import {
   Attributes,
-  VComponent,
-  VConstructor,
   VNode,
+  VReactiveConstructor,
 } from './src/types';
 import {
   DetailedHTMLProps,
@@ -67,7 +66,7 @@ declare global {
       type Element = VNode;
     
       // interface ?
-      type ElementClass = VConstructor;
+      type ElementClass = VReactiveConstructor;
     
       interface ElementAttributesProperty {
         props: any;

@@ -1,4 +1,4 @@
-import { computed, Ref } from 'compostate';
+import { computed, EffectCleanup, Ref } from 'compostate';
 import { OffscreenProps } from '../../core';
 import { createMarker, Marker } from '../../dom';
 import { Reactive } from '../../types';
@@ -12,78 +12,87 @@ export default function renderOffscreenNode(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
-): void {
+): EffectCleanup {
   const offscreenMarker = createMarker();
 
-  watchMarkerForMarker(root, marker, offscreenMarker);
+  const cleanups = [
+    watchMarkerForMarker(root, marker, offscreenMarker, boundary.error),
+    (() => {
+      if (typeof suspended === 'object') {
+        if (typeof props.mount === 'object') {
+          const mountRef = props.mount;
+          return renderChildren(
+            boundary,
+            root,
+            props.children,
+            offscreenMarker,
+            // Forward the suspend state
+            computed(() => suspended.value || !mountRef.value),
+          );
+        }
+        if (props.mount) {
+          return renderChildren(
+            boundary,
+            root,
+            props.children,
+            offscreenMarker,
+            // Forward the suspend state
+            suspended,
+          );
+        }
+        return renderChildren(
+          boundary,
+          root,
+          props.children,
+          offscreenMarker,
+          // Forward the suspend state
+          true,
+        );
+      }
+      if (typeof props.mount === 'object') {
+        const mountRef = props.mount;
+        if (suspended) {
+          return renderChildren(
+            boundary,
+            root,
+            props.children,
+            offscreenMarker,
+            // Forward the suspend state
+            true,
+          );
+        }
+        return renderChildren(
+          boundary,
+          root,
+          props.children,
+          offscreenMarker,
+          mountRef,
+        );
+      }
+      if (props.mount) {
+        return renderChildren(
+          boundary,
+          root,
+          props.children,
+          offscreenMarker,
+          // Forward the suspend state
+          suspended,
+        );
+      }
+      return renderChildren(
+        boundary,
+        root,
+        props.children,
+        offscreenMarker,
+        // Forward the suspend state
+        true,
+      );
+    })(),
+  ];
 
-  if (typeof suspended === 'object') {
-    if (typeof props.mount === 'object') {
-      const mountRef = props.mount;
-      renderChildren(
-        boundary,
-        root,
-        props.children,
-        offscreenMarker,
-        // Forward the suspend state
-        computed(() => suspended.value || !mountRef.value),
-      );
-    } else if (props.mount) {
-      renderChildren(
-        boundary,
-        root,
-        props.children,
-        offscreenMarker,
-        // Forward the suspend state
-        suspended,
-      );
-    } else {
-      renderChildren(
-        boundary,
-        root,
-        props.children,
-        offscreenMarker,
-        // Forward the suspend state
-        true,
-      );
-    }
-  } else if (typeof props.mount === 'object') {
-    const mountRef = props.mount;
-    if (suspended) {
-      renderChildren(
-        boundary,
-        root,
-        props.children,
-        offscreenMarker,
-        // Forward the suspend state
-        true,
-      );
-    } else {
-      renderChildren(
-        boundary,
-        root,
-        props.children,
-        offscreenMarker,
-        mountRef,
-      );
-    }
-  } else if (props.mount) {
-    renderChildren(
-      boundary,
-      root,
-      props.children,
-      offscreenMarker,
-      // Forward the suspend state
-      suspended,
-    );
-  } else {
-    renderChildren(
-      boundary,
-      root,
-      props.children,
-      offscreenMarker,
-      // Forward the suspend state
-      true,
-    );
-  }
+  return () => {
+    cleanups.forEach((cleanup) => {
+      cleanup();
+    });
+  };
 }

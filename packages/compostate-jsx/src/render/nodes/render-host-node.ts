@@ -54,7 +54,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
-): void {
+): EffectCleanup {
   const hydration = HYDRATION.getContext();
   const claim = hydration ? claimHydration(hydration) : null;
   let el = document.createElement(constructor);
@@ -70,6 +70,8 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
     }
   }
 
+  const cleanups: EffectCleanup[] = [];
+
   Object.keys(props).forEach((key) => {
     // Ref handler
     if (key === 'ref') {
@@ -79,21 +81,27 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
       }
     // Children handler
     } else if (key === 'children') {
-      renderChildren(boundary, el, props.children);
+      cleanups.push(renderChildren(boundary, el, props.children));
     } else {
       const rawProperty = props[key as keyof typeof props];
       if (typeof rawProperty === 'object' && 'value' in rawProperty) {
-        effect(() => (
+        cleanups.push(effect(() => (
           applyHostProperty(boundary, el, key, rawProperty.value)
-        ));
+        )));
       } else {
         const cleanup = applyHostProperty(boundary, el, key, rawProperty);
         if (cleanup) {
-          effect(() => cleanup);
+          cleanups.push(cleanup);
         }
       }
     }
   });
 
-  watchMarkerForNode(root, marker, el, suspended);
+  cleanups.push(watchMarkerForNode(root, marker, el, suspended, boundary.error));
+
+  return () => {
+    cleanups.forEach((cleanup) => {
+      cleanup();
+    });
+  };
 }

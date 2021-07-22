@@ -2,6 +2,7 @@ import {
   batch,
   batchEffects,
   effect,
+  EffectCleanup,
   reactive,
   Ref,
   untrack,
@@ -28,7 +29,7 @@ export default function renderComponentNode<P extends Record<string, any>>(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
-): void {
+): EffectCleanup {
   // Create a reactive object form for the props
   const unwrappedProps = reactive<P>({} as P);
 
@@ -94,56 +95,52 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // We do this since if we use compostate's
   // onError, it gets registered to the parent
   // handler.
-  effect(() => {
-    const cleanups = errors.map((item) => errorBoundary.register(item));
-    return () => {
-      cleanups.forEach((cleanup) => {
-        cleanup();
-      });
-    };
-  });
+  const cleanups = errors.map((item) => errorBoundary.register(item));
+
+  const newBoundary = {
+    suspense: boundary.suspense,
+    error: errorBoundary,
+    provider,
+  };
 
   // Create an effect scope
   // this is to properly setup
   // the error boundary
-  effect(() => {
-    const newBoundary = {
-      suspense: boundary.suspense,
-      error: errorBoundary,
-      provider,
-    };
 
-    // Render constructor result
-    renderChildren(newBoundary, root, result, marker, suspended);
+  cleanups.push(renderChildren(newBoundary, root, result, marker, suspended));
+  if (mounts.length) {
+    untrack(() => {
+      mounts.forEach((mount) => {
+        batch(() => {
+          mount();
+        });
+      });
+    });
+  }
 
-    // Run lifecycles
-    effect(() => {
+  if (unmounts.length) {
+    cleanups.push(() => {
       untrack(() => {
-        mounts.forEach((mount) => {
+        unmounts.forEach((unmount) => {
           batch(() => {
-            mount();
+            unmount();
           });
         });
       });
-
-      return () => {
-        untrack(() => {
-          unmounts.forEach((unmount) => {
-            batch(() => {
-              unmount();
-            });
-          });
-        });
-      };
     });
+  }
 
-    // Flush effects
-    effect(() => {
-      flushEffects();
-    });
+  cleanups.push(effect(() => {
+    flushEffects();
   }, {
     onError(error) {
       handleError(errorBoundary, error);
     },
-  });
+  }));
+
+  return () => {
+    cleanups.forEach((cleanup) => {
+      cleanup();
+    });
+  };
 }

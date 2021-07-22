@@ -7,12 +7,12 @@ import {
   BaseProps,
   VElement,
   VFragment,
-  VConstructor,
   ShallowReactive,
   VSuspense,
   VPortal,
   VOffscreen,
   VFor,
+  VReactiveConstructor,
 } from './types';
 import { DOMAttributes } from './types/dom';
 import { HTMLAttributes, CompostateHTML } from './types/html';
@@ -64,7 +64,7 @@ export function c<P>(
   ...children: VNode[]
 ): VElement;
 export function c<P extends BaseProps<P>>(
-  type: VConstructor,
+  type: VReactiveConstructor,
   props: Reactive<P>,
   ...children: VNode[]
 ): VElement {

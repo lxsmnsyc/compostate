@@ -1,4 +1,4 @@
-import { Ref } from 'compostate';
+import { EffectCleanup, Ref } from 'compostate';
 import { FragmentProps } from '../../core';
 import { Marker } from '../../dom';
 import { Boundary, Lazy, RenderChildren } from '../types';
@@ -10,9 +10,9 @@ export default function renderFragmentNode(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
-): void {
+): EffectCleanup {
   // Fragment renderer
-  renderChildren(
+  return renderChildren(
     boundary,
     root,
     props.children,

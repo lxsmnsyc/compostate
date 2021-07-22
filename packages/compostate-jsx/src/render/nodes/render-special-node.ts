@@ -1,4 +1,4 @@
-import { Ref } from 'compostate';
+import { EffectCleanup, Ref } from 'compostate';
 import {
   For,
   ForProps,
@@ -40,10 +40,10 @@ export default function renderSpecialNode(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
-): void {
+): EffectCleanup {
   switch (node.constructor) {
     case Fragment:
-      renderFragmentNode(
+      return renderFragmentNode(
         boundary,
         root,
         node.props,
@@ -51,9 +51,8 @@ export default function renderSpecialNode(
         marker,
         suspended,
       );
-      break;
     case Suspense:
-      renderSuspenseNode(
+      return renderSuspenseNode(
         boundary,
         root,
         node.props,
@@ -61,9 +60,8 @@ export default function renderSpecialNode(
         marker,
         suspended,
       );
-      break;
     case Offscreen:
-      renderOffscreenNode(
+      return renderOffscreenNode(
         boundary,
         root,
         node.props,
@@ -71,18 +69,16 @@ export default function renderSpecialNode(
         marker,
         suspended,
       );
-      break;
     case Portal:
-      renderPortalNode(
+      return renderPortalNode(
         boundary,
         node.props,
         renderChildren,
         marker,
         suspended,
       );
-      break;
     case For:
-      renderForNode(
+      return renderForNode(
         boundary,
         root,
         node.props,
@@ -90,8 +86,7 @@ export default function renderSpecialNode(
         marker,
         suspended,
       );
-      break;
     default:
-      break;
+      return () => { /* no-op */ };
   }
 }

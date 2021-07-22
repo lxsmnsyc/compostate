@@ -1,6 +1,7 @@
 /* eslint-disable no-param-reassign */
 import { EffectCleanup, effect } from 'compostate';
 import { Marker, insert, remove } from '../dom';
+import ErrorBoundary, { handleError } from '../error-boundary';
 import { ShallowReactive } from '../types';
 import { Lazy } from './types';
 
@@ -8,6 +9,7 @@ export function watchMarkerForMarker(
   root: HTMLElement,
   parent: Lazy<Marker | null>,
   child: Marker,
+  boundary?: ErrorBoundary,
 ): EffectCleanup {
   let initialCall = true;
   if (parent) {
@@ -38,6 +40,10 @@ export function watchMarkerForMarker(
         return () => {
           remove(child.node);
         };
+      }, {
+        onError(error) {
+          handleError(boundary, error);
+        },
       });
     }
     return effect(() => {
@@ -57,14 +63,16 @@ export function watchMarkerForMarker(
       return () => {
         remove(child.node);
       };
+    }, {
+      onError(error) {
+        handleError(boundary, error);
+      },
     });
   }
-  return effect(() => {
-    insert(root, child.node);
-    return () => {
-      remove(child.node);
-    };
-  });
+  insert(root, child.node);
+  return () => {
+    remove(child.node);
+  };
 }
 
 export function watchMarkerForNode(
@@ -72,6 +80,7 @@ export function watchMarkerForNode(
   parent: Lazy<Marker | null>,
   child: Node,
   suspended: ShallowReactive<boolean | undefined> = false,
+  boundary?: ErrorBoundary,
 ): EffectCleanup {
   if (parent) {
     let parentVersion: number | undefined;
@@ -101,6 +110,10 @@ export function watchMarkerForNode(
           return () => {
             remove(child);
           };
+        }, {
+          onError(error) {
+            handleError(boundary, error);
+          },
         });
       }
       if (suspended) {
@@ -126,6 +139,10 @@ export function watchMarkerForNode(
         return () => {
           remove(child);
         };
+      }, {
+        onError(error) {
+          handleError(boundary, error);
+        },
       });
     }
     if (typeof suspended === 'object') {
@@ -138,6 +155,10 @@ export function watchMarkerForNode(
         return () => {
           remove(child);
         };
+      }, {
+        onError(error) {
+          handleError(boundary, error);
+        },
       });
     }
     if (suspended) {
@@ -152,6 +173,10 @@ export function watchMarkerForNode(
       return () => {
         remove(child);
       };
+    }, {
+      onError(error) {
+        handleError(boundary, error);
+      },
     });
   }
   if (typeof suspended === 'object') {
@@ -162,16 +187,18 @@ export function watchMarkerForNode(
       return () => {
         remove(child);
       };
+    }, {
+      onError(error) {
+        handleError(boundary, error);
+      },
     });
   }
   if (suspended) {
     return () => { /* no-op */ };
   }
-  return effect(() => {
-    insert(root, child);
 
-    return () => {
-      remove(child);
-    };
-  });
+  insert(root, child);
+  return () => {
+    remove(child);
+  };
 }

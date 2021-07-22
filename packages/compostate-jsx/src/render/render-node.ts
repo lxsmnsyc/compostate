@@ -5,12 +5,56 @@ import {
 } from 'compostate';
 import { Marker } from '../dom';
 import { handleError } from '../error-boundary';
-import { VRawElement } from '../types';
+import { VConstructor, VRawElement } from '../types';
 import renderComponentNode from './nodes/render-component-node';
 import renderHostNode from './nodes/render-host-node';
 import renderSpecialNode, { SpecialNode } from './nodes/render-special-node';
 import { Boundary, Lazy, RenderChildren } from './types';
-import unwrapRef from './unwrap-ref';
+
+function renderConstructor(
+  boundary: Boundary,
+  root: HTMLElement,
+  constructor: VConstructor,
+  props: Record<string, any>,
+  renderChildren: RenderChildren,
+  marker: Lazy<Marker | null> = null,
+  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+): EffectCleanup {
+  // Construct DOM element
+  if (typeof constructor === 'string') {
+    return renderHostNode(
+      boundary,
+      root,
+      constructor,
+      props,
+      renderChildren,
+      marker,
+      suspended,
+    );
+  }
+  if (typeof constructor === 'function') {
+    return renderComponentNode(
+      boundary,
+      root,
+      constructor,
+      props,
+      renderChildren,
+      marker,
+      suspended,
+    );
+  }
+  return renderSpecialNode(
+    boundary,
+    root,
+    {
+      constructor,
+      props,
+    } as SpecialNode,
+    renderChildren,
+    marker,
+    suspended,
+  );
+}
 
 export default function renderNode(
   boundary: Boundary,
@@ -20,54 +64,38 @@ export default function renderNode(
   marker: Lazy<Marker | null> = null,
   suspended: Ref<boolean | undefined> | boolean | undefined = false,
 ): EffectCleanup {
-  return effect(() => {
-    effect(() => {
+  const rawConstructor = node.type;
+  const props = {
+    ...node.props,
+  };
+
+  if (typeof rawConstructor === 'object') {
+    return effect(() => {
       // Unwrap constructor (useful if constructor is reactively changed).
-      const constructor = unwrapRef(node.type);
+      const constructor = rawConstructor.value;
 
-      // Merge children with props
-      const props = {
-        ...node.props,
-      };
-
-      // Construct DOM element
-      if (typeof constructor === 'string') {
-        renderHostNode(
-          boundary,
-          root,
-          constructor,
-          props,
-          renderChildren,
-          marker,
-          suspended,
-        );
-      } else if (typeof constructor === 'function') {
-        renderComponentNode(
-          boundary,
-          root,
-          constructor,
-          props,
-          renderChildren,
-          marker,
-          suspended,
-        );
-      } else {
-        renderSpecialNode(
-          boundary,
-          root,
-          {
-            constructor,
-            props,
-          } as SpecialNode,
-          renderChildren,
-          marker,
-          suspended,
-        );
-      }
+      return renderConstructor(
+        boundary,
+        root,
+        constructor,
+        props,
+        renderChildren,
+        marker,
+        suspended,
+      );
+    }, {
+      onError(error) {
+        handleError(boundary.error, error);
+      },
     });
-  }, {
-    onError(error) {
-      handleError(boundary.error, error);
-    },
-  });
+  }
+  return renderConstructor(
+    boundary,
+    root,
+    rawConstructor,
+    props,
+    renderChildren,
+    marker,
+    suspended,
+  );
 }
