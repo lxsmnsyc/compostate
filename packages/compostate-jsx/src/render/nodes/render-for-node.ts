@@ -2,7 +2,6 @@ import {
   computed,
   effect,
   EffectCleanup,
-  isReactive,
   Ref,
   ref,
   track,

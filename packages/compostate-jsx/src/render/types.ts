@@ -1,5 +1,5 @@
 import { EffectCleanup, Ref } from 'compostate';
-import { VNode, ShallowReactive } from '..';
+import { VNode } from '../types';
 import { Marker } from '../dom';
 import ErrorBoundary from '../error-boundary';
 import { ProviderData } from '../provider';
