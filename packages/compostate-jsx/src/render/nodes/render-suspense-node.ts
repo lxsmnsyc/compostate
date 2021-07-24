@@ -1,16 +1,18 @@
 import {
-  computed,
   effect,
   EffectCleanup,
   reactive,
-  Ref,
   Resource,
   track,
 } from 'compostate';
 import { SuspenseProps } from '../../core';
 import { createMarker, Marker } from '../../dom';
-import { Boundary, Lazy, RenderChildren } from '../types';
-import unwrapRef from '../unwrap-ref';
+import {
+  Boundary,
+  InternalShallowReactive,
+  Lazy,
+  RenderChildren,
+} from '../types';
 import { watchMarkerForMarker } from '../watch-marker';
 
 export default function renderSuspenseNode(
@@ -19,7 +21,7 @@ export default function renderSuspenseNode(
   props: SuspenseProps,
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
-  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   // This contains all of the tracked
   // resource instances that were suspended
@@ -28,7 +30,16 @@ export default function renderSuspenseNode(
   // Track the resource size and set the value
   // of suspend to false when the resource size
   // becomes zero (no suspended resources)
-  const suspend = computed(() => unwrapRef(suspended) || track(resources).size > 0);
+  let suspend: Lazy<boolean>;
+  if (typeof suspended === 'function') {
+    suspend = () => suspended() || track(resources).size > 0;
+  } else if (typeof suspended === 'object') {
+    suspend = () => suspended.value || track(resources).size > 0;
+  } else if (suspended) {
+    suspend = true;
+  } else {
+    suspend = () => track(resources).size > 0;
+  }
 
   // Create a Suspense boundary instance.
   const capture = <T>(resource: Resource<T>) => {
@@ -44,6 +55,20 @@ export default function renderSuspenseNode(
   // children branches
   const fallbackBranch = createMarker();
   const childrenBranch = createMarker();
+
+  // Since the fallback branch
+  // only renders when suspended
+  // We make sure to flip the value
+  // to consider DOM elements
+  let suspendChildren: Lazy<boolean>;
+
+  if (typeof suspend === 'function') {
+    // Weird TS behavior
+    const suspendDerive = suspend;
+    suspendChildren = () => !suspendDerive();
+  } else {
+    suspendChildren = !suspend;
+  }
 
   const cleanups = [
     // Track the resources and remove all
@@ -68,11 +93,7 @@ export default function renderSuspenseNode(
       root,
       props.fallback,
       fallbackBranch,
-      // Since the fallback branch
-      // only renders when suspended
-      // We make sure to flip the value
-      // to consider DOM elements
-      computed(() => !suspend.value),
+      suspendChildren,
     ),
     renderChildren(
       {

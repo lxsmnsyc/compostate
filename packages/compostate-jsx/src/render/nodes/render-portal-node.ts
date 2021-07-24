@@ -2,14 +2,19 @@ import { effect, EffectCleanup, Ref } from 'compostate';
 import { PortalProps } from '../../core';
 import { Marker } from '../../dom';
 import { Reactive } from '../../types';
-import { Boundary, Lazy, RenderChildren } from '../types';
+import {
+  Boundary,
+  InternalShallowReactive,
+  Lazy,
+  RenderChildren,
+} from '../types';
 
 export default function renderPortalNode(
   boundary: Boundary,
   props: Reactive<PortalProps>,
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
-  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   if (props.target instanceof HTMLElement) {
     return renderChildren(
@@ -21,6 +26,17 @@ export default function renderPortalNode(
     );
   }
   const el = props.target;
+  if ('derive' in el) {
+    return effect(() => {
+      renderChildren(
+        boundary,
+        el.derive(),
+        props.children,
+        marker,
+        suspended,
+      );
+    });
+  }
   return effect(() => {
     renderChildren(
       boundary,

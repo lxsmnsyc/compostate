@@ -11,12 +11,15 @@ export interface Boundary {
   provider?: ProviderData;
 }
 
+export type InternalShallowReactive<T> =
+  T | Ref<T> | Lazy<T>;
+
 export type RenderChildren = (
   boundary: Boundary,
   root: HTMLElement,
   children: VNode,
   marker?: Lazy<Marker | null>,
-  suspended?: Ref<boolean | undefined> | boolean | undefined,
+  suspended?: InternalShallowReactive<boolean | undefined>,
 ) => EffectCleanup;
 
 export type Lazy<T> = T | (() => T);

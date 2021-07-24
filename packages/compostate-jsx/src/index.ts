@@ -25,3 +25,6 @@ export {
   suspend,
 } from './suspense';
 export * from './types';
+export {
+  derived,
+} from './reactivity';

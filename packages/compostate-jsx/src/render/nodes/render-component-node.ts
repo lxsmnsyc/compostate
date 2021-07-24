@@ -4,7 +4,6 @@ import {
   effect,
   EffectCleanup,
   reactive,
-  Ref,
   untrack,
 } from 'compostate';
 import { Marker } from '../../dom';
@@ -19,7 +18,12 @@ import {
   VNode,
   WithChildren,
 } from '../../types';
-import { Boundary, Lazy, RenderChildren } from '../types';
+import {
+  Boundary,
+  InternalShallowReactive,
+  Lazy,
+  RenderChildren,
+} from '../types';
 
 export default function renderComponentNode<P extends Record<string, any>>(
   boundary: Boundary,
@@ -28,7 +32,7 @@ export default function renderComponentNode<P extends Record<string, any>>(
   props: Reactive<P>,
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
-  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   // Create a reactive object form for the props
   const unwrappedProps = reactive<P>({} as P);
@@ -41,10 +45,16 @@ export default function renderComponentNode<P extends Record<string, any>>(
       (unwrappedProps as WithChildren).children = (props as WithChildren).children;
     } else {
       const property = props[key];
-      if (typeof property === 'object' && 'value' in property) {
-        effect(() => {
-          unwrappedProps[key] = property.value;
-        });
+      if (typeof property === 'object') {
+        if ('value' in property) {
+          effect(() => {
+            unwrappedProps[key] = property.value;
+          });
+        } else if ('derive' in property) {
+          effect(() => {
+            unwrappedProps[key] = property.derive();
+          });
+        }
       } else {
         unwrappedProps[key] = property;
       }

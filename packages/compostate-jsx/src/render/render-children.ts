@@ -1,18 +1,19 @@
-import { EffectCleanup, Ref } from 'compostate';
+import { EffectCleanup } from 'compostate';
 import { VNode } from '../types';
 import { Marker } from '../dom';
 import renderArray from './render-array';
-import { Boundary, Lazy } from './types';
+import { Boundary, InternalShallowReactive, Lazy } from './types';
 import renderText from './render-text';
 import renderRef from './render-ref';
 import renderNode from './render-node';
+import renderDerived from './render-derived';
 
 export default function renderChildren(
   boundary: Boundary,
   root: HTMLElement,
   children: VNode,
   marker: Lazy<Marker | null> = null,
-  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   if (Array.isArray(children)) {
     return renderArray(
@@ -32,6 +33,16 @@ export default function renderChildren(
   }
   if ('type' in children) {
     return renderNode(
+      boundary,
+      root,
+      children,
+      renderChildren,
+      marker,
+      suspended,
+    );
+  }
+  if ('derive' in children) {
+    return renderDerived(
       boundary,
       root,
       children,

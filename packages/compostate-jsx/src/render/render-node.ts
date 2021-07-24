@@ -1,7 +1,6 @@
 import {
   effect,
   EffectCleanup,
-  Ref,
 } from 'compostate';
 import { Marker } from '../dom';
 import { handleError } from '../error-boundary';
@@ -9,7 +8,12 @@ import { VConstructor, VRawElement } from '../types';
 import renderComponentNode from './nodes/render-component-node';
 import renderHostNode from './nodes/render-host-node';
 import renderSpecialNode, { SpecialNode } from './nodes/render-special-node';
-import { Boundary, Lazy, RenderChildren } from './types';
+import {
+  Boundary,
+  InternalShallowReactive,
+  Lazy,
+  RenderChildren,
+} from './types';
 
 function renderConstructor(
   boundary: Boundary,
@@ -18,7 +22,7 @@ function renderConstructor(
   props: Record<string, any>,
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
-  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   // Construct DOM element
   if (typeof constructor === 'string') {
@@ -62,7 +66,7 @@ export default function renderNode(
   node: VRawElement,
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
-  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   const rawConstructor = node.type;
   const props = {
@@ -70,9 +74,29 @@ export default function renderNode(
   };
 
   if (typeof rawConstructor === 'object') {
+    if ('value' in rawConstructor) {
+      return effect(() => {
+        // Unwrap constructor (useful if constructor is reactively changed).
+        const constructor = rawConstructor.value;
+
+        return renderConstructor(
+          boundary,
+          root,
+          constructor,
+          props,
+          renderChildren,
+          marker,
+          suspended,
+        );
+      }, {
+        onError(error) {
+          handleError(boundary.error, error);
+        },
+      });
+    }
     return effect(() => {
       // Unwrap constructor (useful if constructor is reactively changed).
-      const constructor = rawConstructor.value;
+      const constructor = rawConstructor.derive();
 
       return renderConstructor(
         boundary,

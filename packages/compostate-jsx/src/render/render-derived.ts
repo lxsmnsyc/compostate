@@ -1,6 +1,7 @@
-import { effect, EffectCleanup, Ref } from 'compostate';
+import { effect, EffectCleanup } from 'compostate';
 import { Marker } from '../dom';
 import { handleError } from '../error-boundary';
+import { Derived } from '../reactivity';
 import { VNode } from '../types';
 import {
   Boundary,
@@ -9,10 +10,10 @@ import {
   RenderChildren,
 } from './types';
 
-export default function renderRef(
+export default function renderDerived(
   boundary: Boundary,
   root: HTMLElement,
-  children: Ref<VNode>,
+  children: Derived<VNode>,
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
@@ -21,7 +22,7 @@ export default function renderRef(
     renderChildren(
       boundary,
       root,
-      children.value,
+      children.derive(),
       marker,
       suspended,
     );

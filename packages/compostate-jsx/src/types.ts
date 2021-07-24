@@ -1,4 +1,5 @@
 import { Ref } from 'compostate';
+import { Derived } from './reactivity';
 
 export type VRawElement<P extends Record<string, any> = Record<string, any>> = {
   type: VReactiveConstructor<P>;
@@ -12,7 +13,7 @@ export type VElement<P extends Record<string, any> = Record<string, any>> = (
 export type VText = string | number;
 export type VNull = boolean | null | undefined;
 export type VChild = VElement | VText;
-export type VNode = VChild | VNull | VNode[] | Ref<VNode> | VElement;
+export type VNode = VChild | VNull | VNode[] | Ref<VNode> | Derived<VNode> | VElement;
 
 export interface Attributes {
   // no-op
@@ -33,7 +34,7 @@ export interface BaseProps<T> extends RefAttributes<T>, WithChildren {
 export type ShallowReactive<V> =
   V extends Ref<infer T>
     ? Ref<Ref<T>>
-    : V | Ref<V>;
+    : V | Ref<V> | Derived<V>;
 
 export type ReactiveProperty<K, V> =
   K extends 'ref'
@@ -48,7 +49,7 @@ export type Reactive<P> =
     ? { [K in keyof P]: ReactiveProperty<K, P[K]> }
     :
   P extends Array<infer U>
-    ? Array<U | Ref<U>>
+    ? Array<U | Ref<U> | Derived<U>>
     : ShallowReactive<P>;
 
 export interface VComponent<P> {

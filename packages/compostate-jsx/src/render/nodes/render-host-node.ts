@@ -2,7 +2,6 @@ import {
   batch,
   effect,
   EffectCleanup,
-  Ref,
   untrack,
 } from 'compostate';
 import { Marker, registerEvent, setAttribute } from '../../dom';
@@ -10,7 +9,12 @@ import { handleError } from '../../error-boundary';
 import { claimHydration, HYDRATION } from '../../hydration';
 import { Reactive, RefAttributes } from '../../types';
 import { DOMAttributes } from '../../types/dom';
-import { Boundary, Lazy, RenderChildren } from '../types';
+import {
+  Boundary,
+  InternalShallowReactive,
+  Lazy,
+  RenderChildren,
+} from '../types';
 import { UNMOUNTING, watchMarkerForNode } from '../watch-marker';
 
 function applyHostProperty(
@@ -53,7 +57,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
   props: Reactive<P> & RefAttributes<Element>,
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
-  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   const hydration = HYDRATION.getContext();
   const claim = hydration ? claimHydration(hydration) : null;
@@ -93,10 +97,16 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
       cleanups.push(children);
     } else {
       const rawProperty = props[key as keyof typeof props];
-      if (typeof rawProperty === 'object' && 'value' in rawProperty) {
-        cleanups.push(effect(() => (
-          applyHostProperty(boundary, el, key, rawProperty.value)
-        )));
+      if (typeof rawProperty === 'object') {
+        if ('value' in rawProperty) {
+          cleanups.push(effect(() => (
+            applyHostProperty(boundary, el, key, rawProperty.value)
+          )));
+        } else {
+          cleanups.push(effect(() => (
+            applyHostProperty(boundary, el, key, rawProperty.derive())
+          )));
+        }
       } else {
         const cleanup = applyHostProperty(boundary, el, key, rawProperty);
         if (cleanup) {

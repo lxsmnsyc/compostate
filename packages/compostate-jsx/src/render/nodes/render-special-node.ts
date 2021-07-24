@@ -1,4 +1,4 @@
-import { EffectCleanup, Ref } from 'compostate';
+import { EffectCleanup } from 'compostate';
 import {
   For,
   ForProps,
@@ -19,7 +19,12 @@ import {
   VPortal,
   VSuspense,
 } from '../../types';
-import { Boundary, Lazy, RenderChildren } from '../types';
+import {
+  Boundary,
+  InternalShallowReactive,
+  Lazy,
+  RenderChildren,
+} from '../types';
 import renderForNode from './render-for-node';
 import renderFragmentNode from './render-fragment-node';
 import renderOffscreenNode from './render-offscreen-node';
@@ -39,7 +44,7 @@ export default function renderSpecialNode(
   node: SpecialNode,
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
-  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   switch (node.constructor) {
     case Fragment:

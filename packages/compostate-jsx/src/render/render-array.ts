@@ -1,9 +1,15 @@
 import {
-  Ref, EffectCleanup, isReactive, computed,
+  EffectCleanup, isReactive,
 } from 'compostate';
 import { Marker, createMarker } from '../dom';
+import { derived } from '../reactivity';
 import { VNode } from '../types';
-import { Boundary, Lazy, RenderChildren } from './types';
+import {
+  Boundary,
+  InternalShallowReactive,
+  Lazy,
+  RenderChildren,
+} from './types';
 import { watchMarkerForMarker } from './watch-marker';
 
 export default function renderArray(
@@ -12,7 +18,7 @@ export default function renderArray(
   children: VNode[],
   renderChild: RenderChildren,
   marker: Lazy<Marker | null> = null,
-  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   const cleanups: EffectCleanup[] = [];
   for (let i = 0; i < children.length; i += 1) {
@@ -22,7 +28,7 @@ export default function renderArray(
     cleanups.push(watchMarkerForMarker(root, marker, childMarker, boundary.error));
 
     const child = isReactive(children)
-      ? computed(() => children[i])
+      ? derived(() => children[i])
       : children[i];
 
     // Render the child

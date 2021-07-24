@@ -60,6 +60,9 @@ export function renderToString(element: VNode): string {
   if ('value' in element) {
     return renderToString(element.value);
   }
+  if ('derive' in element) {
+    return renderToString(element.derive());
+  }
   const { type, props } = element;
   const constructor = untrack(() => unwrapRef(type));
 

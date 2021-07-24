@@ -1,18 +1,21 @@
 import {
-  computed,
   effect,
   EffectCleanup,
   Ref,
   ref,
-  track,
   untrack,
 } from 'compostate';
 import { ForProps } from '../../core';
 import { createMarker, Marker } from '../../dom';
 import { handleError } from '../../error-boundary';
+import { derived } from '../../reactivity';
 import { Reactive } from '../../types';
-import { Boundary, Lazy, RenderChildren } from '../types';
-import unwrapRef from '../unwrap-ref';
+import {
+  Boundary,
+  InternalShallowReactive,
+  Lazy,
+  RenderChildren,
+} from '../types';
 import { watchMarkerForMarker } from '../watch-marker';
 
 interface MemoryItem {
@@ -26,7 +29,7 @@ export default function renderForNode<T>(
   props: Reactive<ForProps<T>>,
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
-  suspended: Ref<boolean | undefined> | boolean | undefined = false,
+  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   // The memoized array based on the source array
   const memory: any[] = [];
@@ -41,11 +44,14 @@ export default function renderForNode<T>(
   function getNode(index: number, item: any) {
     const position = ref(index);
     const each = (() => {
-      if ('value' in props.each) {
-        const factory = props.each.value;
-        return computed(() => factory(item, position));
+      const factory = props.each;
+      if ('value' in factory) {
+        return derived(() => factory.value(item, position));
       }
-      return props.each(item, position);
+      if ('derive' in factory) {
+        return derived(() => factory.derive()(item, position));
+      }
+      return factory(item, position);
     })();
     return {
       position,
@@ -64,7 +70,15 @@ export default function renderForNode<T>(
 
   const cleanups = [
     effect(() => {
-      const tracked = unwrapRef(track(props.in));
+      let tracked: any[];
+      const origin = props.in;
+      if ('value' in origin) {
+        tracked = origin.value;
+      } else if ('derive' in origin) {
+        tracked = origin.derive();
+      } else {
+        tracked = origin;
+      }
       // Expand markers if the tracked array has suffix inserts
       untrack(() => {
         // for (let i = tracked.length; i < markers.length; i += 1) {

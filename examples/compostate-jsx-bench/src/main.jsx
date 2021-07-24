@@ -4,9 +4,9 @@ import {
   c,
   For,
   render,
+  derived,
 } from 'compostate-jsx';
 import {
-  computed,
   batch,
   ref,
 } from 'compostate';
@@ -97,7 +97,7 @@ const Main = () => {
               const onRemove = () => {
                 remove(rowId);
               }
-              const isSelected = computed(() => (
+              const isSelected = derived(() => (
                 selected.value === rowId
                   ? 'danger'
                   : ''
