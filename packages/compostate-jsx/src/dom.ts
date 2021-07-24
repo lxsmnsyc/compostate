@@ -109,7 +109,7 @@ export interface Marker {
 
 let id = 0;
 
-const USE_COMMENT = true;
+const USE_COMMENT = false;
 
 export function createMarker(): Marker {
   const newID = id;
