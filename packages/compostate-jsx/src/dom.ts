@@ -1,20 +1,41 @@
 import { ref, Ref } from 'compostate';
 
+let schedule: number | undefined;
+let calls: (() => void)[] = [];
+
+function commit(callback: () => void): void {
+  if (!schedule) {
+    schedule = requestAnimationFrame(() => {
+      for (let i = 0; i < calls.length; i += 1) {
+        calls[i]();
+      }
+      calls = [];
+      schedule = undefined;
+    });
+  }
+
+  calls.push(callback);
+}
+
 /* eslint-disable no-param-reassign */
 export function insert(
   parent: Node,
   child: Node,
   marker: Node | null = null,
 ): void {
-  if (parent !== child.parentNode) {
-    parent.insertBefore(child, marker);
-  }
+  commit(() => {
+    if (parent !== child.parentNode) {
+      parent.insertBefore(child, marker);
+    }
+  });
 }
 
 export function remove(
   node: Node,
 ): void {
-  node.parentNode?.removeChild(node);
+  commit(() => {
+    node.parentNode?.removeChild(node);
+  });
 }
 
 export function createText(value: string): Node {
