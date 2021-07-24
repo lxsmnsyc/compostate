@@ -32,15 +32,14 @@ const currentCommit = new Map<Node, LinkedListNode<CommitAction>>();
 function commit(node: Node, op: Operation): void {
   if (!schedule) {
     Promise.resolve().then(() => {
+      schedule = false;
       let call = commits.head;
 
       while (call) {
         const { target, operation } = call.value;
         switch (operation.type) {
           case 'insert':
-            if (operation.parent !== target.parentNode) {
-              operation.parent.insertBefore(target, operation.marker ?? null);
-            }
+            operation.parent.insertBefore(target, operation.marker ?? null);
             break;
           case 'remove':
             target.parentNode?.removeChild(target);
@@ -53,7 +52,6 @@ function commit(node: Node, op: Operation): void {
       commits.head = undefined;
       commits.tail = undefined;
       currentCommit.clear();
-      schedule = false;
     }, () => {
       // no-op;
     });
@@ -111,7 +109,7 @@ export interface Marker {
 
 let id = 0;
 
-const USE_COMMENT = false;
+const USE_COMMENT = true;
 
 export function createMarker(): Marker {
   const newID = id;
