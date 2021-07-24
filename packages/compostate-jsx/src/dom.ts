@@ -1,20 +1,81 @@
 import { ref, Ref } from 'compostate';
+import {
+  createLinkedList,
+  createLinkedListNode,
+  insertTail,
+  LinkedListNode,
+} from './linked-list';
 
-let schedule: number | undefined;
-let calls: (() => void)[] = [];
+interface Insert {
+  type: 'insert';
+  parent: Node;
+  marker?: Node | null;
+}
 
-function commit(callback: () => void): void {
+interface Remove {
+  type: 'remove';
+  parent?: undefined;
+  marker?: undefined;
+}
+
+type Operation = Insert | Remove;
+
+interface CommitAction {
+  target: Node;
+  operation: Operation;
+}
+
+let schedule: boolean;
+const commits = createLinkedList<CommitAction>();
+const currentCommit = new Map<Node, LinkedListNode<CommitAction>>();
+
+function commit(node: Node, op: Operation): void {
   if (!schedule) {
-    schedule = requestAnimationFrame(() => {
-      for (let i = 0; i < calls.length; i += 1) {
-        calls[i]();
+    Promise.resolve().then(() => {
+      let call = commits.head;
+
+      while (call) {
+        const { target, operation } = call.value;
+        switch (operation.type) {
+          case 'insert':
+            if (operation.parent !== target.parentNode) {
+              operation.parent.insertBefore(target, operation.marker ?? null);
+            }
+            break;
+          case 'remove':
+            target.parentNode?.removeChild(target);
+            break;
+          default:
+            break;
+        }
+        call = call.next;
       }
-      calls = [];
-      schedule = undefined;
+      commits.head = undefined;
+      commits.tail = undefined;
+      currentCommit.clear();
+      schedule = false;
+    }, () => {
+      // no-op;
     });
+
+    schedule = true;
   }
 
-  calls.push(callback);
+  const currentOperation = currentCommit.get(node);
+
+  if (currentOperation) {
+    currentOperation.value.operation.type = op.type;
+    currentOperation.value.operation.parent = op.parent;
+    currentOperation.value.operation.marker = op.marker;
+    insertTail(commits, currentOperation);
+  } else {
+    const newOperation: LinkedListNode<CommitAction> = createLinkedListNode({
+      target: node,
+      operation: op,
+    });
+    currentCommit.set(node, newOperation);
+    insertTail(commits, newOperation);
+  }
 }
 
 /* eslint-disable no-param-reassign */
@@ -23,18 +84,18 @@ export function insert(
   child: Node,
   marker: Node | null = null,
 ): void {
-  commit(() => {
-    if (parent !== child.parentNode) {
-      parent.insertBefore(child, marker);
-    }
+  commit(child, {
+    type: 'insert',
+    parent,
+    marker,
   });
 }
 
 export function remove(
   node: Node,
 ): void {
-  commit(() => {
-    node.parentNode?.removeChild(node);
+  commit(node, {
+    type: 'remove',
   });
 }
 
