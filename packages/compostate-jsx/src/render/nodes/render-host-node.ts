@@ -3,6 +3,7 @@ import {
   effect,
   EffectCleanup,
   untrack,
+  watch,
 } from 'compostate';
 import { Marker, registerEvent, setAttribute } from '../../dom';
 import { handleError } from '../../error-boundary';
@@ -99,9 +100,15 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
       const rawProperty = props[key as keyof typeof props];
       if (typeof rawProperty === 'object') {
         if ('value' in rawProperty) {
-          cleanups.push(effect(() => (
-            applyHostProperty(boundary, el, key, rawProperty.value)
-          )));
+          cleanups.push(
+            watch(
+              rawProperty,
+              () => (
+                applyHostProperty(boundary, el, key, rawProperty.value)
+              ),
+              true,
+            ),
+          );
         } else {
           cleanups.push(effect(() => (
             applyHostProperty(boundary, el, key, rawProperty.derive())

@@ -1,5 +1,11 @@
 /* eslint-disable no-param-reassign */
-import { EffectCleanup, effect, untrack, Ref } from 'compostate';
+import {
+  EffectCleanup,
+  effect,
+  untrack,
+  Ref,
+  watch,
+} from 'compostate';
 import Context from '../context';
 import { Marker, insert, remove } from '../dom';
 import ErrorBoundary, { handleError } from '../error-boundary';
@@ -12,25 +18,24 @@ function watchNonLazyMarkerForMarker(
   root: HTMLElement,
   parent: Marker,
   child: Marker,
-  boundary?: ErrorBoundary,
 ): EffectCleanup {
   let initialCall = true;
   let parentVersion: number | undefined;
-  return effect(() => {
-    const newVersion = parent.version.value;
-    if (parentVersion !== newVersion) {
-      parentVersion = newVersion;
-      insert(root, child.node, parent.node);
-      if (!initialCall) {
-        child.version.value = untrack(() => child.version.value) + 1;
+  return watch(
+    parent.version,
+    () => {
+      const newVersion = parent.version.value;
+      if (parentVersion !== newVersion) {
+        parentVersion = newVersion;
+        insert(root, child.node, parent.node);
+        if (!initialCall) {
+          child.version.value = untrack(() => child.version.value) + 1;
+        }
       }
-    }
-    initialCall = false;
-  }, {
-    onError(error) {
-      handleError(boundary, error);
+      initialCall = false;
     },
-  });
+    true,
+  );
 }
 
 function watchLazyMarkerForMarker(
@@ -80,7 +85,7 @@ export function watchMarkerForMarker(
     if (typeof parent === 'function') {
       currentCleanup = watchLazyMarkerForMarker(root, parent, child, boundary);
     } else {
-      currentCleanup = watchNonLazyMarkerForMarker(root, parent, child, boundary);
+      currentCleanup = watchNonLazyMarkerForMarker(root, parent, child);
     }
   } else {
     insert(root, child.node);
@@ -243,37 +248,35 @@ function watchActualMarkerForMarker(
   root: HTMLElement,
   parent: Marker,
   child: Node,
-  boundary?: ErrorBoundary,
 ): EffectCleanup {
   let parentVersion: number | undefined;
-  return effect(() => {
-    const newVersion = parent.version.value;
-    if (parentVersion !== newVersion) {
-      parentVersion = newVersion;
-      insert(root, child, parent.node);
-    }
-  }, {
-    onError(error) {
-      handleError(boundary, error);
+  return watch(
+    parent.version,
+    () => {
+      const newVersion = parent.version.value;
+      if (parentVersion !== newVersion) {
+        parentVersion = newVersion;
+        insert(root, child, parent.node);
+      }
     },
-  });
+    true,
+  );
 }
 
 function watchNoMarkerForNodeWithRefSuspend(
   root: HTMLElement,
   child: Node,
   suspended: Ref<boolean | undefined>,
-  boundary?: ErrorBoundary,
 ): EffectCleanup {
-  return effect(() => {
-    if (suspended.value) {
-      insert(root, child);
-    }
-  }, {
-    onError(error) {
-      handleError(boundary, error);
+  return watch(
+    suspended,
+    () => {
+      if (suspended.value) {
+        insert(root, child);
+      }
     },
-  });
+    true,
+  );
 }
 
 export function watchMarkerForNode(
@@ -335,7 +338,6 @@ export function watchMarkerForNode(
         root,
         parent,
         child,
-        boundary,
       );
     }
   } else if (typeof suspended === 'object') {
@@ -343,7 +345,6 @@ export function watchMarkerForNode(
       root,
       child,
       suspended,
-      boundary,
     );
   } else if (suspended) {
     currentCleanup = NO_OP;

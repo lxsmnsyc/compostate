@@ -1,4 +1,4 @@
-import { effect, EffectCleanup, Ref } from 'compostate';
+import { effect, EffectCleanup } from 'compostate';
 import { PortalProps } from '../../core';
 import { Marker } from '../../dom';
 import { Reactive } from '../../types';
@@ -27,23 +27,23 @@ export default function renderPortalNode(
   }
   const el = props.target;
   if ('derive' in el) {
-    return effect(() => {
+    return effect(() => (
       renderChildren(
         boundary,
         el.derive(),
         props.children,
         marker,
         suspended,
-      );
-    });
+      )
+    ));
   }
-  return effect(() => {
+  return effect(() => (
     renderChildren(
       boundary,
       el.value,
       props.children,
       marker,
       suspended,
-    );
-  });
+    )
+  ));
 }

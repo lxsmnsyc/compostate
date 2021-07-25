@@ -5,6 +5,7 @@ import {
   EffectCleanup,
   reactive,
   untrack,
+  watch,
 } from 'compostate';
 import { Marker } from '../../dom';
 import ErrorBoundary, { handleError } from '../../error-boundary';
@@ -37,6 +38,8 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // Create a reactive object form for the props
   const unwrappedProps = reactive<P>({} as P);
 
+  const cleanups: EffectCleanup[] = [];
+
   // Track individual props
   Object.keys(props).forEach((key: keyof typeof props) => {
     if (key === 'ref') {
@@ -47,9 +50,13 @@ export default function renderComponentNode<P extends Record<string, any>>(
       const property = props[key];
       if (typeof property === 'object') {
         if ('value' in property) {
-          effect(() => {
-            unwrappedProps[key] = property.value;
-          });
+          cleanups.push(watch(
+            property,
+            () => {
+              unwrappedProps[key] = property.value;
+            },
+            true,
+          ));
         } else if ('derive' in property) {
           effect(() => {
             unwrappedProps[key] = property.derive();
@@ -105,7 +112,9 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // We do this since if we use compostate's
   // onError, it gets registered to the parent
   // handler.
-  const cleanups = errors.map((item) => errorBoundary.register(item));
+  errors.forEach((item) => {
+    cleanups.push(errorBoundary.register(item));
+  });
 
   const newBoundary = {
     suspense: boundary.suspense,

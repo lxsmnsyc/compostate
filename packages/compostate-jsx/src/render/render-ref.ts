@@ -1,6 +1,5 @@
 import { effect, EffectCleanup, Ref } from 'compostate';
 import { Marker } from '../dom';
-import { handleError } from '../error-boundary';
 import { VNode } from '../types';
 import {
   Boundary,
@@ -17,17 +16,13 @@ export default function renderRef(
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
-  return effect(() => {
+  return effect(() => (
     renderChildren(
       boundary,
       root,
       children.value,
       marker,
       suspended,
-    );
-  }, {
-    onError(error) {
-      handleError(boundary.error, error);
-    },
-  });
+    )
+  ));
 }

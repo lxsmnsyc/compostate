@@ -3,6 +3,7 @@ import {
   EffectCleanup,
   Ref,
   ref,
+  track,
   untrack,
 } from 'compostate';
 import { ForProps } from '../../core';
@@ -77,7 +78,7 @@ export default function renderForNode<T>(
       } else if ('derive' in origin) {
         tracked = origin.derive();
       } else {
-        tracked = origin;
+        tracked = track(origin);
       }
       // Expand markers if the tracked array has suffix inserts
       untrack(() => {
