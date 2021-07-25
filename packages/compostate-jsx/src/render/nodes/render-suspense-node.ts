@@ -30,16 +30,7 @@ export default function renderSuspenseNode(
   // Track the resource size and set the value
   // of suspend to false when the resource size
   // becomes zero (no suspended resources)
-  let suspend: Lazy<boolean>;
-  if (typeof suspended === 'function') {
-    suspend = () => suspended() || track(resources).size > 0;
-  } else if (typeof suspended === 'object') {
-    suspend = () => suspended.value || track(resources).size > 0;
-  } else if (suspended) {
-    suspend = true;
-  } else {
-    suspend = () => track(resources).size > 0;
-  }
+  const suspend = () => track(resources).size > 0;
 
   // Create a Suspense boundary instance.
   const capture = <T>(resource: Resource<T>) => {
@@ -60,14 +51,21 @@ export default function renderSuspenseNode(
   // only renders when suspended
   // We make sure to flip the value
   // to consider DOM elements
+  let suspendFallback: Lazy<boolean>;
   let suspendChildren: Lazy<boolean>;
 
-  if (typeof suspend === 'function') {
-    // Weird TS behavior
-    const suspendDerive = suspend;
-    suspendChildren = () => !suspendDerive();
+  if (typeof suspended === 'function') {
+    suspendFallback = () => !suspended() && suspend();
+    suspendChildren = () => !suspended() && !suspend();
+  } else if (typeof suspended === 'object') {
+    suspendFallback = () => !!suspended.value && suspend();
+    suspendChildren = () => !!suspended.value && !suspend();
+  } else if (suspended) {
+    suspendFallback = true;
+    suspendChildren = true;
   } else {
-    suspendChildren = !suspend;
+    suspendFallback = suspend;
+    suspendChildren = () => !suspend();
   }
 
   const cleanups = [
@@ -93,7 +91,7 @@ export default function renderSuspenseNode(
       root,
       props.fallback,
       fallbackBranch,
-      suspendChildren,
+      suspendFallback,
     ),
     renderChildren(
       {
@@ -104,7 +102,7 @@ export default function renderSuspenseNode(
       props.children,
       childrenBranch,
       // Forward the suspend state
-      suspend,
+      suspendChildren,
     ),
   ];
 
