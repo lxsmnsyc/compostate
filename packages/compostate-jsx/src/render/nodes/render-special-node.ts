@@ -25,6 +25,7 @@ import {
   Lazy,
   RenderChildren,
 } from '../types';
+import { NO_OP } from '../utils';
 import renderForNode from './render-for-node';
 import renderFragmentNode from './render-fragment-node';
 import renderOffscreenNode from './render-offscreen-node';
@@ -92,6 +93,6 @@ export default function renderSpecialNode(
         suspended,
       );
     default:
-      return () => { /* no-op */ };
+      return NO_OP;
   }
 }

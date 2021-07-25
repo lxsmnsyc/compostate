@@ -7,6 +7,7 @@ import renderText from './render-text';
 import renderRef from './render-ref';
 import renderNode from './render-node';
 import renderDerived from './render-derived';
+import { NO_OP } from './utils';
 
 export default function renderChildren(
   boundary: Boundary,
@@ -29,7 +30,7 @@ export default function renderChildren(
     return renderText(boundary, root, children, marker, suspended);
   }
   if (children == null || typeof children === 'boolean') {
-    return () => { /* no-op */ };
+    return NO_OP;
   }
   if ('type' in children) {
     return renderNode(
