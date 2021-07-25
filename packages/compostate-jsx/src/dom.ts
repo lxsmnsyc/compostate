@@ -4,6 +4,7 @@ import {
   createLinkedListNode,
   insertTail,
   LinkedListNode,
+  removeNode,
 } from './linked-list';
 
 interface Insert {
@@ -31,7 +32,7 @@ const currentCommit = new Map<Node, LinkedListNode<CommitAction>>();
 
 function commit(node: Node, op: Operation): void {
   if (!schedule) {
-    Promise.resolve().then(() => {
+    setTimeout(() => {
       schedule = false;
       let call = commits.head;
 
@@ -52,8 +53,6 @@ function commit(node: Node, op: Operation): void {
       commits.head = undefined;
       commits.tail = undefined;
       currentCommit.clear();
-    }, () => {
-      // no-op;
     });
 
     schedule = true;
@@ -65,6 +64,7 @@ function commit(node: Node, op: Operation): void {
     currentOperation.value.operation.type = op.type;
     currentOperation.value.operation.parent = op.parent;
     currentOperation.value.operation.marker = op.marker;
+    removeNode(commits, currentOperation);
     insertTail(commits, currentOperation);
   } else {
     const newOperation: LinkedListNode<CommitAction> = createLinkedListNode({
