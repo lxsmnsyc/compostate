@@ -25,19 +25,33 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
+import untrack from '../untrack';
 import LinkedWork, { BATCH_UPDATES, TRACKING } from './linked-work';
 
 export default class ReactiveAtom {
   private work?: LinkedWork;
 
+  private listeners?: Set<() => void>;
+
+  private getWork(): LinkedWork {
+    if (!this.work) {
+      this.work = new LinkedWork(() => {
+        untrack(() => {
+          this.listeners?.forEach((listener) => {
+            listener();
+          });
+        });
+      });
+    }
+    return this.work;
+  }
+
   track(): void {
     const tracking = TRACKING.getContext();
     if (tracking) {
-      if (!this.work) {
-        this.work = new LinkedWork();
-      }
-      this.work.addDependent(tracking);
-      tracking.addDependency(this.work);
+      const work = this.getWork();
+      work.addDependent(tracking);
+      tracking.addDependency(work);
     }
   }
 
@@ -50,5 +64,16 @@ export default class ReactiveAtom {
         this.work.run();
       }
     }
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.getWork();
+    if (!this.listeners) {
+      this.listeners = new Set();
+    }
+    this.listeners.add(listener);
+    return () => {
+      this.listeners?.delete(listener);
+    };
   }
 }

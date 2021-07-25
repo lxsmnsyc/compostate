@@ -37,5 +37,6 @@ export { default as untrack } from './reactivity/untrack';
 export { default as track } from './reactivity/track';
 export { default as resource } from './reactivity/resource';
 export { default as spread } from './reactivity/spread';
+export { default as watch } from './reactivity/watch';
 export * from './reactivity/resource';
 export { Effect, EffectCleanup } from './reactivity/types';
