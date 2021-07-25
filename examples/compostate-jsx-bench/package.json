@@ -1,5 +1,5 @@
 {
-  "version": "0.2.1-alpha.16",
+  "version": "0.2.1-alpha.17",
   "name": "compostate-jsx-bench",
   "license": "MIT",
   "scripts": {
@@ -8,8 +8,8 @@
     "serve": "vite preview"
   },
   "dependencies": {
-    "compostate": "0.2.1-alpha.11",
-    "compostate-jsx": "0.2.1-alpha.16",
+    "compostate": "0.2.1-alpha.17",
+    "compostate-jsx": "0.2.1-alpha.17",
     "lit-html": "^1.4.1"
   },
   "devDependencies": {
