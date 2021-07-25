@@ -7,64 +7,79 @@ import { InternalShallowReactive, Lazy } from './types';
 
 export const UNMOUNTING = new Context<boolean | undefined>();
 
+function watchNonLazyMarkerForMarker(
+  root: HTMLElement,
+  parent: Marker,
+  child: Marker,
+  boundary?: ErrorBoundary,
+): EffectCleanup {
+  let initialCall = true;
+  let parentVersion: number | undefined;
+  return effect(() => {
+    const newVersion = parent.version.value;
+    if (parentVersion !== newVersion) {
+      parentVersion = newVersion;
+      insert(root, child.node, parent.node);
+      if (!initialCall) {
+        child.version.value = untrack(() => child.version.value) + 1;
+      }
+    }
+    initialCall = false;
+  }, {
+    onError(error) {
+      handleError(boundary, error);
+    },
+  });
+}
+
+function watchLazyMarkerForMarker(
+  root: HTMLElement,
+  parent: () => Marker | null,
+  child: Marker,
+  boundary?: ErrorBoundary,
+): EffectCleanup {
+  let initialCall = true;
+  let parentVersion: number | undefined;
+  let previousParent: Marker | null = null;
+  return effect(() => {
+    // Insert new marker before the parent marker
+    const actualParent = parent();
+    if (actualParent !== previousParent) {
+      parentVersion = undefined;
+      previousParent = actualParent;
+    }
+    if (actualParent) {
+      const newVersion = actualParent.version.value;
+      if (parentVersion !== newVersion) {
+        parentVersion = newVersion;
+        insert(root, child.node, actualParent.node);
+        if (!initialCall) {
+          child.version.value = untrack(() => child.version.value) + 1;
+        }
+      }
+    } else {
+      insert(root, child.node);
+    }
+    initialCall = false;
+  }, {
+    onError(error) {
+      handleError(boundary, error);
+    },
+  });
+}
+
 export function watchMarkerForMarker(
   root: HTMLElement,
   parent: Lazy<Marker | null>,
   child: Marker,
   boundary?: ErrorBoundary,
 ): EffectCleanup {
-  let initialCall = true;
   let currentCleanup: EffectCleanup | undefined;
   if (parent) {
-    let parentVersion: number | undefined;
     if (typeof parent === 'function') {
-      let previousParent: Marker | null = null;
-
-      currentCleanup = effect(() => {
-        // Insert new marker before the parent marker
-        const actualParent = parent();
-        if (actualParent !== previousParent) {
-          parentVersion = undefined;
-          previousParent = actualParent;
-        }
-        if (actualParent) {
-          const newVersion = actualParent.version.value;
-          if (parentVersion !== newVersion) {
-            parentVersion = newVersion;
-            insert(root, child.node, actualParent.node);
-            if (!initialCall) {
-              child.version.value = untrack(() => child.version.value) + 1;
-            }
-          }
-        } else {
-          insert(root, child.node);
-        }
-        initialCall = false;
-      }, {
-        onError(error) {
-          handleError(boundary, error);
-        },
-      });
+      currentCleanup = watchLazyMarkerForMarker(root, parent, child, boundary);
     } else {
-      currentCleanup = effect(() => {
-        if (parent) {
-          const newVersion = parent.version.value;
-          if (parentVersion !== newVersion) {
-            parentVersion = newVersion;
-            insert(root, child.node, parent.node);
-            if (!initialCall) {
-              child.version.value = untrack(() => child.version.value) + 1;
-            }
-          }
-        } else {
-          insert(root, child.node);
-        }
-        initialCall = false;
-      }, {
-        onError(error) {
-          handleError(boundary, error);
-        },
-      });
+      currentCleanup = watchNonLazyMarkerForMarker(root, parent, child, boundary);
     }
   } else {
     insert(root, child.node);
