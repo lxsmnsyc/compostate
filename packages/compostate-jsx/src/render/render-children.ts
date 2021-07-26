@@ -10,11 +10,8 @@ import renderDerived from './render-derived';
 import { NO_OP } from './utils';
 
 export default function renderChildren(
-  boundary: Boundary,
   root: HTMLElement,
   children: VNode,
-  marker: Lazy<Marker | null> = null,
-  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   if (Array.isArray(children)) {
     return renderArray(

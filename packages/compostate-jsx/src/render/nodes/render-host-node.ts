@@ -52,13 +52,8 @@ function applyHostProperty(
 }
 
 export default function renderHostNode<P extends DOMAttributes<Element>>(
-  boundary: Boundary,
-  root: HTMLElement,
   constructor: string,
   props: Reactive<P> & RefAttributes<Element>,
-  renderChildren: RenderChildren,
-  marker: Lazy<Marker | null> = null,
-  suspended: InternalShallowReactive<boolean | undefined> = false,
 ): EffectCleanup {
   const hydration = HYDRATION.getContext();
   const claim = hydration ? claimHydration(hydration) : null;
@@ -123,11 +118,5 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
     }
   });
 
-  cleanups.push(watchMarkerForNode(root, marker, el, suspended, boundary.error));
-
-  return () => {
-    cleanups.forEach((cleanup) => {
-      cleanup();
-    });
-  };
+  return el;
 }

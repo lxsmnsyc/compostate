@@ -13,7 +13,6 @@ import {
 import { watchMarkerForMarker } from './watch-marker';
 
 export default function renderArray(
-  boundary: Boundary,
   root: HTMLElement,
   children: VNode[],
   renderChild: RenderChildren,

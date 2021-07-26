@@ -27,14 +27,9 @@ import {
 } from '../types';
 
 export default function renderComponentNode<P extends Record<string, any>>(
-  boundary: Boundary,
-  root: HTMLElement,
   constructor: VComponent<P>,
   props: Reactive<P>,
-  renderChildren: RenderChildren,
-  marker: Lazy<Marker | null> = null,
-  suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): VNode {
   // Create a reactive object form for the props
   const unwrappedProps = reactive<P>({} as P);
 

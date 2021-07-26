@@ -1,4 +1,9 @@
-import { Ref } from 'compostate';
+import { effect, Ref } from 'compostate';
+import { claimHydration, HYDRATION } from './hydration';
+import { derived } from './reactivity';
+import renderComponentNode from './render/nodes/render-component-node';
+import renderHostNode from './render/nodes/render-host-node';
+import renderSpecialNode, { SpecialNode } from './render/nodes/render-special-node';
 import {
   VNode,
   Reactive,
@@ -12,10 +17,47 @@ import {
   VOffscreen,
   VFor,
   VReactiveConstructor,
+  VSpecialConstructor,
+  RefAttributes,
 } from './types';
 import { DOMAttributes } from './types/dom';
 import { HTMLAttributes, CompostateHTML } from './types/html';
 import { SVGAttributes, CompostateSVG } from './types/svg';
+
+function renderChildren(
+  root: Node,
+  children: VNode,
+  marker: Node | null = null,
+): void {
+  if (Array.isArray(children)) {
+    children.forEach((child) => {
+      const childMarker = document.createTextNode('');
+      root.insertBefore(childMarker, marker);
+      renderChildren(root, child, childMarker);
+    });
+  } else if (typeof children === 'number' || typeof children === 'string') {
+    const node = document.createTextNode(`${children}`);
+    root.insertBefore(node, marker);
+    effect(() => () => {
+      root.removeChild(node);
+    });
+  } else if (typeof children === 'boolean' || children == null) {
+    // no-op
+  } else if (children instanceof Node) {
+    root.insertBefore(children, marker);
+    effect(() => () => {
+      root.removeChild(children);
+    });
+  } else if ('value' in children) {
+    effect(() => {
+      renderChildren(root, children.value, marker);
+    });
+  } else if ('derive' in children) {
+    effect(() => {
+      renderChildren(root, children.derive(), marker);
+    });
+  }
+}
 
 export function c<P extends HTMLAttributes<T>, T extends HTMLElement>(
   type: ShallowReactive<keyof CompostateHTML>,
@@ -67,6 +109,76 @@ export function c<P extends BaseProps<P>>(
   props: Reactive<P>,
   ...children: VNode[]
 ): VNode {
+  if (typeof type === 'object') {
+    if ('derive' in type) {
+      return derived(() => c(type.derive() as any, props, ...children));
+    }
+    return derived(() => c(type.value as any, props, ...children));
+  }
+  if (typeof type === 'number') {
+    return renderSpecialNode({
+      constructor: type as unknown as VSpecialConstructor,
+      props: props as any,
+      children,
+    });
+  }
+  if (typeof type === 'function') {
+    return renderComponentNode(
+      type,
+      props,
+    );
+  }
+
+  const hydration = HYDRATION.getContext();
+  const claim = hydration ? claimHydration(hydration) : null;
+  let el = document.createElement(type);
+
+  if (hydration) {
+    if (claim) {
+      if (claim.tagName !== type.toUpperCase()) {
+        throw new Error(`Hydration mismatch. (Expected: ${type}, Received: ${claim.tagName})`);
+      }
+      el = claim as HTMLElement;
+    } else {
+      throw new Error(`Hydration mismatch. (Expected: ${type}, Received: null)`);
+    }
+  }
+
+  Object.keys(props).forEach((key) => {
+    // Ref handler
+    if (key === 'ref') {
+      const elRef = (props as RefAttributes<HTMLElement>).ref;
+      if (elRef) {
+        elRef.value = el;
+      }
+    // Children handler
+    } else if (key === 'children') {
+      renderChildren(el, props.children);
+    } else {
+      const rawProperty = props[key as keyof typeof props];
+      if (typeof rawProperty === 'object') {
+        if ('value' in rawProperty) {
+          cleanups.push(
+            watch(
+              rawProperty,
+              () => (
+                applyHostProperty(boundary, el, key, rawProperty.value)
+              ),
+              true,
+            ),
+          );
+        } else {
+          effect(() => (
+            applyHostProperty(boundary, el, key, rawProperty.derive())
+          ));
+        }
+      } else {
+        applyHostProperty(boundary, el, key, rawProperty); 
+      }
+    }
+  });
+
+  return el;
 }
 
 export interface FragmentProps {
@@ -80,12 +192,12 @@ export interface SuspenseProps {
 
 export interface PortalProps {
   target: HTMLElement;
-  children?: VNode[];
+  children: () => VNode;
 }
 
 export interface OffscreenProps {
   mount?: boolean;
-  children?: VNode[];
+  children?: () => VNode;
 }
 
 export interface ForProps<T> {
