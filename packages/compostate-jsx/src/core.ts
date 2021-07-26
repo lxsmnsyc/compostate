@@ -5,7 +5,6 @@ import {
   VComponent,
   Attributes,
   BaseProps,
-  VElement,
   VFragment,
   ShallowReactive,
   VSuspense,
@@ -22,62 +21,52 @@ export function c<P extends HTMLAttributes<T>, T extends HTMLElement>(
   type: ShallowReactive<keyof CompostateHTML>,
   props: Reactive<P>,
   ...children: VNode[]
-): VElement;
+): VNode;
 export function c<P extends SVGAttributes<T>, T extends SVGElement>(
   type: ShallowReactive<keyof CompostateSVG>,
   props: Reactive<P>,
   ...children: VNode[]
-): VElement;
+): VNode;
 export function c<P extends DOMAttributes<T>, T extends Element>(
   type: ShallowReactive<string>,
   props: Reactive<P>,
   ...children: VNode[]
-): VElement;
+): VNode;
 export function c(
   type: ShallowReactive<VFragment>,
   props: Reactive<Attributes & FragmentProps>,
   ...children: VNode[]
-): VElement;
+): VNode;
 export function c(
   type: ShallowReactive<VSuspense>,
   props: Reactive<Attributes & SuspenseProps>,
   ...children: VNode[]
-): VElement;
+): VNode;
 export function c(
   type: ShallowReactive<VOffscreen>,
   props: Reactive<Attributes & OffscreenProps>,
   ...children: VNode[]
-): VElement;
+): VNode;
 export function c(
   type: ShallowReactive<VPortal>,
   props: Reactive<Attributes & PortalProps>,
   ...children: VNode[]
-): VElement;
+): VNode;
 export function c<T>(
   type: ShallowReactive<VFor>,
   props: Reactive<Attributes & ForProps<T>>,
   ...children: VNode[]
-): VElement;
+): VNode;
 export function c<P>(
   type: ShallowReactive<VComponent<P>>,
   props: Reactive<Attributes & P>,
   ...children: VNode[]
-): VElement;
+): VNode;
 export function c<P extends BaseProps<P>>(
   type: VReactiveConstructor,
   props: Reactive<P>,
   ...children: VNode[]
-): VElement {
-  return {
-    type,
-    props: {
-      ...props,
-      children: [
-        ...(props?.children ?? []),
-        ...children,
-      ],
-    },
-  };
+): VNode {
 }
 
 export interface FragmentProps {
@@ -86,7 +75,7 @@ export interface FragmentProps {
 
 export interface SuspenseProps {
   fallback: VNode;
-  children?: VNode[];
+  children?: () => VNode;
 }
 
 export interface PortalProps {

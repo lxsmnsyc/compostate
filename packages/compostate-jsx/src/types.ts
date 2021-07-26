@@ -1,19 +1,10 @@
 import { Ref } from 'compostate';
 import { Derived } from './reactivity';
 
-export type VRawElement<P extends Record<string, any> = Record<string, any>> = {
-  type: VReactiveConstructor<P>;
-  props: P;
-};
-
-export type VElement<P extends Record<string, any> = Record<string, any>> = (
-  ShallowReactive<VRawElement<P>>
-);
-
 export type VText = string | number;
 export type VNull = boolean | null | undefined;
-export type VChild = VElement | VText;
-export type VNode = VChild | VNull | VNode[] | Ref<VNode> | Derived<VNode> | VElement;
+export type VChild = Node | VText;
+export type VNode = VChild | VNull | VNode[] | Ref<VNode> | Derived<VNode>;
 
 export interface Attributes {
   // no-op

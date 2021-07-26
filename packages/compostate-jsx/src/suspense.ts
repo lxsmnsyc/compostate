@@ -7,6 +7,7 @@ export type SuspenseCapture = <T>(resource: Resource<T>) => void;
 export interface SuspenseData {
   capture: SuspenseCapture;
   parent?: SuspenseData;
+  suspend: () => boolean;
 }
 
 export const SUSPENSE = new Context<SuspenseData | undefined>();

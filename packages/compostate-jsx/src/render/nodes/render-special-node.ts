@@ -1,4 +1,3 @@
-import { EffectCleanup } from 'compostate';
 import {
   For,
   ForProps,
@@ -15,6 +14,7 @@ import { Marker } from '../../dom';
 import {
   VFor,
   VFragment,
+  VNode,
   VOffscreen,
   VPortal,
   VSuspense,
@@ -33,66 +33,38 @@ import renderPortalNode from './render-portal-node';
 import renderSuspenseNode from './render-suspense-node';
 
 export type SpecialNode =
-  | { constructor: VFragment, props: FragmentProps }
-  | { constructor: VFor, props: ForProps<any> }
-  | { constructor: VSuspense, props: SuspenseProps }
-  | { constructor: VPortal, props: PortalProps }
-  | { constructor: VOffscreen, props: OffscreenProps }
+  | { constructor: VFragment, props: FragmentProps, children: VNode[] }
+  | { constructor: VFor, props: ForProps<any>, children: VNode[] }
+  | { constructor: VSuspense, props: SuspenseProps, children: VNode[] }
+  | { constructor: VPortal, props: PortalProps, children: VNode[] }
+  | { constructor: VOffscreen, props: OffscreenProps, children: VNode[] }
 
 export default function renderSpecialNode(
-  boundary: Boundary,
-  root: HTMLElement,
   node: SpecialNode,
-  renderChildren: RenderChildren,
-  marker: Lazy<Marker | null> = null,
-  suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): VNode {
   switch (node.constructor) {
     case Fragment:
-      return renderFragmentNode(
-        boundary,
-        root,
-        node.props,
-        renderChildren,
-        marker,
-        suspended,
-      );
+      return [
+        ...(node.props.children ?? []),
+        ...node.children,
+      ];
     case Suspense:
       return renderSuspenseNode(
-        boundary,
-        root,
         node.props,
-        renderChildren,
-        marker,
-        suspended,
       );
     case Offscreen:
       return renderOffscreenNode(
-        boundary,
-        root,
         node.props,
-        renderChildren,
-        marker,
-        suspended,
       );
     case Portal:
       return renderPortalNode(
-        boundary,
         node.props,
-        renderChildren,
-        marker,
-        suspended,
       );
     case For:
       return renderForNode(
-        boundary,
-        root,
         node.props,
-        renderChildren,
-        marker,
-        suspended,
       );
     default:
-      return NO_OP;
+      return undefined;
   }
 }

@@ -6,23 +6,17 @@ import {
   track,
 } from 'compostate';
 import { SuspenseProps } from '../../core';
-import { createMarker, Marker } from '../../dom';
+import { createMarker } from '../../dom';
+import { SUSPENSE } from '../../suspense';
+import { VNode } from '../../types';
 import {
-  Boundary,
-  InternalShallowReactive,
   Lazy,
-  RenderChildren,
 } from '../types';
 import { watchMarkerForMarker } from '../watch-marker';
 
 export default function renderSuspenseNode(
-  boundary: Boundary,
-  root: HTMLElement,
   props: SuspenseProps,
-  renderChildren: RenderChildren,
-  marker: Lazy<Marker | null> = null,
-  suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): VNode {
   // This contains all of the tracked
   // resource instances that were suspended
   const resources = reactive<Set<Resource<any>>>(new Set());
@@ -37,10 +31,7 @@ export default function renderSuspenseNode(
     resources.add(resource);
   };
 
-  const currentSuspense = {
-    parent: boundary.suspense,
-    capture,
-  };
+  const parent = SUSPENSE.getContext();
 
   // Create markers for the fallback and the
   // children branches
@@ -106,9 +97,8 @@ export default function renderSuspenseNode(
     ),
   ];
 
-  return () => {
-    cleanups.forEach((cleanup) => {
-      cleanup();
-    });
-  };
+  return [
+    fallbackBranch.node,
+    childrenBranch.node,
+  ];
 }
