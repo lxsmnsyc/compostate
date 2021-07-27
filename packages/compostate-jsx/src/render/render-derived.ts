@@ -1,4 +1,4 @@
-import { effect, EffectCleanup } from 'compostate';
+import { effect, Cleanup } from 'compostate';
 import { Marker } from '../dom';
 import { handleError } from '../error-boundary';
 import { Derived } from '../reactivity';
@@ -17,7 +17,7 @@ export default function renderDerived(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   return effect(() => {
     renderChildren(
       boundary,

@@ -1,11 +1,9 @@
-import { effect, EffectCleanup } from 'compostate';
+import { effect, Cleanup } from 'compostate';
 import { PortalProps } from '../../core';
-import { Marker } from '../../dom';
 import { Reactive } from '../../types';
 import {
   Boundary,
   InternalShallowReactive,
-  Lazy,
   RenderChildren,
 } from '../types';
 
@@ -13,15 +11,14 @@ export default function renderPortalNode(
   boundary: Boundary,
   props: Reactive<PortalProps>,
   renderChildren: RenderChildren,
-  marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   if (props.target instanceof HTMLElement) {
     return renderChildren(
       boundary,
       props.target,
       props.children,
-      marker,
+      null,
       suspended,
     );
   }
@@ -32,7 +29,7 @@ export default function renderPortalNode(
         boundary,
         el.derive(),
         props.children,
-        marker,
+        null,
         suspended,
       )
     ));
@@ -42,7 +39,7 @@ export default function renderPortalNode(
       boundary,
       el.value,
       props.children,
-      marker,
+      null,
       suspended,
     )
   ));

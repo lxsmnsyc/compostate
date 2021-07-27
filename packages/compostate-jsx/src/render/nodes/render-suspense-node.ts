@@ -1,6 +1,6 @@
 import {
   effect,
-  EffectCleanup,
+  Cleanup,
   reactive,
   Resource,
   track,
@@ -22,7 +22,7 @@ export default function renderSuspenseNode(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   // This contains all of the tracked
   // resource instances that were suspended
   const resources = reactive<Set<Resource<any>>>(new Set());

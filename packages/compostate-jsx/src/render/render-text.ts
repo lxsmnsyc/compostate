@@ -1,4 +1,4 @@
-import { EffectCleanup } from 'compostate';
+import { Cleanup } from 'compostate';
 import { createText, Marker } from '../dom';
 import { Boundary, InternalShallowReactive, Lazy } from './types';
 import { watchMarkerForNode } from './watch-marker';
@@ -9,7 +9,7 @@ export default function renderText(
   children: string | number,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   const node = createText(`${children}`);
 
   return watchMarkerForNode(root, marker, node, suspended, boundary.error);

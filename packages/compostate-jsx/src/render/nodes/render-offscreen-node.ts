@@ -1,4 +1,4 @@
-import { EffectCleanup } from 'compostate';
+import { Cleanup } from 'compostate';
 import { OffscreenProps } from '../../core';
 import { createMarker, Marker } from '../../dom';
 import { Reactive } from '../../types';
@@ -17,7 +17,7 @@ export default function renderOffscreenNode(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   const offscreenMarker = createMarker();
 
   const cleanups = [

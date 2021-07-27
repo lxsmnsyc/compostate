@@ -1,6 +1,6 @@
 /* eslint-disable no-param-reassign */
 import {
-  EffectCleanup,
+  Cleanup,
   effect,
   untrack,
   Ref,
@@ -18,7 +18,7 @@ function watchNonLazyMarkerForMarker(
   root: HTMLElement,
   parent: Marker,
   child: Marker,
-): EffectCleanup {
+): Cleanup {
   let initialCall = true;
   let parentVersion: number | undefined;
   return watch(
@@ -43,7 +43,7 @@ function watchLazyMarkerForMarker(
   parent: () => Marker | null,
   child: Marker,
   boundary?: ErrorBoundary,
-): EffectCleanup {
+): Cleanup {
   let initialCall = true;
   let parentVersion: number | undefined;
   let previousParent: Marker | null = null;
@@ -79,8 +79,8 @@ export function watchMarkerForMarker(
   parent: Lazy<Marker | null>,
   child: Marker,
   boundary?: ErrorBoundary,
-): EffectCleanup {
-  let currentCleanup: EffectCleanup | undefined;
+): Cleanup {
+  let currentCleanup: Cleanup | undefined;
   if (parent) {
     if (typeof parent === 'function') {
       currentCleanup = watchLazyMarkerForMarker(root, parent, child, boundary);
@@ -104,7 +104,7 @@ function watchLazyMarkerForNodeWithLazySuspend(
   child: Node,
   suspended: () => boolean | undefined,
   boundary?: ErrorBoundary,
-): EffectCleanup {
+): Cleanup {
   let parentVersion: number | undefined;
   let previousParent: Marker | null = null;
   return effect(() => {
@@ -140,7 +140,7 @@ function watchLazyMarkerForNodeWithRefSuspend(
   child: Node,
   suspended: Ref<boolean | undefined>,
   boundary?: ErrorBoundary,
-): EffectCleanup {
+): Cleanup {
   let parentVersion: number | undefined;
   let previousParent: Marker | null = null;
   return effect(() => {
@@ -175,7 +175,7 @@ function watchLazyMarkerForNode(
   parent: () => Marker | null,
   child: Node,
   boundary?: ErrorBoundary,
-): EffectCleanup {
+): Cleanup {
   let parentVersion: number | undefined;
   let previousParent: Marker | null = null;
   return effect(() => {
@@ -208,7 +208,7 @@ function watchMarkerForNodeWithLazySuspend(
   child: Node,
   suspended: () => boolean | undefined,
   boundary?: ErrorBoundary,
-): EffectCleanup {
+): Cleanup {
   let parentVersion: number | undefined;
   return effect(() => {
     const newVersion = parent.version.value;
@@ -229,7 +229,7 @@ function watchMarkerForNodeWithRefSuspend(
   child: Node,
   suspended: Ref<boolean | undefined>,
   boundary?: ErrorBoundary,
-): EffectCleanup {
+): Cleanup {
   let parentVersion: number | undefined;
   return effect(() => {
     const newVersion = parent.version.value;
@@ -248,7 +248,7 @@ function watchActualMarkerForMarker(
   root: HTMLElement,
   parent: Marker,
   child: Node,
-): EffectCleanup {
+): Cleanup {
   let parentVersion: number | undefined;
   return watch(
     parent.version,
@@ -267,7 +267,7 @@ function watchNoMarkerForNodeWithRefSuspend(
   root: HTMLElement,
   child: Node,
   suspended: Ref<boolean | undefined>,
-): EffectCleanup {
+): Cleanup {
   return watch(
     suspended,
     () => {
@@ -285,8 +285,8 @@ export function watchMarkerForNode(
   child: Node,
   suspended: InternalShallowReactive<boolean | undefined> = false,
   boundary?: ErrorBoundary,
-): EffectCleanup {
-  let currentCleanup: EffectCleanup | undefined;
+): Cleanup {
+  let currentCleanup: Cleanup | undefined;
   if (parent) {
     if (typeof parent === 'function') {
       if (typeof suspended === 'function') {

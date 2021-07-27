@@ -1,6 +1,6 @@
 import {
   effect,
-  EffectCleanup,
+  Cleanup,
   Ref,
   ref,
   track,
@@ -20,7 +20,7 @@ import {
 import { watchMarkerForMarker } from '../watch-marker';
 
 interface MemoryItem {
-  cleanup: EffectCleanup;
+  cleanup: Cleanup;
   position: Ref<number>;
 }
 
@@ -31,7 +31,7 @@ export default function renderForNode<T>(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   // The memoized array based on the source array
   const memory: any[] = [];
 
@@ -40,7 +40,7 @@ export default function renderForNode<T>(
   // Markers for the child position
   const markers: Marker[] = [];
   // Lifecycles of markers
-  const markersLifecycle: EffectCleanup[] = [];
+  const markersLifecycle: Cleanup[] = [];
 
   function getNode(index: number, item: any) {
     const position = ref(index);

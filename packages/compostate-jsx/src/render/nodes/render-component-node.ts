@@ -2,7 +2,7 @@ import {
   batch,
   batchEffects,
   effect,
-  EffectCleanup,
+  Cleanup,
   reactive,
   untrack,
   watch,
@@ -34,11 +34,11 @@ export default function renderComponentNode<P extends Record<string, any>>(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   // Create a reactive object form for the props
   const unwrappedProps = reactive<P>({} as P);
 
-  const cleanups: EffectCleanup[] = [];
+  const cleanups: Cleanup[] = [];
 
   // Track individual props
   Object.keys(props).forEach((key: keyof typeof props) => {

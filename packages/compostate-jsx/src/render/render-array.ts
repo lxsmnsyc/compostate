@@ -1,5 +1,5 @@
 import {
-  EffectCleanup, isReactive,
+  Cleanup, isReactive,
 } from 'compostate';
 import { Marker, createMarker } from '../dom';
 import { derived } from '../reactivity';
@@ -19,8 +19,8 @@ export default function renderArray(
   renderChild: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
-  const cleanups: EffectCleanup[] = [];
+): Cleanup {
+  const cleanups: Cleanup[] = [];
   for (let i = 0; i < children.length; i += 1) {
     // Create a marker for each child
     const childMarker = createMarker();

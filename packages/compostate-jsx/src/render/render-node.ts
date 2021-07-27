@@ -1,6 +1,6 @@
 import {
   effect,
-  EffectCleanup,
+  Cleanup,
 } from 'compostate';
 import { Marker } from '../dom';
 import { handleError } from '../error-boundary';
@@ -23,7 +23,7 @@ function renderConstructor(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   // Construct DOM element
   if (typeof constructor === 'string') {
     return renderHostNode(
@@ -67,7 +67,7 @@ export default function renderNode(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   const rawConstructor = node.type;
   const props = {
     ...node.props,

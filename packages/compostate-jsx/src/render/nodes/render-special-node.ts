@@ -1,4 +1,4 @@
-import { EffectCleanup } from 'compostate';
+import { Cleanup } from 'compostate';
 import {
   For,
   ForProps,
@@ -46,7 +46,7 @@ export default function renderSpecialNode(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   switch (node.constructor) {
     case Fragment:
       return renderFragmentNode(

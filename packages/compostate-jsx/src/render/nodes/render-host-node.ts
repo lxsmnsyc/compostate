@@ -1,7 +1,7 @@
 import {
   batch,
   effect,
-  EffectCleanup,
+  Cleanup,
   untrack,
   watch,
 } from 'compostate';
@@ -23,7 +23,7 @@ function applyHostProperty(
   el: HTMLElement,
   key: string,
   property: any,
-): EffectCleanup | undefined {
+): Cleanup | undefined {
   if (key.startsWith('on')) {
     const wrappedEvent = <E extends Event>(evt: E) => {
       // In case of synchronous calls
@@ -59,7 +59,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   const hydration = HYDRATION.getContext();
   const claim = hydration ? claimHydration(hydration) : null;
   let el = document.createElement(constructor);
@@ -75,7 +75,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
     }
   }
 
-  const cleanups: EffectCleanup[] = [];
+  const cleanups: Cleanup[] = [];
 
   Object.keys(props).forEach((key) => {
     // Ref handler

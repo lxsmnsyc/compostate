@@ -1,4 +1,4 @@
-import { EffectCleanup, Ref } from 'compostate';
+import { Cleanup, Ref } from 'compostate';
 import { VNode } from '../types';
 import { Marker } from '../dom';
 import ErrorBoundary from '../error-boundary';
@@ -20,6 +20,6 @@ export type RenderChildren = (
   children: VNode,
   marker?: Lazy<Marker | null>,
   suspended?: InternalShallowReactive<boolean | undefined>,
-) => EffectCleanup;
+) => Cleanup;
 
 export type Lazy<T> = T | (() => T);

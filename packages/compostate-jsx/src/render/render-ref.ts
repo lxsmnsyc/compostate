@@ -1,4 +1,4 @@
-import { effect, EffectCleanup, Ref } from 'compostate';
+import { effect, Cleanup, Ref } from 'compostate';
 import { Marker } from '../dom';
 import { VNode } from '../types';
 import {
@@ -15,7 +15,7 @@ export default function renderRef(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   return effect(() => (
     renderChildren(
       boundary,

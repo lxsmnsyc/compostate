@@ -1,4 +1,4 @@
-import { EffectCleanup } from 'compostate';
+import { Cleanup } from 'compostate';
 import { VNode } from '../types';
 import { Marker } from '../dom';
 import renderArray from './render-array';
@@ -15,7 +15,7 @@ export default function renderChildren(
   children: VNode,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
+): Cleanup {
   if (Array.isArray(children)) {
     return renderArray(
       boundary,
