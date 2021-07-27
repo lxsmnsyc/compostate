@@ -9,8 +9,7 @@ import {
   PortalProps,
   Suspense,
   SuspenseProps,
-} from '../../core';
-import { Marker } from '../../dom';
+} from '../../special';
 import {
   VFor,
   VFragment,
@@ -19,15 +18,7 @@ import {
   VPortal,
   VSuspense,
 } from '../../types';
-import {
-  Boundary,
-  InternalShallowReactive,
-  Lazy,
-  RenderChildren,
-} from '../types';
-import { NO_OP } from '../utils';
 import renderForNode from './render-for-node';
-import renderFragmentNode from './render-fragment-node';
 import renderOffscreenNode from './render-offscreen-node';
 import renderPortalNode from './render-portal-node';
 import renderSuspenseNode from './render-suspense-node';

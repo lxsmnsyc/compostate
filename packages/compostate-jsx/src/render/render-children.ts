@@ -1,62 +1,43 @@
-import { EffectCleanup } from 'compostate';
+import { effect, isReactive, watch } from 'compostate';
 import { VNode } from '../types';
-import { Marker } from '../dom';
-import renderArray from './render-array';
-import { Boundary, InternalShallowReactive, Lazy } from './types';
-import renderText from './render-text';
-import renderRef from './render-ref';
-import renderNode from './render-node';
-import renderDerived from './render-derived';
-import { NO_OP } from './utils';
+import { createMarker, createText, Marker } from '../dom';
+import { watchMarkerForMarker, watchMarkerForNode } from './watch-marker';
+import { derived } from '../reactivity';
 
 export default function renderChildren(
-  root: HTMLElement,
+  root: Node,
   children: VNode,
-): EffectCleanup {
+  marker: Marker | null = null,
+): void {
   if (Array.isArray(children)) {
-    return renderArray(
-      boundary,
-      root,
+    for (let i = 0; i < children.length; i += 1) {
+      const childMarker = createMarker();
+      watchMarkerForMarker(root, marker, childMarker);
+      const child = isReactive(children)
+        ? derived(() => children[i])
+        : children[i];
+      renderChildren(root, child, childMarker);
+    }
+  } else if (typeof children === 'number' || typeof children === 'string') {
+    const node = createText(`${children}`);
+    watchMarkerForNode(root, marker, node);
+  } else if (typeof children === 'boolean' || children == null) {
+    // no-op
+  } else if (children instanceof Node) {
+    watchMarkerForNode(root, marker, children);
+  } else if ('value' in children) {
+    watch(
       children,
-      renderChildren,
-      marker,
-      suspended,
+      () => {
+        renderChildren(root, children.value, marker);
+      },
+      true,
     );
+  } else if ('derive' in children) {
+    effect(() => {
+      renderChildren(root, children.derive(), marker);
+    });
+  } else {
+    watchMarkerForMarker(root, marker, children);
   }
-  if (typeof children === 'string' || typeof children === 'number') {
-    return renderText(boundary, root, children, marker, suspended);
-  }
-  if (children == null || typeof children === 'boolean') {
-    return NO_OP;
-  }
-  if ('type' in children) {
-    return renderNode(
-      boundary,
-      root,
-      children,
-      renderChildren,
-      marker,
-      suspended,
-    );
-  }
-  if ('derive' in children) {
-    return renderDerived(
-      boundary,
-      root,
-      children,
-      renderChildren,
-      marker,
-      suspended,
-    );
-  }
-
-  // Reactive VNode
-  return renderRef(
-    boundary,
-    root,
-    children,
-    renderChildren,
-    marker,
-    suspended,
-  );
 }

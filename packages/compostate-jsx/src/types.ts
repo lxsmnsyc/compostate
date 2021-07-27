@@ -1,10 +1,17 @@
 import { Ref } from 'compostate';
+import { Marker } from './dom';
 import { Derived } from './reactivity';
 
 export type VText = string | number;
 export type VNull = boolean | null | undefined;
 export type VChild = Node | VText;
-export type VNode = VChild | VNull | VNode[] | Ref<VNode> | Derived<VNode>;
+export type VNode =
+  | VChild
+  | VNull
+  | VNode[]
+  | Ref<VNode>
+  | Derived<VNode>
+  | Marker;
 
 export interface Attributes {
   // no-op

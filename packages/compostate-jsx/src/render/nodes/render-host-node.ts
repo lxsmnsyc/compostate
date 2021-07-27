@@ -1,29 +1,21 @@
 import {
   batch,
+  Cleanup,
   effect,
-  EffectCleanup,
+  onCleanup,
   untrack,
-  watch,
 } from 'compostate';
-import { Marker, registerEvent, setAttribute } from '../../dom';
-import { handleError } from '../../error-boundary';
+import { registerEvent, setAttribute } from '../../dom';
 import { claimHydration, HYDRATION } from '../../hydration';
-import { Reactive, RefAttributes } from '../../types';
+import { Reactive, RefAttributes, VNode } from '../../types';
 import { DOMAttributes } from '../../types/dom';
-import {
-  Boundary,
-  InternalShallowReactive,
-  Lazy,
-  RenderChildren,
-} from '../types';
-import { UNMOUNTING, watchMarkerForNode } from '../watch-marker';
+import renderChildren from '../render-children';
 
 function applyHostProperty(
-  boundary: Boundary,
   el: HTMLElement,
   key: string,
   property: any,
-): EffectCleanup | undefined {
+): Cleanup | undefined {
   if (key.startsWith('on')) {
     const wrappedEvent = <E extends Event>(evt: E) => {
       // In case of synchronous calls
@@ -34,7 +26,7 @@ function applyHostProperty(
             (property as unknown as EventListener)(evt);
           });
         } catch (error) {
-          handleError(boundary.error, error);
+          // handleError(boundary.error, error);
         }
       });
     };
@@ -54,7 +46,7 @@ function applyHostProperty(
 export default function renderHostNode<P extends DOMAttributes<Element>>(
   constructor: string,
   props: Reactive<P> & RefAttributes<Element>,
-): EffectCleanup {
+): VNode {
   const hydration = HYDRATION.getContext();
   const claim = hydration ? claimHydration(hydration) : null;
   let el = document.createElement(constructor);
@@ -70,8 +62,6 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
     }
   }
 
-  const cleanups: EffectCleanup[] = [];
-
   Object.keys(props).forEach((key) => {
     // Ref handler
     if (key === 'ref') {
@@ -81,38 +71,23 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
       }
     // Children handler
     } else if (key === 'children') {
-      const cleanup = renderChildren(boundary, el, props.children);
-      const children = () => {
-        const popUnmounting = UNMOUNTING.push(true);
-        try {
-          cleanup();
-        } finally {
-          popUnmounting();
-        }
-      };
-      cleanups.push(children);
+      renderChildren(el, props.children);
     } else {
       const rawProperty = props[key as keyof typeof props];
       if (typeof rawProperty === 'object') {
         if ('value' in rawProperty) {
-          cleanups.push(
-            watch(
-              rawProperty,
-              () => (
-                applyHostProperty(boundary, el, key, rawProperty.value)
-              ),
-              true,
-            ),
-          );
+          effect(() => (
+            applyHostProperty(el, key, rawProperty.value)
+          ));
         } else {
-          cleanups.push(effect(() => (
-            applyHostProperty(boundary, el, key, rawProperty.derive())
-          )));
+          effect(() => (
+            applyHostProperty(el, key, rawProperty.derive())
+          ));
         }
       } else {
-        const cleanup = applyHostProperty(boundary, el, key, rawProperty);
+        const cleanup = applyHostProperty(el, key, rawProperty);
         if (cleanup) {
-          cleanups.push(cleanup);
+          onCleanup(cleanup);
         }
       }
     }

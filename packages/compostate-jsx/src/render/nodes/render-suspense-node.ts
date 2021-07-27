@@ -1,11 +1,10 @@
 import {
   effect,
-  EffectCleanup,
   reactive,
   Resource,
   track,
 } from 'compostate';
-import { SuspenseProps } from '../../core';
+import { SuspenseProps } from '../../special';
 import { createMarker } from '../../dom';
 import { SUSPENSE } from '../../suspense';
 import { VNode } from '../../types';
@@ -59,46 +58,42 @@ export default function renderSuspenseNode(
     suspendChildren = () => !suspend();
   }
 
-  const cleanups = [
-    // Track the resources and remove all
-    // failed an successful resource
-    effect(() => {
-      new Set(track(resources)).forEach((resource) => {
-        if (resource.status === 'success') {
-          resources.delete(resource);
-        } else if (resource.status === 'failure') {
-          resources.delete(resource);
+  // Track the resources and remove all
+  // failed an successful resource
+  effect(() => {
+    new Set(track(resources)).forEach((resource) => {
+      if (resource.status === 'success') {
+        resources.delete(resource);
+      } else if (resource.status === 'failure') {
+        resources.delete(resource);
 
-          // Forward the error to the error boundary.
-          throw resource.value;
-        }
-      });
-    }),
-    watchMarkerForMarker(root, marker, fallbackBranch, boundary.error),
-    watchMarkerForMarker(root, marker, childrenBranch, boundary.error),
-    // Render fallback
-    renderChildren(
-      boundary,
-      root,
-      props.fallback,
-      fallbackBranch,
-      suspendFallback,
-    ),
-    renderChildren(
-      {
-        ...boundary,
-        suspense: currentSuspense,
-      },
-      root,
-      props.children,
-      childrenBranch,
-      // Forward the suspend state
-      suspendChildren,
-    ),
-  ];
+        // Forward the error to the error boundary.
+        throw resource.value;
+      }
+    });
+  });
+  // Render fallback
+  renderChildren(
+    boundary,
+    root,
+    props.fallback,
+    fallbackBranch,
+    suspendFallback,
+  );
+  renderChildren(
+    {
+      ...boundary,
+      suspense: currentSuspense,
+    },
+    root,
+    props.children,
+    childrenBranch,
+    // Forward the suspend state
+    suspendChildren,
+  );
 
   return [
-    fallbackBranch.node,
-    childrenBranch.node,
+    fallbackBranch,
+    childrenBranch,
   ];
 }
