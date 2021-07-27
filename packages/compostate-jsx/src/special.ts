@@ -8,7 +8,7 @@ export interface FragmentProps {
 }
 
 export interface SuspenseProps {
-  fallback: VNode;
+  fallback?: () => VNode;
   render?: () => VNode;
 }
 
