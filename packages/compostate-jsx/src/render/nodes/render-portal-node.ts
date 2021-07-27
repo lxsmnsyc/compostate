@@ -1,30 +1,33 @@
-import { effect, EffectCleanup } from 'compostate';
-import { PortalProps } from '../../core';
-import { derived } from '../../reactivity';
-import { Reactive } from '../../types';
+import { PortalProps } from '../../special';
+import { Reactive, VNode } from '../../types';
+import renderChildren from '../render-children';
+import { effect } from '../../../../compostate/dist/types';
 
 export default function renderPortalNode(
   props: Reactive<PortalProps>,
-): EffectCleanup {
+): VNode {
   if (props.target instanceof HTMLElement) {
-    return renderChildren(
+    renderChildren(
       props.target,
       props.children,
     );
+    return undefined;
   }
   const el = props.target;
   if ('derive' in el) {
-    return derived(() => (
+    effect(() => (
       renderChildren(
         el.derive(),
         props.children,
       )
     ));
+    return undefined;
   }
-  return derived(() => (
+  effect(() => (
     renderChildren(
       el.value,
       props.children,
     )
   ));
+  return undefined;
 }
