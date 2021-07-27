@@ -6,12 +6,15 @@ import {
   untrack,
 } from 'compostate';
 import { registerEvent, setAttribute } from '../../dom';
+import { handleError } from '../../error-boundary';
 import { claimHydration, HYDRATION } from '../../hydration';
 import { Reactive, RefAttributes, VNode } from '../../types';
 import { DOMAttributes } from '../../types/dom';
 import renderChildren from '../render-children';
+import { Boundary } from '../types';
 
 function applyHostProperty(
+  boundary: Boundary,
   el: HTMLElement,
   key: string,
   property: any,
@@ -26,7 +29,7 @@ function applyHostProperty(
             (property as unknown as EventListener)(evt);
           });
         } catch (error) {
-          // handleError(boundary.error, error);
+          handleError(boundary.error, error);
         }
       });
     };
@@ -44,6 +47,7 @@ function applyHostProperty(
 }
 
 export default function renderHostNode<P extends DOMAttributes<Element>>(
+  boundary: Boundary,
   constructor: string,
   props: Reactive<P> & RefAttributes<Element>,
 ): VNode {
@@ -77,15 +81,15 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
       if (typeof rawProperty === 'object') {
         if ('value' in rawProperty) {
           effect(() => (
-            applyHostProperty(el, key, rawProperty.value)
+            applyHostProperty(boundary, el, key, rawProperty.value)
           ));
         } else {
           effect(() => (
-            applyHostProperty(el, key, rawProperty.derive())
+            applyHostProperty(boundary, el, key, rawProperty.derive())
           ));
         }
       } else {
-        const cleanup = applyHostProperty(el, key, rawProperty);
+        const cleanup = applyHostProperty(boundary, el, key, rawProperty);
         if (cleanup) {
           onCleanup(cleanup);
         }
