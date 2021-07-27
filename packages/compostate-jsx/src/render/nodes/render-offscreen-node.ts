@@ -1,154 +1,71 @@
-import { EffectCleanup } from 'compostate';
-import { OffscreenProps } from '../../core';
-import { createMarker, Marker } from '../../dom';
-import { Reactive } from '../../types';
+import { ERROR_BOUNDARY } from '../../error-boundary';
+import { PROVIDER } from '../../provider';
+import { derived } from '../../reactivity';
+import { OffscreenProps } from '../../special';
+import { SUSPENSE } from '../../suspense';
+import { Reactive, VNode } from '../../types';
 import {
   Boundary,
-  InternalShallowReactive,
   Lazy,
-  RenderChildren,
 } from '../types';
-import { watchMarkerForMarker } from '../watch-marker';
 
 export default function renderOffscreenNode(
   boundary: Boundary,
-  root: HTMLElement,
   props: Reactive<OffscreenProps>,
-  renderChildren: RenderChildren,
-  marker: Lazy<Marker | null> = null,
-  suspended: InternalShallowReactive<boolean | undefined> = false,
-): EffectCleanup {
-  const offscreenMarker = createMarker();
+): VNode {
+  const { render, mount } = props;
 
-  const cleanups = [
-    watchMarkerForMarker(root, marker, offscreenMarker, boundary.error),
-    (() => {
-      if (typeof suspended === 'object') {
-        if (typeof props.mount === 'object') {
-          const mountRef = props.mount;
-          if ('derive' in mountRef) {
-            return renderChildren(
-              boundary,
-              root,
-              props.children,
-              offscreenMarker,
-              // Forward the suspend state
-              () => suspended.value || !mountRef.derive(),
-            );
-          }
-          return renderChildren(
-            boundary,
-            root,
-            props.children,
-            offscreenMarker,
-            // Forward the suspend state
-            () => suspended.value || !mountRef.value,
-          );
-        }
-        if (props.mount) {
-          return renderChildren(
-            boundary,
-            root,
-            props.children,
-            offscreenMarker,
-            // Forward the suspend state
-            suspended,
-          );
-        }
-        return renderChildren(
-          boundary,
-          root,
-          props.children,
-          offscreenMarker,
-          // Forward the suspend state
-          true,
-        );
-      }
-      if (typeof suspended === 'function') {
-        if (typeof props.mount === 'object') {
-          const mountRef = props.mount;
-          if ('derive' in mountRef) {
-            return renderChildren(
-              boundary,
-              root,
-              props.children,
-              offscreenMarker,
-              // Forward the suspend state
-              () => suspended() || !mountRef.derive(),
-            );
-          }
-          return renderChildren(
-            boundary,
-            root,
-            props.children,
-            offscreenMarker,
-            // Forward the suspend state
-            () => suspended() || !mountRef.value,
-          );
-        }
-        if (props.mount) {
-          return renderChildren(
-            boundary,
-            root,
-            props.children,
-            offscreenMarker,
-            // Forward the suspend state
-            suspended,
-          );
-        }
-        return renderChildren(
-          boundary,
-          root,
-          props.children,
-          offscreenMarker,
-          // Forward the suspend state
-          true,
-        );
-      }
-      if (typeof props.mount === 'object') {
-        const mountRef = props.mount;
-        if (suspended) {
-          return renderChildren(
-            boundary,
-            root,
-            props.children,
-            offscreenMarker,
-            // Forward the suspend state
-            true,
-          );
-        }
-        return renderChildren(
-          boundary,
-          root,
-          props.children,
-          offscreenMarker,
-          'derive' in mountRef ? mountRef.derive : mountRef,
-        );
-      }
-      if (props.mount) {
-        return renderChildren(
-          boundary,
-          root,
-          props.children,
-          offscreenMarker,
-          // Forward the suspend state
-          suspended,
-        );
-      }
-      return renderChildren(
-        boundary,
-        root,
-        props.children,
-        offscreenMarker,
-        // Forward the suspend state
-        true,
-      );
-    })(),
-  ];
+  if (!render) {
+    return undefined;
+  }
 
-  return () => {
-    cleanups.forEach((cleanup) => {
-      cleanup();
+  let normalizedMount: () => boolean;
+
+  if (typeof mount === 'boolean') {
+    normalizedMount = () => mount;
+  } else if (typeof mount === 'object') {
+    if ('derive' in mount) {
+      normalizedMount = () => !!mount.derive();
+    } else {
+      normalizedMount = () => !!mount.value;
+    }
+  } else {
+    normalizedMount = () => false;
+  }
+
+  let suspendChildren: Lazy<boolean>;
+
+  const suspended = boundary.suspense?.suspend;
+
+  if (typeof suspended === 'function') {
+    suspendChildren = () => !suspended() && !normalizedMount();
+  } else if (typeof suspended === 'object') {
+    suspendChildren = () => !!suspended.value && !normalizedMount();
+  } else if (suspended) {
+    suspendChildren = true;
+  } else {
+    suspendChildren = () => !normalizedMount();
+  }
+
+  return derived(() => {
+    const popSuspense = SUSPENSE.push({
+      capture: boundary.suspense?.capture,
+      suspend: suspendChildren,
     });
-  };
+    const popProvider = PROVIDER.push(boundary.provider);
+    const popError = ERROR_BOUNDARY.push(boundary.error);
+    try {
+      if ('value' in render) {
+        return render.value?.();
+      }
+      if ('derive' in render) {
+        return render.derive()?.();
+      }
+      return render();
+    } finally {
+      popError();
+      popProvider();
+      popSuspense();
+    }
+  });
 }
