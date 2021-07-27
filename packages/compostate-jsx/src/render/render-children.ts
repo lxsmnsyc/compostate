@@ -1,13 +1,14 @@
-import { effect, isReactive, watch } from 'compostate';
+import { effect, isReactive } from 'compostate';
 import { VNode } from '../types';
 import { createMarker, createText, Marker } from '../dom';
 import { watchMarkerForMarker, watchMarkerForNode } from './watch-marker';
 import { derived } from '../reactivity';
+import { Lazy } from './types';
 
 export default function renderChildren(
   root: Node,
   children: VNode,
-  marker: Marker | null = null,
+  marker: Lazy<Marker | null> = null,
 ): void {
   if (Array.isArray(children)) {
     for (let i = 0; i < children.length; i += 1) {
@@ -26,13 +27,9 @@ export default function renderChildren(
   } else if (children instanceof Node) {
     watchMarkerForNode(root, marker, children);
   } else if ('value' in children) {
-    watch(
-      children,
-      () => {
-        renderChildren(root, children.value, marker);
-      },
-      true,
-    );
+    effect(() => {
+      renderChildren(root, children.value, marker);
+    });
   } else if ('derive' in children) {
     effect(() => {
       renderChildren(root, children.derive(), marker);
