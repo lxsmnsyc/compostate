@@ -26,7 +26,6 @@ interface MemoryItem {
 
 export default function renderForNode<T>(
   boundary: Boundary,
-  root: HTMLElement,
   props: Reactive<ForProps<T>>,
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,

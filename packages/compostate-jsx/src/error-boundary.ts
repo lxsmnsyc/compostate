@@ -1,4 +1,8 @@
+import Context from './context';
+
 export type ErrorCapture = (error: Error) => void;
+
+export const ERROR_BOUNDARY = new Context<ErrorBoundary | undefined>();
 
 export default class ErrorBoundary {
   private collection?: Set<ErrorCapture>;

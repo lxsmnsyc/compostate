@@ -27,6 +27,7 @@ import {
 } from '../types';
 
 export default function renderComponentNode<P extends Record<string, any>>(
+  boundary: Boundary,
   constructor: VComponent<P>,
   props: Reactive<P>,
 ): VNode {

@@ -1,8 +1,3 @@
-import { Ref } from 'compostate';
-import { derived } from './reactivity';
-import renderComponentNode from './render/nodes/render-component-node';
-import renderHostNode from './render/nodes/render-host-node';
-import renderSpecialNode from './render/nodes/render-special-node';
 import {
   FragmentProps,
   SuspenseProps,
@@ -10,6 +5,7 @@ import {
   PortalProps,
   ForProps,
 } from './special';
+import renderCore from './render/render-core';
 import {
   VNode,
   Reactive,
@@ -23,11 +19,14 @@ import {
   VOffscreen,
   VFor,
   VReactiveConstructor,
-  VSpecialConstructor,
 } from './types';
 import { DOMAttributes } from './types/dom';
 import { HTMLAttributes, CompostateHTML } from './types/html';
 import { SVGAttributes, CompostateSVG } from './types/svg';
+import { Boundary } from './render/types';
+import { SUSPENSE } from './suspense';
+import { PROVIDER } from './provider';
+import { ERROR_BOUNDARY } from './error-boundary';
 
 export function c<P extends HTMLAttributes<T>, T extends HTMLElement>(
   type: ShallowReactive<keyof CompostateHTML>,
@@ -79,27 +78,10 @@ export function c<P extends BaseProps<P>>(
   props: Reactive<P>,
   ...children: VNode[]
 ): VNode {
-  if (typeof type === 'object') {
-    if ('derive' in type) {
-      return derived(() => c(type.derive() as any, props, ...children));
-    }
-    return derived(() => c(type.value as any, props, ...children));
-  }
-  if (typeof type === 'number') {
-    return renderSpecialNode({
-      constructor: type as unknown as VSpecialConstructor,
-      props: props as any,
-      children,
-    });
-  }
-  if (typeof type === 'function') {
-    return renderComponentNode(
-      type,
-      props,
-    );
-  }
-  return renderHostNode(
-    type,
-    props,
-  );
+  const boundary: Boundary = {
+    suspense: SUSPENSE.getContext(),
+    provider: PROVIDER.getContext(),
+    error: ERROR_BOUNDARY.getContext(),
+  };
+  return renderCore(boundary, type, props, children);
 }
