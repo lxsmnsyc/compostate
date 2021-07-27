@@ -5,16 +5,19 @@ import {
   track,
 } from 'compostate';
 import { SuspenseProps } from '../../special';
-import { createMarker } from '../../dom';
-import { SUSPENSE } from '../../suspense';
-import { VNode } from '../../types';
+import { Reactive, VNode } from '../../types';
 import {
+  Boundary,
   Lazy,
 } from '../types';
-import { watchMarkerForMarker } from '../watch-marker';
+import { SUSPENSE } from '../../suspense';
+import { derived } from '../../reactivity';
+import { PROVIDER } from '../../provider';
+import { ERROR_BOUNDARY } from '../../error-boundary';
 
 export default function renderSuspenseNode(
-  props: SuspenseProps,
+  boundary: Boundary,
+  props: Reactive<SuspenseProps>,
 ): VNode {
   // This contains all of the tracked
   // resource instances that were suspended
@@ -30,19 +33,14 @@ export default function renderSuspenseNode(
     resources.add(resource);
   };
 
-  const parent = SUSPENSE.getContext();
-
-  // Create markers for the fallback and the
-  // children branches
-  const fallbackBranch = createMarker();
-  const childrenBranch = createMarker();
-
   // Since the fallback branch
   // only renders when suspended
   // We make sure to flip the value
   // to consider DOM elements
   let suspendFallback: Lazy<boolean>;
   let suspendChildren: Lazy<boolean>;
+
+  const suspended = boundary.suspense?.suspend;
 
   if (typeof suspended === 'function') {
     suspendFallback = () => !suspended() && suspend();
@@ -72,28 +70,62 @@ export default function renderSuspenseNode(
       }
     });
   });
-  // Render fallback
-  renderChildren(
-    boundary,
-    root,
-    props.fallback,
-    fallbackBranch,
-    suspendFallback,
-  );
-  renderChildren(
-    {
-      ...boundary,
-      suspense: currentSuspense,
-    },
-    root,
-    props.children,
-    childrenBranch,
-    // Forward the suspend state
-    suspendChildren,
-  );
+
+  const { fallback, render } = props;
+  let renderFallback: VNode;
+
+  if (fallback) {
+    renderFallback = derived(() => {
+      const popSuspense = SUSPENSE.push({
+        capture: boundary.suspense?.capture,
+        suspend: suspendFallback,
+      });
+      const popProvider = PROVIDER.push(boundary.provider);
+      const popError = ERROR_BOUNDARY.push(boundary.error);
+      try {
+        if ('value' in fallback) {
+          return fallback.value?.();
+        }
+        if ('derive' in fallback) {
+          return fallback.derive()?.();
+        }
+        return fallback();
+      } finally {
+        popError();
+        popProvider();
+        popSuspense();
+      }
+    });
+  }
+
+  let renderContent: VNode;
+
+  if (render) {
+    renderContent = derived(() => {
+      const popSuspense = SUSPENSE.push({
+        capture,
+        suspend: suspendChildren,
+      });
+      const popProvider = PROVIDER.push(boundary.provider);
+      const popError = ERROR_BOUNDARY.push(boundary.error);
+      try {
+        if ('value' in render) {
+          return render.value?.();
+        }
+        if ('derive' in render) {
+          return render.derive()?.();
+        }
+        return render();
+      } finally {
+        popError();
+        popProvider();
+        popSuspense();
+      }
+    });
+  }
 
   return [
-    fallbackBranch,
-    childrenBranch,
+    renderFallback,
+    renderContent,
   ];
 }
