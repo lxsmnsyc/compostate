@@ -10,8 +10,7 @@ export type VNode =
   | VNull
   | VNode[]
   | Ref<VNode>
-  | Derived<VNode>
-  | Marker;
+  | Derived<VNode>;
 
 export interface Attributes {
   // no-op

@@ -17,10 +17,11 @@ export default function renderCore<P>(
     }
     return derived(() => renderCore(boundary, type.value as any, props, children));
   }
+  const fauxProps = props ?? {};
   if (typeof type === 'number') {
     return renderSpecialNode(boundary, {
       constructor: type as unknown as VSpecialConstructor,
-      props: props as any,
+      props: fauxProps as any,
       children,
     });
   }
@@ -28,12 +29,24 @@ export default function renderCore<P>(
     return renderComponentNode(
       boundary,
       type,
-      props,
+      {
+        ...fauxProps,
+        children: [
+          ...(fauxProps.children ?? []),
+          ...children,
+        ],
+      } as any,
     );
   }
   return renderHostNode(
     boundary,
     type,
-    props as any,
+    {
+      ...fauxProps,
+      children: [
+        ...(fauxProps.children ?? []),
+        ...children,
+      ],
+    } as any,
   );
 }

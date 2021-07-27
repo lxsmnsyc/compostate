@@ -49,7 +49,7 @@ function applyHostProperty(
 export default function renderHostNode<P extends DOMAttributes<Element>>(
   boundary: Boundary,
   constructor: string,
-  props: Reactive<P> & RefAttributes<Element>,
+  props: Reactive<P> & RefAttributes<Element> | null,
 ): VNode {
   const hydration = HYDRATION.getContext();
   const claim = hydration ? claimHydration(hydration) : null;
@@ -66,36 +66,38 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
     }
   }
 
-  Object.keys(props).forEach((key) => {
-    // Ref handler
-    if (key === 'ref') {
-      const elRef = props.ref;
-      if (elRef) {
-        elRef.value = el;
-      }
-    // Children handler
-    } else if (key === 'children') {
-      renderChildren(el, props.children);
-    } else {
-      const rawProperty = props[key as keyof typeof props];
-      if (typeof rawProperty === 'object') {
-        if ('value' in rawProperty) {
-          effect(() => (
-            applyHostProperty(boundary, el, key, rawProperty.value)
-          ));
-        } else {
-          effect(() => (
-            applyHostProperty(boundary, el, key, rawProperty.derive())
-          ));
+  if (props) {
+    Object.keys(props).forEach((key) => {
+      // Ref handler
+      if (key === 'ref') {
+        const elRef = props.ref;
+        if (elRef) {
+          elRef.value = el;
         }
+      // Children handler
+      } else if (key === 'children') {
+        renderChildren(boundary, el, props.children);
       } else {
-        const cleanup = applyHostProperty(boundary, el, key, rawProperty);
-        if (cleanup) {
-          onCleanup(cleanup);
+        const rawProperty = props[key as keyof typeof props];
+        if (typeof rawProperty === 'object') {
+          if ('value' in rawProperty) {
+            effect(() => (
+              applyHostProperty(boundary, el, key, rawProperty.value)
+            ));
+          } else {
+            effect(() => (
+              applyHostProperty(boundary, el, key, rawProperty.derive())
+            ));
+          }
+        } else {
+          const cleanup = applyHostProperty(boundary, el, key, rawProperty);
+          if (cleanup) {
+            onCleanup(cleanup);
+          }
         }
       }
-    }
-  });
+    });
+  }
 
   return el;
 }

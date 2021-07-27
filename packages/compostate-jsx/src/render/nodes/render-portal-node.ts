@@ -1,7 +1,7 @@
+import { effect } from 'compostate';
 import { PortalProps } from '../../special';
 import { Reactive, VNode } from '../../types';
 import renderChildren from '../render-children';
-import { effect } from '../../../../compostate/dist/types';
 import { Boundary } from '../types';
 
 export default function renderPortalNode(

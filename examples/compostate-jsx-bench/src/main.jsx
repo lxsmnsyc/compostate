@@ -128,5 +128,5 @@ const Main = () => {
 const root = document.getElementById('root');
 
 if (root) {
-  render(root, <Main />);
+  render(root, () => <Main />);
 }

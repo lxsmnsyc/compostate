@@ -5,6 +5,7 @@ import {
   For,
   Fragment,
   render,
+  derived,
 } from 'compostate-jsx';
 import {
   computed,
@@ -30,7 +31,7 @@ const initialData = new Array(1000)
     })
   ));
 
-const USE_INITIAL = true;
+const USE_INITIAL = false;
 
 const list = reactive<TodoItem[]>(USE_INITIAL ? initialData : []);
 
@@ -53,21 +54,21 @@ function TodoListItem(props: TodoListItemProps) {
 
   return (
     <div
-      className={computed(() => (
+      className={derived(() => (
         `todo-item ${item.done ? 'complete' : 'pending'}`
       ))}
     >
       <div className="todo-item-content">
-        {computed(() => item.message)}
+        {derived(() => item.message)}
       </div>
       <div className="todo-item-actions">
         <button
-          className={computed(() => (
+          className={derived(() => (
             `todo-item-toggle ${item.done ? 'complete' : 'pending'}`
           ))}
           onClick={onToggle}
         >
-          {computed(() => (item.done ? 'Completed' : 'Pending'))}
+          {derived(() => (item.done ? 'Completed' : 'Pending'))}
         </button>
         <button className="todo-item-delete" onClick={onRemove}>
           Delete
@@ -96,7 +97,7 @@ function TodoListForm() {
     message.value = '';
   }
 
-  const disableButton = computed(() => message.value === '');
+  const disableButton = derived(() => message.value === '');
 
   return (
     <form className="todo-list-form" onSubmit={onSubmit}>
@@ -145,5 +146,5 @@ function App() {
 const root = document.getElementById('root');
 
 if (root) {
-  render(root, <App />);
+  render(root, () => <App />);
 }

@@ -1,11 +1,12 @@
 /* eslint-disable no-param-reassign */
 import {
+  effect,
   untrack,
 } from 'compostate';
 import {
   Fragment,
   Suspense,
-} from './core';
+} from './special';
 import { createHydration, HYDRATION } from './hydration';
 import renderChildren from './render/render-children';
 import unwrapRef from './render/unwrap-ref';
@@ -14,14 +15,26 @@ import {
   WithChildren,
 } from './types';
 
-export function render(root: HTMLElement, element: VNode): () => void {
-  return untrack(() => renderChildren({}, root, element));
+export function render(root: HTMLElement, element: () => VNode): () => void {
+  return effect(() => {
+    renderChildren(
+      {},
+      root,
+      element(),
+    );
+  });
 }
 
-export function hydrate(root: HTMLElement, element: VNode): () => void {
+export function hydrate(root: HTMLElement, element: () => VNode): () => void {
   const popHydration = HYDRATION.push(createHydration(root));
   try {
-    return untrack(() => renderChildren({}, root, element));
+    return effect(() => {
+      renderChildren(
+        {},
+        root,
+        element(),
+      );
+    });
   } finally {
     popHydration();
   }

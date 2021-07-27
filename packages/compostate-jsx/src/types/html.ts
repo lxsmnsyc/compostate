@@ -1,7 +1,6 @@
 import {
   Reactive,
   RefAttributes,
-  VElement,
   VNode,
 } from '../types';
 import { Booleanish } from './basic';
@@ -657,7 +656,7 @@ export type HTMLProps<T extends EventTarget> = AllHTMLAttributes<T> & RefAttribu
 
 export interface DetailedHTMLFactory<P extends HTMLAttributes<T>, T extends HTMLElement>
   extends DOMFactory<P, T> {
-  (props?: Reactive<RefAttributes<T> & P | null>, ...children: VNode[]): VElement;
+  (props?: Reactive<RefAttributes<T> & P | null>, ...children: VNode[]): VNode;
 }
 
 export interface CompostateHTML {

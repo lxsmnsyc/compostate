@@ -1,4 +1,4 @@
-import { RefAttributes, VElement, VNode } from '../types';
+import { RefAttributes, VNode } from '../types';
 import {
   ClipboardEventHandler,
   CompositionEventHandler,
@@ -531,4 +531,4 @@ export type AriaRole =
   | string;
 
 export type DOMFactory<P extends DOMAttributes<T>, T extends Element> =
-  (props?: RefAttributes<T> & P | null, ...children: VNode[]) => VElement;
+  (props?: RefAttributes<T> & P | null, ...children: VNode[]) => VNode;

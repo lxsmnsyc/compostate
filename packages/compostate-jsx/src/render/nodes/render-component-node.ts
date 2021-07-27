@@ -2,12 +2,11 @@ import {
   batch,
   batchEffects,
   effect,
-  EffectCleanup,
+  onCleanup,
   reactive,
   untrack,
   watch,
 } from 'compostate';
-import { Marker } from '../../dom';
 import ErrorBoundary, { handleError } from '../../error-boundary';
 import { MOUNT, UNMOUNT, ERROR } from '../../lifecycle';
 import { PROVIDER } from '../../provider';
@@ -21,9 +20,6 @@ import {
 } from '../../types';
 import {
   Boundary,
-  InternalShallowReactive,
-  Lazy,
-  RenderChildren,
 } from '../types';
 
 export default function renderComponentNode<P extends Record<string, any>>(
@@ -33,8 +29,6 @@ export default function renderComponentNode<P extends Record<string, any>>(
 ): VNode {
   // Create a reactive object form for the props
   const unwrappedProps = reactive<P>({} as P);
-
-  const cleanups: EffectCleanup[] = [];
 
   // Track individual props
   Object.keys(props).forEach((key: keyof typeof props) => {
@@ -46,17 +40,15 @@ export default function renderComponentNode<P extends Record<string, any>>(
       const property = props[key];
       if (typeof property === 'object') {
         if ('value' in property) {
-          cleanups.push(watch(
-            property,
-            () => {
-              unwrappedProps[key] = property.value;
-            },
-            true,
-          ));
+          effect(() => {
+            unwrappedProps[key] = property.value;
+          });
         } else if ('derive' in property) {
           effect(() => {
             unwrappedProps[key] = property.derive();
           });
+        } else {
+          unwrappedProps[key] = property;
         }
       } else {
         unwrappedProps[key] = property;
@@ -109,7 +101,7 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // onError, it gets registered to the parent
   // handler.
   errors.forEach((item) => {
-    cleanups.push(errorBoundary.register(item));
+    onCleanup(errorBoundary.register(item));
   });
 
   const newBoundary = {
@@ -122,7 +114,6 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // this is to properly setup
   // the error boundary
 
-  cleanups.push(renderChildren(newBoundary, root, result, marker, suspended));
   if (mounts.length) {
     untrack(() => {
       mounts.forEach((mount) => {
@@ -134,7 +125,7 @@ export default function renderComponentNode<P extends Record<string, any>>(
   }
 
   if (unmounts.length) {
-    cleanups.push(() => {
+    onCleanup(() => {
       untrack(() => {
         unmounts.forEach((unmount) => {
           batch(() => {
@@ -145,17 +136,13 @@ export default function renderComponentNode<P extends Record<string, any>>(
     });
   }
 
-  cleanups.push(effect(() => {
+  effect(() => {
     flushEffects();
   }, {
     onError(error) {
       handleError(errorBoundary, error);
     },
-  }));
+  });
 
-  return () => {
-    cleanups.forEach((cleanup) => {
-      cleanup();
-    });
-  };
+  return result;
 }

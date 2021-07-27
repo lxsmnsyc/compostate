@@ -10,12 +10,14 @@ export {
 } from './provider';
 export {
   c,
+} from './core';
+export {
   Fragment,
   Suspense,
   Offscreen,
   Portal,
   For,
-} from './core';
+} from './special';
 export {
   render,
   renderToString,

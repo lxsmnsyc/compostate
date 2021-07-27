@@ -1,7 +1,6 @@
 import {
   Reactive,
   RefAttributes,
-  VElement,
   VNode,
 } from '../types';
 import { Booleanish } from './basic';
@@ -299,7 +298,7 @@ export interface SVGFactory extends DOMFactory<SVGAttributes<SVGElement>, SVGEle
   (
     props?: Reactive<RefAttributes<SVGElement> & SVGAttributes<SVGElement> | null>,
     ...children: VNode[]
-  ): VElement;
+  ): VNode;
 }
 
 export interface CompostateSVG {
