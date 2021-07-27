@@ -7,34 +7,42 @@ import untrack from './untrack';
 function watch<T>(
   source: Ref<T>,
   listen: () => void,
+  run?: boolean,
 ): () => void;
 function watch<T extends any[]>(
   source: T,
   listen: () => void,
+  run?: boolean,
 ): () => void;
 function watch<T extends Record<string | symbol, any>>(
-  source: T
-  , listen: () => void,
+  source: T,
+  listen: () => void,
+  run?: boolean,
 ): () => void;
 function watch<V>(
   source: Set<V>,
   listen: () => void,
+  run?: boolean,
 ): () => void;
 function watch<K, V>(
   source: Map<K, V>,
   listen: () => void,
+  run?: boolean,
 ): () => void;
 function watch<V extends object>(
   source: WeakSet<V>,
   listen: () => void,
+  run?: boolean,
 ): () => void;
 function watch<K extends object, V>(
   source: WeakMap<K, V>,
   listen: () => void,
+  run?: boolean,
 ): () => void;
 function watch<T>(
   source: Ref<T>,
   listen: () => void,
+  run?: boolean,
 ): () => void;
 function watch(source: any, listen: () => void, run = false): () => void {
   const atom = getTrackableAtom(source);
