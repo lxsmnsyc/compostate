@@ -26,9 +26,10 @@
  * @copyright Alexis Munsayac 2021
  */
 import EffectNode, { BATCH_EFFECTS } from './nodes/effect';
-import { Effect, EffectCleanup, EffectOptions } from './types';
+import onCleanup from './on-cleanup';
+import { Effect, Cleanup, EffectOptions } from './types';
 
-export default function effect(callback: Effect, options?: EffectOptions): EffectCleanup {
+export default function effect(callback: Effect, options?: EffectOptions): Cleanup {
   const instance = new EffectNode(callback, options);
 
   const batching = BATCH_EFFECTS.getContext();
@@ -38,7 +39,9 @@ export default function effect(callback: Effect, options?: EffectOptions): Effec
     instance.flush();
   }
 
-  return () => {
+  const cleanup = () => {
     instance.stop();
   };
+  onCleanup(cleanup);
+  return cleanup;
 }
