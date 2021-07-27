@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-types */
 import { getTrackableAtom } from './nodes/track-map';
+import onCleanup from './on-cleanup';
 import { Ref } from './ref';
 import untrack from './untrack';
 
@@ -41,7 +42,9 @@ function watch(source: any, listen: () => void, run = false): () => void {
     if (run) {
       untrack(listen);
     }
-    return atom.subscribe(listen);
+    const cleanup = atom.subscribe(listen);
+    onCleanup(cleanup);
+    return cleanup;
   }
   throw new Error('Invalid trackable for `watch`. Received value is not a reactive value.');
 }

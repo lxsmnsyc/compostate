@@ -1,5 +1,6 @@
 import Context from '../../context';
 import batch from '../batch';
+import cleanup from '../cleanup';
 import { Effect, EffectOptions } from '../types';
 import LinkedWork, { TRACKING } from './linked-work';
 
@@ -14,8 +15,6 @@ export default class EffectNode {
   private effect: Effect;
 
   private parent?: EffectNode;
-
-  private children?: Set<EffectNode>;
 
   private revalidateWork?: LinkedWork;
 
@@ -51,12 +50,6 @@ export default class EffectNode {
     if (this.alive) {
       this.revalidateWork?.unlinkDependencies();
 
-      new Set(this.children).forEach((child) => {
-        child.stop();
-      });
-
-      this.children?.clear();
-
       if (this.currentCleanup) {
         try {
           this.currentCleanup();
@@ -85,10 +78,6 @@ export default class EffectNode {
       this.revalidateWork.run();
       const currentEffect = EFFECT.getContext();
       if (currentEffect) {
-        if (!currentEffect.children) {
-          currentEffect.children = new Set();
-        }
-        currentEffect.children.add(this);
         this.parent = currentEffect;
       }
     }
@@ -102,7 +91,9 @@ export default class EffectNode {
       const popBatchEffects = BATCH_EFFECTS.push(undefined);
       try {
         batch(() => {
-          this.currentCleanup = this.effect();
+          this.currentCleanup = cleanup(() => {
+            this.effect();
+          });
         });
       } catch (error) {
         this.handleError(error);

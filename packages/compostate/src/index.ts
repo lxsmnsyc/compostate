@@ -38,5 +38,7 @@ export { default as track } from './reactivity/track';
 export { default as resource } from './reactivity/resource';
 export { default as spread } from './reactivity/spread';
 export { default as watch } from './reactivity/watch';
+export { default as cleanup } from './reactivity/cleanup';
+export { default as onCleanup } from './reactivity/on-cleanup';
 export * from './reactivity/resource';
-export { Effect, EffectCleanup } from './reactivity/types';
+export { Effect, Cleanup } from './reactivity/types';
