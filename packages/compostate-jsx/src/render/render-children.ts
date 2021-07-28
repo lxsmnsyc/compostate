@@ -9,6 +9,7 @@ export default function renderChildren(
   boundary: Boundary,
   root: Node,
   children: VNode,
+  previous: VNode,
   marker: Lazy<Marker | null> = null,
 ): void {
   if (Array.isArray(children)) {
@@ -18,7 +19,7 @@ export default function renderChildren(
       const child = isReactive(children)
         ? derived(() => children[i])
         : children[i];
-      renderChildren(boundary, root, child, childMarker);
+      renderChildren(boundary, root, child, previous, childMarker);
     }
   } else if (typeof children === 'number' || typeof children === 'string') {
     const node = createText(`${children}`);
@@ -28,12 +29,18 @@ export default function renderChildren(
   } else if (children instanceof Node) {
     watchMarkerForNode(root, marker, children, boundary.suspense?.suspend);
   } else if ('value' in children) {
+    let previousChildren: VNode;
     effect(() => {
-      renderChildren(boundary, root, children.value, marker);
+      const newChildren = children.value;
+      renderChildren(boundary, root, newChildren, previousChildren, marker);
+      previousChildren = newChildren;
     });
   } else if ('derive' in children) {
+    let previousChildren: VNode;
     effect(() => {
-      renderChildren(boundary, root, children.derive(), marker);
+      const newChildren = children.derive();
+      renderChildren(boundary, root, newChildren, previousChildren, marker);
+      previousChildren = newChildren;
     });
   } else {
     watchMarkerForMarker(root, marker, children, boundary.error);

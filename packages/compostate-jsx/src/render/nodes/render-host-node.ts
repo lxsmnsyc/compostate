@@ -76,7 +76,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
         }
       // Children handler
       } else if (key === 'children') {
-        renderChildren(boundary, el, props.children);
+        renderChildren(boundary, el, props.children, null);
       } else {
         const rawProperty = props[key as keyof typeof props];
         if (typeof rawProperty === 'object') {

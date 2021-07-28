@@ -16,25 +16,23 @@ import {
 } from './types';
 
 export function render(root: HTMLElement, element: () => VNode): () => void {
+  let previous: VNode;
   return effect(() => {
+    const newNode = element();
     renderChildren(
       {},
       root,
-      element(),
+      newNode,
+      previous,
     );
+    previous = newNode;
   });
 }
 
 export function hydrate(root: HTMLElement, element: () => VNode): () => void {
   const popHydration = HYDRATION.push(createHydration(root));
   try {
-    return effect(() => {
-      renderChildren(
-        {},
-        root,
-        element(),
-      );
-    });
+    return render(root, element);
   } finally {
     popHydration();
   }

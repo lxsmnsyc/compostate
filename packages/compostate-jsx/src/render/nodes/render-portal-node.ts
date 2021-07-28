@@ -13,6 +13,7 @@ export default function renderPortalNode(
       boundary,
       props.target,
       props.children,
+      null,
     );
     return undefined;
   }
@@ -23,6 +24,7 @@ export default function renderPortalNode(
         boundary,
         el.derive(),
         props.children,
+        null,
       )
     ));
     return undefined;
@@ -32,6 +34,7 @@ export default function renderPortalNode(
       boundary,
       el.value,
       props.children,
+      null,
     )
   ));
   return undefined;
