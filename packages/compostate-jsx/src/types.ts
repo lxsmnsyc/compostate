@@ -1,5 +1,4 @@
 import { Ref } from 'compostate';
-import { Marker } from './dom';
 import { Derived } from './reactivity';
 
 export type VText = string | number;
