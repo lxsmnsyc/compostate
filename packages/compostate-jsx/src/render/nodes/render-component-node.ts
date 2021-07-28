@@ -5,9 +5,8 @@ import {
   onCleanup,
   reactive,
   untrack,
-  watch,
 } from 'compostate';
-import ErrorBoundary, { handleError } from '../../error-boundary';
+import ErrorBoundary, { ERROR_BOUNDARY, handleError } from '../../error-boundary';
 import { MOUNT, UNMOUNT, ERROR } from '../../lifecycle';
 import { PROVIDER } from '../../provider';
 import { SUSPENSE } from '../../suspense';
@@ -71,6 +70,12 @@ export default function renderComponentNode<P extends Record<string, any>>(
     parent: boundary.provider,
   };
 
+  const newBoundary = {
+    suspense: boundary.suspense,
+    error: errorBoundary,
+    provider,
+  };
+
   let result: VNode;
 
   // Batch effects inside the constructor
@@ -78,18 +83,18 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // actually gets committed.
   // This is useful in SSR so that effects
   // never run and only run on client-side.
-  const flushEffects = untrack(() => (
-    batchEffects(() => {
-      const popSuspense = SUSPENSE.push(boundary.suspense);
-      const popProvider = PROVIDER.push(boundary.provider);
-      try {
-        result = constructor(unwrappedProps);
-      } finally {
-        popSuspense();
-        popProvider();
-      }
-    })
-  ));
+  const flushEffects = batchEffects(() => {
+    const popSuspense = SUSPENSE.push(newBoundary.suspense);
+    const popProvider = PROVIDER.push(newBoundary.provider);
+    const popErrorBoundary = ERROR_BOUNDARY.push(newBoundary.error);
+    try {
+      result = constructor(unwrappedProps);
+    } finally {
+      popErrorBoundary();
+      popSuspense();
+      popProvider();
+    }
+  });
 
   // Get all captured lifecycle callbacks
   const mounts = popMount();
@@ -103,12 +108,6 @@ export default function renderComponentNode<P extends Record<string, any>>(
   errors.forEach((item) => {
     onCleanup(errorBoundary.register(item));
   });
-
-  const newBoundary = {
-    suspense: boundary.suspense,
-    error: errorBoundary,
-    provider,
-  };
 
   // Create an effect scope
   // this is to properly setup
@@ -126,11 +125,9 @@ export default function renderComponentNode<P extends Record<string, any>>(
 
   if (unmounts.length) {
     onCleanup(() => {
-      untrack(() => {
-        unmounts.forEach((unmount) => {
-          batch(() => {
-            unmount();
-          });
+      unmounts.forEach((unmount) => {
+        batch(() => {
+          unmount();
         });
       });
     });
