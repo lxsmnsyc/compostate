@@ -1,4 +1,7 @@
 import {
+  cleanup,
+  Cleanup,
+  onCleanup,
   Ref,
   ref,
   track,
@@ -15,34 +18,62 @@ import {
 interface MemoryItem {
   node: VNode;
   position: Ref<number>;
+  cleanup: Cleanup;
 }
+
+type EachTransform<T, R> = (item: T, position: Ref<number>) => R;
 
 export default function renderForNode<T>(
   boundary: Boundary,
   props: Reactive<ForProps<T>>,
 ): VNode {
-  // The memoized array based on the source array
   const memory: any[] = [];
 
   const memoryMap = new Map<any, MemoryItem[]>();
 
+  const { each } = props;
+
   function getNode(index: number, item: any) {
     const position = ref(index);
-    const each = (() => {
-      const factory = props.each;
-      if ('value' in factory) {
-        return derived(() => factory.value(item, position));
+    let currentCleanup: Cleanup;
+
+    function getEach(transform: EachTransform<T, VNode>) {
+      return untrack(() => {
+        let node: VNode;
+        currentCleanup?.();
+        currentCleanup = cleanup(() => {
+          node = transform(item, position);
+        });
+        return node;
+      });
+    }
+
+    function getItem() {
+      if (typeof each === 'function') {
+        return getEach(each);
       }
-      if ('derive' in factory) {
-        return derived(() => factory.derive()(item, position));
+      if ('derive' in each) {
+        return derived(() => getEach(each.derive()));
       }
-      return factory(item, position);
-    })();
+      return derived(() => getEach(each.value));
+    }
+
     return {
       position,
-      node: each,
+      node: getItem(),
+      cleanup: () => {
+        currentCleanup?.();
+      },
     };
   }
+
+  onCleanup(() => {
+    memoryMap.forEach((items) => {
+      items.forEach((item) => {
+        item.cleanup();
+      });
+    });
+  });
 
   return derived(() => {
     let tracked: any[];
@@ -58,6 +89,11 @@ export default function renderForNode<T>(
     return untrack(() => {
       // Shortcut for empty tracked array
       if (tracked.length === 0) {
+        memoryMap.forEach((items) => {
+          items.forEach((item) => {
+            item.cleanup();
+          });
+        });
         memoryMap.clear();
         // Empty the memory
         memory.length = 0;
@@ -118,6 +154,8 @@ export default function renderForNode<T>(
         items.forEach((item) => {
           if (flagged.has(item)) {
             newItems.push(item);
+          } else {
+            item.cleanup();
           }
         });
         memoryMap.set(index, newItems);
