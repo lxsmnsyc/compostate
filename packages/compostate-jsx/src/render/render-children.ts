@@ -55,7 +55,6 @@ export default function renderChildren(
   marker: Node | null,
   normalized = false,
 ): void {
-  console.log(root, children);
   if (Array.isArray(children)) {
     // Scan for reactive child
     if (normalized) {
