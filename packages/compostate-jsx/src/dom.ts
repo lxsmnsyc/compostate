@@ -19,7 +19,19 @@ interface Remove {
   marker?: undefined;
 }
 
-type Operation = Insert | Remove;
+interface Append {
+  type: 'append';
+  parent: Node;
+  marker?: undefined;
+}
+
+interface Replace {
+  type: 'replace';
+  parent: Node;
+  marker: Node;
+}
+
+type Operation = Insert | Remove | Append | Replace;
 
 interface CommitAction {
   target: Node;
@@ -44,6 +56,12 @@ function commit(node: Node, op: Operation): void {
             break;
           case 'remove':
             target.parentNode?.removeChild(target);
+            break;
+          case 'append':
+            operation.parent.appendChild(target);
+            break;
+          case 'replace':
+            operation.parent.replaceChild(target, operation.marker);
             break;
           default:
             break;
@@ -86,6 +104,28 @@ export function insert(
     type: 'insert',
     parent,
     marker,
+  });
+}
+
+export function replace(
+  parent: Node,
+  child: Node,
+  marker: Node,
+): void {
+  commit(child, {
+    type: 'replace',
+    parent,
+    marker,
+  });
+}
+
+export function append(
+  parent: Node,
+  child: Node,
+): void {
+  commit(child, {
+    type: 'append',
+    parent,
   });
 }
 

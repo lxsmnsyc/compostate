@@ -14,7 +14,7 @@ export interface SuspenseProps {
 
 export interface PortalProps {
   target: HTMLElement;
-  children?: VNode;
+  children?: VNode[];
 }
 
 export interface OffscreenProps {

@@ -1,44 +1,113 @@
-import { effect } from 'compostate';
+import { effect, onCleanup } from 'compostate';
 import { VNode } from '../types';
-import { createMarker, createText, Marker } from '../dom';
-import { watchMarkerForMarker, watchMarkerForNode } from './watch-marker';
-import { Boundary, Lazy } from './types';
+import { createText, insert, remove } from '../dom';
+import { Boundary } from './types';
+import diff from './diff';
+
+function hasReactiveChildren(children: VNode[]): boolean {
+  for (let i = 0; i < children.length; i += 1) {
+    const child = children[i];
+
+    if (typeof child === 'object' && child && ('derive' in child || 'value' in child)) {
+      return true;
+    }
+    if (Array.isArray(child)) {
+      return hasReactiveChildren(child);
+    }
+  }
+  return false;
+}
+
+function normalizeChildren(children: VNode[], base: Node[] = []): Node[] {
+  for (let i = 0; i < children.length; i += 1) {
+    const child = children[i];
+
+    if (child == null || child === true || child === false) {
+      // no-op
+    } else if (child instanceof Node) {
+      base.push(child);
+    } else if (Array.isArray(child)) {
+      normalizeChildren(child, base);
+    } else if (typeof child === 'string' || typeof child === 'number') {
+      base.push(createText(`${child}`));
+    } else if ('derive' in child) {
+      const item = child.derive();
+      normalizeChildren(
+        Array.isArray(item) ? item : [item],
+        base,
+      );
+    } else {
+      const item = child.value;
+      normalizeChildren(
+        Array.isArray(item) ? item : [item],
+        base,
+      );
+    }
+  }
+  return base;
+}
 
 export default function renderChildren(
   boundary: Boundary,
   root: Node,
   children: VNode,
   previous: VNode,
-  marker: Lazy<Marker | null> = null,
+  marker: Node | null,
+  normalized = false,
 ): void {
+  console.log(root, children);
   if (Array.isArray(children)) {
-    for (let i = 0; i < children.length; i += 1) {
-      renderChildren(boundary, root, children[i], previous, marker);
+    // Scan for reactive child
+    if (normalized) {
+      const normal = children as Node[];
+      const normalPrev = previous as Node[];
+      if (Array.isArray(previous)) {
+        if (previous.length === 0) {
+          // insert shortcut
+          normal.forEach((child) => {
+            insert(root, child, marker);
+          });
+        } else if (normal.length === 0) {
+          normalPrev.forEach((child) => {
+            remove(child);
+          });
+        } else {
+          diff(root, normalPrev, normal, marker);
+        }
+      } else if (previous instanceof Node) {
+        remove(previous);
+        normal.forEach((child) => {
+          insert(root, child, marker);
+        });
+      } else {
+        normal.forEach((child) => {
+          insert(root, child, marker);
+        });
+      }
+    } else if (hasReactiveChildren(children)) {
+      let previousChildren: Node[];
+      const childMarker = createText('');
+      insert(root, childMarker, marker);
+      effect(() => {
+        const newChildren = normalizeChildren(children);
+        renderChildren(boundary, root, newChildren, previousChildren, childMarker, true);
+        previousChildren = newChildren;
+      });
+      onCleanup(() => {
+        remove(childMarker);
+      });
+    } else {
+      renderChildren(
+        boundary,
+        root,
+        normalizeChildren(children),
+        null,
+        marker,
+        true,
+      );
     }
-  } else if (typeof children === 'number' || typeof children === 'string') {
-    const node = createText(`${children}`);
-    watchMarkerForNode(root, marker, node, boundary.suspense?.suspend);
-  } else if (typeof children === 'boolean' || children == null) {
-    // no-op
   } else if (children instanceof Node) {
-    watchMarkerForNode(root, marker, children, boundary.suspense?.suspend);
-  } else if ('value' in children) {
-    let previousChildren: VNode;
-    const childMarker = createMarker();
-    watchMarkerForMarker(root, marker, childMarker, boundary.error);
-    effect(() => {
-      const newChildren = children.value;
-      renderChildren(boundary, root, newChildren, previousChildren, childMarker);
-      previousChildren = newChildren;
-    });
-  } else if ('derive' in children) {
-    let previousChildren: VNode;
-    const childMarker = createMarker();
-    watchMarkerForMarker(root, marker, childMarker, boundary.error);
-    effect(() => {
-      const newChildren = children.derive();
-      renderChildren(boundary, root, newChildren, previousChildren, childMarker);
-      previousChildren = newChildren;
-    });
+    insert(root, children, marker);
   }
+  // TODO Rest
 }

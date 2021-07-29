@@ -24,6 +24,7 @@ export function render(root: HTMLElement, element: () => VNode): () => void {
       root,
       newNode,
       previous,
+      null,
     );
     previous = newNode;
   });
