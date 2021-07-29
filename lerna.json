@@ -12,7 +12,8 @@
     "publish": {
       "npmClient": "yarn",
       "allowBranch": [
-        "main"
+        "main",
+        "no-vdom"
       ],
       "registry": "https://registry.npmjs.org/"
     }
