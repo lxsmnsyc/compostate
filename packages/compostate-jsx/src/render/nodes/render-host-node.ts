@@ -5,13 +5,14 @@ import {
   onCleanup,
   untrack,
 } from 'compostate';
-import { registerEvent, setAttribute } from '../../dom';
+import { registerEvent, remove, setAttribute } from '../../dom';
 import { handleError } from '../../error-boundary';
 import { claimHydration, HYDRATION } from '../../hydration';
 import { Reactive, RefAttributes, VNode } from '../../types';
 import { DOMAttributes } from '../../types/dom';
 import renderChildren from '../render-children';
 import { Boundary } from '../types';
+import { UNMOUNTING } from '../watch-marker';
 
 function applyHostProperty(
   boundary: Boundary,
@@ -98,6 +99,12 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
       }
     });
   }
+
+  onCleanup(() => {
+    if (!UNMOUNTING.getContext()) {
+      remove(el);
+    }
+  });
 
   return el;
 }

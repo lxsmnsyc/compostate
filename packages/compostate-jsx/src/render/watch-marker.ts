@@ -4,10 +4,9 @@ import {
   untrack,
   Ref,
   watch,
-  onCleanup,
 } from 'compostate';
 import Context from '../context';
-import { Marker, insert, remove } from '../dom';
+import { Marker, insert } from '../dom';
 import ErrorBoundary, { handleError } from '../error-boundary';
 import { InternalShallowReactive, Lazy } from './types';
 
@@ -88,11 +87,6 @@ export function watchMarkerForMarker(
   } else {
     insert(root, child.node);
   }
-  onCleanup(() => {
-    if (!UNMOUNTING.getContext()) {
-      remove(child.node);
-    }
-  });
 }
 
 function watchLazyMarkerForNodeWithLazySuspend(
@@ -347,10 +341,4 @@ export function watchMarkerForNode(
   } else {
     insert(root, child);
   }
-
-  onCleanup(() => {
-    if (!UNMOUNTING.getContext()) {
-      remove(child);
-    }
-  });
 }
