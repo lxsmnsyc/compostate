@@ -26,13 +26,13 @@ export interface ProviderData {
 export const PROVIDER = new Context<ProviderData | undefined>();
 
 export function provide<T>(provider: Provider<T>, value: Ref<T>): void {
-  const mounting = MOUNT.getContext();
+  const mounting = MOUNT.current();
 
   if (!mounting) {
     throw new Error('Illegal provide');
   }
 
-  const currentProvider = PROVIDER.getContext();
+  const currentProvider = PROVIDER.current();
 
   effect(() => {
     if (currentProvider) {
@@ -42,13 +42,13 @@ export function provide<T>(provider: Provider<T>, value: Ref<T>): void {
 }
 
 export function inject<T>(provider: Provider<T>): Ref<T> {
-  const mounting = MOUNT.getContext();
+  const mounting = MOUNT.current();
 
   if (!mounting) {
     throw new Error('Illegal inject');
   }
 
-  const currentProvider = PROVIDER.getContext();
+  const currentProvider = PROVIDER.current();
 
   function searchProvider(root?: ProviderData): T {
     if (!root) {

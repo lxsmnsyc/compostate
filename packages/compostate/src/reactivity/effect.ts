@@ -32,7 +32,7 @@ import { Effect, Cleanup, EffectOptions } from './types';
 export default function effect(callback: Effect, options?: EffectOptions): Cleanup {
   const instance = new EffectNode(callback, options);
 
-  const batching = BATCH_EFFECTS.getContext();
+  const batching = BATCH_EFFECTS.current();
   if (batching) {
     batching.push(instance);
   } else {

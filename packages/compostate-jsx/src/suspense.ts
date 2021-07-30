@@ -12,13 +12,13 @@ export interface SuspenseData {
 export const SUSPENSE = new Context<SuspenseData | undefined>();
 
 export function suspend<T>(resource: Resource<T>): void {
-  const mounting = MOUNT.getContext();
+  const mounting = MOUNT.current();
 
   if (!mounting) {
     throw new Error('Illegal suspend');
   }
 
-  const suspense = SUSPENSE.getContext();
+  const suspense = SUSPENSE.current();
 
   if (suspense?.capture) {
     suspense.capture(resource);

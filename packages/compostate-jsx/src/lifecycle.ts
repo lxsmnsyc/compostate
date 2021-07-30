@@ -8,7 +8,7 @@ export const UNMOUNT = new Context<Lifecycle[]>();
 export const ERROR = new Context<ErrorCapture[]>();
 
 export function onMount(callback: () => void): void {
-  const current = MOUNT.getContext();
+  const current = MOUNT.current();
 
   if (current) {
     current.push(callback);
@@ -18,7 +18,7 @@ export function onMount(callback: () => void): void {
 }
 
 export function onUnmount(callback: () => void): void {
-  const current = UNMOUNT.getContext();
+  const current = UNMOUNT.current();
 
   if (current) {
     current.push(callback);
@@ -28,7 +28,7 @@ export function onUnmount(callback: () => void): void {
 }
 
 export function onError(callback: ErrorCapture): void {
-  const current = ERROR.getContext();
+  const current = ERROR.current();
 
   if (current) {
     current.push(callback);

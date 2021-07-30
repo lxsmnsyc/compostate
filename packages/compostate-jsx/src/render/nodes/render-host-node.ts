@@ -12,7 +12,6 @@ import { Reactive, RefAttributes, VNode } from '../../types';
 import { DOMAttributes } from '../../types/dom';
 import renderChildren from '../render-children';
 import { Boundary } from '../types';
-import { UNMOUNTING } from '../watch-marker';
 
 function applyHostProperty(
   boundary: Boundary,
@@ -52,7 +51,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
   constructor: string,
   props: Reactive<P> & RefAttributes<Element> | null,
 ): VNode {
-  const hydration = HYDRATION.getContext();
+  const hydration = HYDRATION.current();
   const claim = hydration ? claimHydration(hydration) : null;
   let el = document.createElement(constructor);
 
@@ -101,9 +100,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
   }
 
   onCleanup(() => {
-    if (!UNMOUNTING.getContext()) {
-      remove(el);
-    }
+    remove(el);
   });
 
   return el;

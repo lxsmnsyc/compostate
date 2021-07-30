@@ -29,11 +29,11 @@ import EffectNode, { BATCH_EFFECTS } from './nodes/effect';
 
 export default function batchEffects(callback: () => void): () => void {
   const batchedEffects: EffectNode[] = [];
-  const popBatchEffects = BATCH_EFFECTS.push(batchedEffects);
+  BATCH_EFFECTS.push(batchedEffects);
   try {
     callback();
   } finally {
-    popBatchEffects();
+    BATCH_EFFECTS.pop();
   }
   return () => {
     batchedEffects.forEach((effect) => {

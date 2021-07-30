@@ -29,11 +29,11 @@ import LinkedWork, { BATCH_UPDATES } from './nodes/linked-work';
 
 export default function batch(callback: () => void): void {
   const batchedWork = new Set<LinkedWork>();
-  const popBatchUpdates = BATCH_UPDATES.push(batchedWork);
+  BATCH_UPDATES.push(batchedWork);
   try {
     callback();
   } finally {
-    popBatchUpdates();
+    BATCH_UPDATES.pop();
   }
   batchedWork.forEach((work) => {
     work.run();

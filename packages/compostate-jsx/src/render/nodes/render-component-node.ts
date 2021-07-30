@@ -6,8 +6,13 @@ import {
   reactive,
   untrack,
 } from 'compostate';
-import ErrorBoundary, { ERROR_BOUNDARY, handleError } from '../../error-boundary';
-import { MOUNT, UNMOUNT, ERROR } from '../../lifecycle';
+import ErrorBoundary, { ErrorCapture, ERROR_BOUNDARY, handleError } from '../../error-boundary';
+import {
+  MOUNT,
+  UNMOUNT,
+  ERROR,
+  Lifecycle,
+} from '../../lifecycle';
 import { PROVIDER } from '../../provider';
 import { SUSPENSE } from '../../suspense';
 import {
@@ -56,9 +61,12 @@ export default function renderComponentNode<P extends Record<string, any>>(
   });
 
   // Push lifecycle hooks
-  const popMount = MOUNT.push([]);
-  const popUnmount = UNMOUNT.push([]);
-  const popError = ERROR.push([]);
+  const mounts: Lifecycle[] = [];
+  const unmounts: Lifecycle[] = [];
+  const errors: ErrorCapture[] = [];
+  MOUNT.push(mounts);
+  UNMOUNT.push(mounts);
+  ERROR.push(mounts);
 
   // Create an error boundary and link
   // the parent error boundary
@@ -84,22 +92,22 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // This is useful in SSR so that effects
   // never run and only run on client-side.
   const flushEffects = batchEffects(() => {
-    const popSuspense = SUSPENSE.push(newBoundary.suspense);
-    const popProvider = PROVIDER.push(newBoundary.provider);
-    const popErrorBoundary = ERROR_BOUNDARY.push(newBoundary.error);
+    SUSPENSE.push(newBoundary.suspense);
+    PROVIDER.push(newBoundary.provider);
+    ERROR_BOUNDARY.push(newBoundary.error);
     try {
       result = constructor(unwrappedProps);
     } finally {
-      popErrorBoundary();
-      popSuspense();
-      popProvider();
+      ERROR_BOUNDARY.pop();
+      PROVIDER.pop();
+      SUSPENSE.pop();
     }
   });
 
   // Get all captured lifecycle callbacks
-  const mounts = popMount();
-  const unmounts = popUnmount();
-  const errors = popError();
+  MOUNT.pop();
+  UNMOUNT.pop();
+  ERROR.pop();
 
   // Register all error handlers
   // We do this since if we use compostate's

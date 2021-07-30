@@ -31,11 +31,11 @@ export function render(root: HTMLElement, element: () => VNode): () => void {
 }
 
 export function hydrate(root: HTMLElement, element: () => VNode): () => void {
-  const popHydration = HYDRATION.push(createHydration(root));
+  HYDRATION.push(createHydration(root));
   try {
     return render(root, element);
   } finally {
-    popHydration();
+    HYDRATION.pop();
   }
 }
 

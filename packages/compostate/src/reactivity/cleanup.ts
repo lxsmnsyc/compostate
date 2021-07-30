@@ -3,11 +3,11 @@ import { Cleanup } from './types';
 
 export default function cleanup(callback: () => void): Cleanup {
   const node = new CleanupNode();
-  const popCleanup = CLEANUP.push(node);
+  CLEANUP.push(node);
   try {
     callback();
   } finally {
-    popCleanup();
+    CLEANUP.pop();
   }
   return () => {
     node.run();

@@ -79,9 +79,9 @@ export function c<P extends BaseProps<P>>(
   ...children: VNode[]
 ): VNode {
   const boundary: Boundary = {
-    suspense: SUSPENSE.getContext(),
-    provider: PROVIDER.getContext(),
-    error: ERROR_BOUNDARY.getContext(),
+    suspense: SUSPENSE.current(),
+    provider: PROVIDER.current(),
+    error: ERROR_BOUNDARY.current(),
   };
   return renderCore(boundary, type, props, children);
 }

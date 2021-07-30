@@ -1,6 +1,5 @@
 import Context from '../../context';
 import { Cleanup } from '../types';
-import untrack from '../untrack';
 
 export const CLEANUP = new Context<CleanupNode | undefined>();
 
@@ -18,10 +17,8 @@ export default class CleanupNode {
   }
 
   run(): void {
-    untrack(() => {
-      new Set(this.calls).forEach((cleanup) => {
-        cleanup();
-      });
+    new Set(this.calls).forEach((cleanup) => {
+      cleanup();
     });
   }
 }

@@ -14,13 +14,13 @@ export default class ComputedNode<T> {
   constructor(compute: () => T) {
     const work = new LinkedWork(() => {
       work.unlinkDependencies();
-      const popTracking = TRACKING.push(work);
+      TRACKING.push(work);
       try {
         this.val = {
           value: compute(),
         };
       } finally {
-        popTracking();
+        TRACKING.pop();
       }
       this.atom.notify();
     });

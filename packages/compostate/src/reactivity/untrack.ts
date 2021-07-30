@@ -30,18 +30,18 @@ import { BATCH_EFFECTS, EFFECT } from './nodes/effect';
 import { BATCH_UPDATES, TRACKING } from './nodes/linked-work';
 
 export default function untrack<T>(callback: () => T): T {
-  const popTracking = TRACKING.push(undefined);
-  const popBatchEffects = BATCH_EFFECTS.push(undefined);
-  const popBatchUpdates = BATCH_UPDATES.push(undefined);
-  const popEffect = EFFECT.push(undefined);
-  const popCleanup = CLEANUP.push(undefined);
+  TRACKING.push(undefined);
+  BATCH_EFFECTS.push(undefined);
+  BATCH_UPDATES.push(undefined);
+  EFFECT.push(undefined);
+  CLEANUP.push(undefined);
   try {
     return callback();
   } finally {
-    popCleanup();
-    popEffect();
-    popBatchEffects();
-    popBatchUpdates();
-    popTracking();
+    CLEANUP.pop();
+    EFFECT.pop();
+    BATCH_UPDATES.pop();
+    BATCH_EFFECTS.pop();
+    TRACKING.pop();
   }
 }

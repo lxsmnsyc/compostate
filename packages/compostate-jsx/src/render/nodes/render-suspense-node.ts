@@ -76,12 +76,12 @@ export default function renderSuspenseNode(
 
   if (fallback) {
     renderFallback = derived(() => {
-      const popSuspense = SUSPENSE.push({
+      SUSPENSE.push({
         capture: boundary.suspense?.capture,
         suspend: suspendFallback,
       });
-      const popProvider = PROVIDER.push(boundary.provider);
-      const popError = ERROR_BOUNDARY.push(boundary.error);
+      PROVIDER.push(boundary.provider);
+      ERROR_BOUNDARY.push(boundary.error);
       try {
         if ('value' in fallback) {
           return fallback.value?.();
@@ -91,9 +91,9 @@ export default function renderSuspenseNode(
         }
         return fallback();
       } finally {
-        popError();
-        popProvider();
-        popSuspense();
+        ERROR_BOUNDARY.pop();
+        PROVIDER.pop();
+        SUSPENSE.pop();
       }
     });
   }
@@ -102,12 +102,12 @@ export default function renderSuspenseNode(
 
   if (render) {
     renderContent = derived(() => {
-      const popSuspense = SUSPENSE.push({
+      SUSPENSE.push({
         capture,
         suspend: suspendChildren,
       });
-      const popProvider = PROVIDER.push(boundary.provider);
-      const popError = ERROR_BOUNDARY.push(boundary.error);
+      PROVIDER.push(boundary.provider);
+      ERROR_BOUNDARY.push(boundary.error);
       try {
         if ('value' in render) {
           return render.value?.();
@@ -117,9 +117,9 @@ export default function renderSuspenseNode(
         }
         return render();
       } finally {
-        popError();
-        popProvider();
-        popSuspense();
+        ERROR_BOUNDARY.pop();
+        PROVIDER.pop();
+        SUSPENSE.pop();
       }
     });
   }

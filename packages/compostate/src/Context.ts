@@ -26,18 +26,17 @@
  * @copyright Alexis Munsayac 2021
  */
 export default class Context<T> {
-  private current: T | undefined;
+  private stack: T[] = [];
 
-  push(value: T): () => T {
-    const parent = this.current;
-    this.current = value;
-    return () => {
-      this.current = parent;
-      return value;
-    };
+  push(item: T): void {
+    this.stack.push(item);
   }
 
-  getContext(): T | undefined {
-    return this.current;
+  pop(): T | undefined {
+    return this.stack.pop();
+  }
+
+  current(): T | undefined {
+    return this.stack[this.stack.length - 1];
   }
 }

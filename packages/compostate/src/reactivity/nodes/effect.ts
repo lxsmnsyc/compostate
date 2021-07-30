@@ -76,7 +76,7 @@ export default class EffectNode {
         this.revalidateWork = new LinkedWork(this.revalidate.bind(this));
       }
       this.revalidateWork.run();
-      const currentEffect = EFFECT.getContext();
+      const currentEffect = EFFECT.current();
       if (currentEffect) {
         this.parent = currentEffect;
       }
@@ -86,9 +86,9 @@ export default class EffectNode {
   revalidate(): void {
     if (this.alive) {
       this.cleanup();
-      const popTracking = TRACKING.push(this.revalidateWork);
-      const popEffect = EFFECT.push(this);
-      const popBatchEffects = BATCH_EFFECTS.push(undefined);
+      TRACKING.push(this.revalidateWork);
+      EFFECT.push(this);
+      BATCH_EFFECTS.push(undefined);
       try {
         batch(() => {
           this.currentCleanup = cleanup(() => {
@@ -98,9 +98,9 @@ export default class EffectNode {
       } catch (error) {
         this.handleError(error);
       } finally {
-        popBatchEffects();
-        popEffect();
-        popTracking();
+        BATCH_EFFECTS.pop();
+        EFFECT.pop();
+        TRACKING.pop();
       }
     }
   }

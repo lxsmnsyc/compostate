@@ -47,7 +47,7 @@ export default class ReactiveAtom {
   }
 
   track(): void {
-    const tracking = TRACKING.getContext();
+    const tracking = TRACKING.current();
     if (tracking) {
       const work = this.getWork();
       work.addDependent(tracking);
@@ -56,7 +56,7 @@ export default class ReactiveAtom {
   }
 
   notify(): void {
-    const batching = BATCH_UPDATES.getContext();
+    const batching = BATCH_UPDATES.current();
     if (this.work) {
       if (batching) {
         batching.add(this.work);
