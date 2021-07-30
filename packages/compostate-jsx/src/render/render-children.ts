@@ -107,6 +107,37 @@ export default function renderChildren(
     }
   } else if (children instanceof Node) {
     insert(root, children, marker);
+  } else if (typeof children === 'string' || typeof children === 'number') {
+    const node = createText(`${children}`);
+    insert(root, node, marker);
+    onCleanup(() => {
+      remove(node);
+    });
+  } else if (children == null || typeof children === 'boolean') {
+    // skip
+  } else if ('derive' in children) {
+    let previousChildren: VNode;
+    const childMarker = createText('');
+    insert(root, childMarker, marker);
+    effect(() => {
+      const newChildren = children.derive();
+      renderChildren(boundary, root, newChildren, previousChildren, childMarker);
+      previousChildren = newChildren;
+    });
+    onCleanup(() => {
+      remove(childMarker);
+    });
+  } else {
+    let previousChildren: VNode;
+    const childMarker = createText('');
+    insert(root, childMarker, marker);
+    effect(() => {
+      const newChildren = children.value;
+      renderChildren(boundary, root, newChildren, previousChildren, childMarker);
+      previousChildren = newChildren;
+    });
+    onCleanup(() => {
+      remove(childMarker);
+    });
   }
-  // TODO Rest
 }
