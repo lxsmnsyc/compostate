@@ -26,7 +26,6 @@ import { SVGAttributes, CompostateSVG } from './types/svg';
 import { Boundary } from './render/types';
 import { SUSPENSE } from './suspense';
 import { PROVIDER } from './provider';
-import { ERROR_BOUNDARY } from './error-boundary';
 
 export function c<P extends HTMLAttributes<T>, T extends HTMLElement>(
   type: ShallowReactive<keyof CompostateHTML>,
@@ -81,7 +80,6 @@ export function c<P extends BaseProps<P>>(
   const boundary: Boundary = {
     suspense: SUSPENSE.current(),
     provider: PROVIDER.current(),
-    error: ERROR_BOUNDARY.current(),
   };
   return renderCore(boundary, type, props, children);
 }

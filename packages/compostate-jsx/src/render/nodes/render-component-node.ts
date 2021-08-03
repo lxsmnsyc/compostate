@@ -6,11 +6,9 @@ import {
   reactive,
   untrack,
 } from 'compostate';
-import ErrorBoundary, { ErrorCapture, ERROR_BOUNDARY, handleError } from '../../error-boundary';
 import {
   MOUNT,
   UNMOUNT,
-  ERROR,
   Lifecycle,
 } from '../../lifecycle';
 import { PROVIDER } from '../../provider';
@@ -63,14 +61,8 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // Push lifecycle hooks
   const mounts: Lifecycle[] = [];
   const unmounts: Lifecycle[] = [];
-  const errors: ErrorCapture[] = [];
   MOUNT.push(mounts);
   UNMOUNT.push(mounts);
-  ERROR.push(mounts);
-
-  // Create an error boundary and link
-  // the parent error boundary
-  const errorBoundary = new ErrorBoundary(boundary.error);
 
   // Create a provider boundary
   const provider = {
@@ -80,7 +72,6 @@ export default function renderComponentNode<P extends Record<string, any>>(
 
   const newBoundary = {
     suspense: boundary.suspense,
-    error: errorBoundary,
     provider,
   };
 
@@ -94,11 +85,9 @@ export default function renderComponentNode<P extends Record<string, any>>(
   const flushEffects = batchEffects(() => {
     SUSPENSE.push(newBoundary.suspense);
     PROVIDER.push(newBoundary.provider);
-    ERROR_BOUNDARY.push(newBoundary.error);
     try {
       result = constructor(unwrappedProps);
     } finally {
-      ERROR_BOUNDARY.pop();
       PROVIDER.pop();
       SUSPENSE.pop();
     }
@@ -107,15 +96,6 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // Get all captured lifecycle callbacks
   MOUNT.pop();
   UNMOUNT.pop();
-  ERROR.pop();
-
-  // Register all error handlers
-  // We do this since if we use compostate's
-  // onError, it gets registered to the parent
-  // handler.
-  errors.forEach((item) => {
-    onCleanup(errorBoundary.register(item));
-  });
 
   // Create an effect scope
   // this is to properly setup
@@ -123,8 +103,8 @@ export default function renderComponentNode<P extends Record<string, any>>(
 
   if (mounts.length) {
     untrack(() => {
-      mounts.forEach((mount) => {
-        batch(() => {
+      batch(() => {
+        mounts.forEach((mount) => {
           mount();
         });
       });
@@ -133,8 +113,8 @@ export default function renderComponentNode<P extends Record<string, any>>(
 
   if (unmounts.length) {
     onCleanup(() => {
-      unmounts.forEach((unmount) => {
-        batch(() => {
+      batch(() => {
+        unmounts.forEach((unmount) => {
           unmount();
         });
       });
@@ -143,10 +123,6 @@ export default function renderComponentNode<P extends Record<string, any>>(
 
   effect(() => {
     flushEffects();
-  }, {
-    onError(error) {
-      handleError(errorBoundary, error);
-    },
   });
 
   return result;

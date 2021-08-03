@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 import {
+  createRoot,
   effect,
   untrack,
 } from 'compostate';
@@ -17,7 +18,7 @@ import {
 
 export function render(root: HTMLElement, element: () => VNode): () => void {
   let previous: VNode;
-  return effect(() => {
+  return createRoot(() => effect(() => {
     const newNode = element();
     renderChildren(
       {},
@@ -27,7 +28,7 @@ export function render(root: HTMLElement, element: () => VNode): () => void {
       null,
     );
     previous = newNode;
-  });
+  }));
 }
 
 export function hydrate(root: HTMLElement, element: () => VNode): () => void {

@@ -1,4 +1,3 @@
-import { ERROR_BOUNDARY } from '../../error-boundary';
 import { PROVIDER } from '../../provider';
 import { derived } from '../../reactivity';
 import { OffscreenProps } from '../../special';
@@ -53,7 +52,6 @@ export default function renderOffscreenNode(
       suspend: suspendChildren,
     });
     PROVIDER.push(boundary.provider);
-    ERROR_BOUNDARY.push(boundary.error);
     try {
       if ('value' in render) {
         return render.value?.();
@@ -63,7 +61,6 @@ export default function renderOffscreenNode(
       }
       return render();
     } finally {
-      ERROR_BOUNDARY.pop();
       PROVIDER.pop();
       SUSPENSE.pop();
     }

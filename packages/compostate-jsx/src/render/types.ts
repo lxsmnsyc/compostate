@@ -1,10 +1,8 @@
 import { Ref } from 'compostate';
-import ErrorBoundary from '../error-boundary';
 import { ProviderData } from '../provider';
 import { SuspenseData } from '../suspense';
 
 export interface Boundary {
-  error?: ErrorBoundary;
   suspense?: SuspenseData;
   provider?: ProviderData;
 }

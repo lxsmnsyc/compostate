@@ -1,14 +1,14 @@
 import {
-  cleanup,
+  batchCleanup,
   Cleanup,
   onCleanup,
   Ref,
   ref,
   track,
+  createRoot,
   untrack,
 } from 'compostate';
 import { ForProps } from '../../special';
-import { handleError } from '../../error-boundary';
 import { derived } from '../../reactivity';
 import { Reactive, VNode } from '../../types';
 import {
@@ -38,10 +38,10 @@ export default function renderForNode<T>(
     let currentCleanup: Cleanup;
 
     function getEach(transform: EachTransform<T, VNode>) {
-      return untrack(() => {
+      return createRoot(() => {
         let node: VNode;
         currentCleanup?.();
-        currentCleanup = cleanup(() => {
+        currentCleanup = batchCleanup(() => {
           node = transform(item, position);
         });
         return node;

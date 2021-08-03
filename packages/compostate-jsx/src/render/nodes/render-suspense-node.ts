@@ -13,7 +13,6 @@ import {
 import { SUSPENSE } from '../../suspense';
 import { derived } from '../../reactivity';
 import { PROVIDER } from '../../provider';
-import { ERROR_BOUNDARY } from '../../error-boundary';
 
 export default function renderSuspenseNode(
   boundary: Boundary,
@@ -81,7 +80,6 @@ export default function renderSuspenseNode(
         suspend: suspendFallback,
       });
       PROVIDER.push(boundary.provider);
-      ERROR_BOUNDARY.push(boundary.error);
       try {
         if ('value' in fallback) {
           return fallback.value?.();
@@ -91,7 +89,6 @@ export default function renderSuspenseNode(
         }
         return fallback();
       } finally {
-        ERROR_BOUNDARY.pop();
         PROVIDER.pop();
         SUSPENSE.pop();
       }
@@ -107,7 +104,6 @@ export default function renderSuspenseNode(
         suspend: suspendChildren,
       });
       PROVIDER.push(boundary.provider);
-      ERROR_BOUNDARY.push(boundary.error);
       try {
         if ('value' in render) {
           return render.value?.();
@@ -117,7 +113,6 @@ export default function renderSuspenseNode(
         }
         return render();
       } finally {
-        ERROR_BOUNDARY.pop();
         PROVIDER.pop();
         SUSPENSE.pop();
       }

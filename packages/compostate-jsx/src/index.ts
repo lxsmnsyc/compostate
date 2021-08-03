@@ -1,7 +1,6 @@
 export {
   onMount,
   onUnmount,
-  onError,
 } from './lifecycle';
 export {
   createProvider,
