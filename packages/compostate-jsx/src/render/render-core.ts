@@ -1,3 +1,4 @@
+import { captureError } from 'compostate';
 import { derived } from '../reactivity';
 import { VNode, VReactiveConstructor, VSpecialConstructor } from '../types';
 import renderComponentNode from './nodes/render-component-node';
@@ -11,11 +12,26 @@ export default function renderCore<P>(
   props: P,
   children: VNode[],
 ): VNode {
+  const handleError = captureError();
   if (typeof type === 'object') {
     if ('derive' in type) {
-      return derived(() => renderCore(boundary, type.derive() as any, props, children));
+      return derived(() => {
+        try {
+          return renderCore(boundary, type.derive() as any, props, children);
+        } catch (error) {
+          handleError(error);
+          return undefined;
+        }
+      });
     }
-    return derived(() => renderCore(boundary, type.value as any, props, children));
+    return derived(() => {
+      try {
+        return renderCore(boundary, type.value as any, props, children);
+      } catch (error) {
+        handleError(error);
+        return undefined;
+      }
+    });
   }
   const fauxProps = props ?? {};
   if (typeof type === 'number') {

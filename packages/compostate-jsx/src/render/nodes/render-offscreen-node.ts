@@ -1,3 +1,4 @@
+import { captureError } from 'compostate';
 import { PROVIDER } from '../../provider';
 import { derived } from '../../reactivity';
 import { OffscreenProps } from '../../special';
@@ -46,6 +47,8 @@ export default function renderOffscreenNode(
     suspendChildren = () => !normalizedMount();
   }
 
+  const handleError = captureError();
+
   return derived(() => {
     SUSPENSE.push({
       capture: boundary.suspense?.capture,
@@ -60,6 +63,9 @@ export default function renderOffscreenNode(
         return render.derive()?.();
       }
       return render();
+    } catch (error) {
+      handleError(error);
+      return undefined;
     } finally {
       PROVIDER.pop();
       SUSPENSE.pop();

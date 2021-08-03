@@ -7,6 +7,7 @@ import {
   track,
   createRoot,
   untrack,
+  captureError,
 } from 'compostate';
 import { ForProps } from '../../special';
 import { derived } from '../../reactivity';
@@ -27,6 +28,8 @@ export default function renderForNode<T>(
   boundary: Boundary,
   props: Reactive<ForProps<T>>,
 ): VNode {
+  const handleError = captureError();
+
   const memory: any[] = [];
 
   const memoryMap = new Map<any, MemoryItem[]>();
@@ -39,12 +42,17 @@ export default function renderForNode<T>(
 
     function getEach(transform: EachTransform<T, VNode>) {
       return createRoot(() => {
-        let node: VNode;
-        currentCleanup?.();
-        currentCleanup = batchCleanup(() => {
-          node = transform(item, position);
-        });
-        return node;
+        try {
+          let node: VNode;
+          currentCleanup?.();
+          currentCleanup = batchCleanup(() => {
+            node = transform(item, position);
+          });
+          return node;
+        } catch (error) {
+          handleError(error);
+          return undefined;
+        }
       });
     }
 

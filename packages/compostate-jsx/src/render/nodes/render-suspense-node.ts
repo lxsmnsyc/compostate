@@ -1,4 +1,5 @@
 import {
+  captureError,
   effect,
   reactive,
   Resource,
@@ -70,6 +71,8 @@ export default function renderSuspenseNode(
     });
   });
 
+  const handleError = captureError();
+
   const { fallback, render } = props;
   let renderFallback: VNode;
 
@@ -88,6 +91,9 @@ export default function renderSuspenseNode(
           return fallback.derive()?.();
         }
         return fallback();
+      } catch (error) {
+        handleError(error);
+        return undefined;
       } finally {
         PROVIDER.pop();
         SUSPENSE.pop();
@@ -112,6 +118,9 @@ export default function renderSuspenseNode(
           return render.derive()?.();
         }
         return render();
+      } catch (error) {
+        handleError(error);
+        return undefined;
       } finally {
         PROVIDER.pop();
         SUSPENSE.pop();
