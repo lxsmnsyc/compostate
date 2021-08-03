@@ -1,10 +1,11 @@
 import Context from '../../context';
 import batch from '../batch';
-import cleanup from '../cleanup';
-import { Effect, EffectOptions } from '../types';
+import cleanup from '../batch-cleanup';
+import { Effect } from '../types';
+import CleanupNode from './cleanup';
+import ErrorBoundary, { ERROR_BOUNDARY } from './error-boundary';
 import LinkedWork, { TRACKING } from './linked-work';
 
-export const EFFECT = new Context<EffectNode | undefined>();
 export const BATCH_EFFECTS = new Context<EffectNode[] | undefined>();
 
 export default class EffectNode {
@@ -14,36 +15,17 @@ export default class EffectNode {
 
   private effect: Effect;
 
-  private parent?: EffectNode;
+  private errorBoundary?: ErrorBoundary;
 
   private revalidateWork?: LinkedWork;
 
-  private options?: Partial<EffectOptions>;
-
-  constructor(effect: Effect, options?: Partial<EffectOptions>) {
+  constructor(effect: Effect, errorBoundary?: ErrorBoundary, cleanupNode?: CleanupNode) {
     this.effect = effect;
-    this.options = options;
-  }
+    this.errorBoundary = errorBoundary;
 
-  forwardError(error: Error): void {
-    if (this.parent) {
-      this.parent.handleError(error);
-    } else {
-      throw error;
-    }
-  }
-
-  handleError(error: Error): void {
-    if (this.options?.onError) {
-      try {
-        this.options.onError(error);
-      } catch (newError) {
-        this.forwardError(error);
-        this.forwardError(newError);
-      }
-    } else {
-      this.forwardError(error);
-    }
+    cleanupNode?.register(() => {
+      this.stop();
+    });
   }
 
   cleanup(): void {
@@ -54,7 +36,11 @@ export default class EffectNode {
         try {
           this.currentCleanup();
         } catch (error) {
-          this.handleError(error);
+          if (this.errorBoundary) {
+            this.errorBoundary.handleError(error);
+          } else {
+            throw error;
+          }
         }
 
         this.currentCleanup = undefined;
@@ -76,10 +62,6 @@ export default class EffectNode {
         this.revalidateWork = new LinkedWork(this.revalidate.bind(this));
       }
       this.revalidateWork.run();
-      const currentEffect = EFFECT.current();
-      if (currentEffect) {
-        this.parent = currentEffect;
-      }
     }
   }
 
@@ -87,7 +69,7 @@ export default class EffectNode {
     if (this.alive) {
       this.cleanup();
       TRACKING.push(this.revalidateWork);
-      EFFECT.push(this);
+      ERROR_BOUNDARY.push(this.errorBoundary);
       BATCH_EFFECTS.push(undefined);
       try {
         batch(() => {
@@ -96,10 +78,14 @@ export default class EffectNode {
           });
         });
       } catch (error) {
-        this.handleError(error);
+        if (this.errorBoundary) {
+          this.errorBoundary.handleError(error);
+        } else {
+          throw error;
+        }
       } finally {
         BATCH_EFFECTS.pop();
-        EFFECT.pop();
+        ERROR_BOUNDARY.pop();
         TRACKING.pop();
       }
     }

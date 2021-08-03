@@ -25,12 +25,17 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
+import { CLEANUP } from './nodes/cleanup';
 import EffectNode, { BATCH_EFFECTS } from './nodes/effect';
-import onCleanup from './on-cleanup';
-import { Effect, Cleanup, EffectOptions } from './types';
+import { ERROR_BOUNDARY } from './nodes/error-boundary';
+import { Effect, Cleanup } from './types';
 
-export default function effect(callback: Effect, options?: EffectOptions): Cleanup {
-  const instance = new EffectNode(callback, options);
+export default function effect(callback: Effect): Cleanup {
+  const instance = new EffectNode(
+    callback,
+    ERROR_BOUNDARY.current(),
+    CLEANUP.current(),
+  );
 
   const batching = BATCH_EFFECTS.current();
   if (batching) {
@@ -39,9 +44,7 @@ export default function effect(callback: Effect, options?: EffectOptions): Clean
     instance.flush();
   }
 
-  const cleanup = () => {
+  return () => {
     instance.stop();
   };
-  onCleanup(cleanup);
-  return cleanup;
 }
