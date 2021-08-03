@@ -1,8 +1,7 @@
 import Context from '../../context';
 import batch from '../batch';
-import cleanup from '../batch-cleanup';
+import batchCleanup from '../batch-cleanup';
 import { Effect } from '../types';
-import CleanupNode from './cleanup';
 import ErrorBoundary, { ERROR_BOUNDARY } from './error-boundary';
 import LinkedWork, { TRACKING } from './linked-work';
 
@@ -19,13 +18,9 @@ export default class EffectNode {
 
   private revalidateWork?: LinkedWork;
 
-  constructor(effect: Effect, errorBoundary?: ErrorBoundary, cleanupNode?: CleanupNode) {
+  constructor(effect: Effect, errorBoundary?: ErrorBoundary) {
     this.effect = effect;
     this.errorBoundary = errorBoundary;
-
-    cleanupNode?.register(() => {
-      this.stop();
-    });
   }
 
   cleanup(): void {
@@ -73,9 +68,7 @@ export default class EffectNode {
       BATCH_EFFECTS.push(undefined);
       try {
         batch(() => {
-          this.currentCleanup = cleanup(() => {
-            this.effect();
-          });
+          this.currentCleanup = batchCleanup(() => this.effect());
         });
       } catch (error) {
         if (this.errorBoundary) {
