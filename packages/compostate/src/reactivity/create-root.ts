@@ -26,22 +26,56 @@
  * @copyright Alexis Munsayac 2021
  */
 import { CLEANUP } from './nodes/cleanup';
-import { BATCH_EFFECTS, EFFECT } from './nodes/effect';
+import { BATCH_EFFECTS } from './nodes/effect';
 import { BATCH_UPDATES, TRACKING } from './nodes/linked-work';
 
-export default function untrack<T>(callback: () => T): T {
-  TRACKING.push(undefined);
-  BATCH_EFFECTS.push(undefined);
+export function unbatch<T>(callback: () => T): T {
   BATCH_UPDATES.push(undefined);
-  EFFECT.push(undefined);
+  try {
+    return callback();
+  } finally {
+    BATCH_UPDATES.pop();
+  }
+}
+
+export function unbatchCleanup<T>(callback: () => T): T {
   CLEANUP.push(undefined);
   try {
     return callback();
   } finally {
     CLEANUP.pop();
-    EFFECT.pop();
-    BATCH_UPDATES.pop();
+  }
+}
+
+export function unbatchEffects<T>(callback: () => T): T {
+  BATCH_EFFECTS.push(undefined);
+  try {
+    return callback();
+  } finally {
     BATCH_EFFECTS.pop();
+  }
+}
+
+export function untrack<T>(callback: () => T): T {
+  TRACKING.push(undefined);
+  try {
+    return callback();
+  } finally {
     TRACKING.pop();
+  }
+}
+
+export function createRoot<T>(callback: () => T): T {
+  BATCH_UPDATES.push(undefined);
+  BATCH_EFFECTS.push(undefined);
+  TRACKING.push(undefined);
+  CLEANUP.push(undefined);
+  try {
+    return callback();
+  } finally {
+    CLEANUP.pop();
+    TRACKING.pop();
+    BATCH_EFFECTS.pop();
+    BATCH_UPDATES.pop();
   }
 }

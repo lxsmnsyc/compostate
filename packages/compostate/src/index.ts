@@ -33,12 +33,21 @@ export { default as effect } from './reactivity/effect';
 export { default as reactive, isReactive } from './reactivity/reactive';
 export { default as readonly, isReadonly } from './reactivity/readonly';
 export { default as ref, Ref } from './reactivity/ref';
-export { default as untrack } from './reactivity/untrack';
+export {
+  createRoot,
+  untrack,
+  unbatch,
+  unbatchCleanup,
+  unbatchEffects,
+} from './reactivity/create-root';
 export { default as track } from './reactivity/track';
 export { default as resource } from './reactivity/resource';
 export { default as spread } from './reactivity/spread';
 export { default as watch } from './reactivity/watch';
-export { default as cleanup } from './reactivity/cleanup';
+export { default as batchCleanup } from './reactivity/batch-cleanup';
 export { default as onCleanup } from './reactivity/on-cleanup';
+export { default as errorBoundary } from './reactivity/error-boundary';
+export { default as onError } from './reactivity/on-error';
+export { default as captureError } from './reactivity/capture-error';
 export * from './reactivity/resource';
 export { Effect, Cleanup } from './reactivity/types';

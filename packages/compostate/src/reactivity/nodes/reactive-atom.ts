@@ -25,7 +25,7 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import untrack from '../untrack';
+import { untrack } from '../create-root';
 import LinkedWork, { BATCH_UPDATES, TRACKING } from './linked-work';
 
 export default class ReactiveAtom {
