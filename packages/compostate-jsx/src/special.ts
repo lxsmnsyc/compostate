@@ -1,6 +1,11 @@
 import { Ref } from 'compostate';
 import {
-  VFor, VFragment, VNode, VOffscreen, VPortal, VSuspense,
+  VFor,
+  VFragment,
+  VNode,
+  VOffscreen,
+  VPortal,
+  VSuspense,
 } from './types';
 
 export interface FragmentProps {
