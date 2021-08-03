@@ -12,18 +12,15 @@ export default class CleanupNode {
     });
   }
 
-  register(cleanup: Cleanup): Cleanup {
+  register(cleanup: Cleanup): void {
     if (!this.calls) {
       this.calls = new Set();
     }
     this.calls.add(cleanup);
-    return () => {
-      this.calls?.delete(cleanup);
-    };
   }
 
   run(): void {
-    new Set(this.calls).forEach((cleanup) => {
+    this.calls?.forEach((cleanup) => {
       cleanup();
     });
   }
