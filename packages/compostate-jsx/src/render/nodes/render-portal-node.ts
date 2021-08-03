@@ -1,44 +1,80 @@
 import { effect } from 'compostate';
+import { derived } from '../../reactivity';
 import { PortalProps } from '../../special';
-import { Reactive, VNode } from '../../types';
+import { Reactive, ShallowReactive, VNode } from '../../types';
 import renderChildren from '../render-children';
 import { Boundary } from '../types';
+
+function runPortalNodeRender(
+  boundary: Boundary,
+  target: Node,
+  render: ShallowReactive<PortalProps['render']>,
+): void {
+  if (render == null) {
+    // no-op
+  } else if ('derive' in render) {
+    effect(() => {
+      const internalRender = render.derive();
+      renderChildren(
+        boundary,
+        target,
+        derived(() => internalRender?.()),
+        null,
+        null,
+      );
+    });
+  } else if (typeof render === 'function') {
+    effect(() => {
+      renderChildren(
+        boundary,
+        target,
+        derived(() => render()),
+        null,
+        null,
+      );
+    });
+  } else {
+    effect(() => {
+      renderChildren(
+        boundary,
+        target,
+        derived(() => render.value?.()),
+        null,
+        null,
+      );
+    });
+  }
+}
 
 export default function renderPortalNode(
   boundary: Boundary,
   props: Reactive<PortalProps>,
 ): VNode {
   if (props.target instanceof HTMLElement) {
-    renderChildren(
+    runPortalNodeRender(
       boundary,
       props.target,
-      props.children,
-      null,
-      null,
+      props.render,
     );
     return undefined;
   }
   const el = props.target;
   if ('derive' in el) {
-    effect(() => (
-      renderChildren(
+    effect(() => {
+      runPortalNodeRender(
         boundary,
         el.derive(),
-        props.children,
-        null,
-        null,
-      )
-    ));
+        props.render,
+      );
+    });
     return undefined;
   }
-  effect(() => (
-    renderChildren(
+  effect(() => {
+    runPortalNodeRender(
       boundary,
       el.value,
-      props.children,
-      null,
-      null,
-    )
-  ));
+      props.render,
+    );
+  });
   return undefined;
 }
