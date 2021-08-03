@@ -6,6 +6,12 @@ export const CLEANUP = new Context<CleanupNode | undefined>();
 export default class CleanupNode {
   private calls?: Set<Cleanup>;
 
+  constructor(parent?: CleanupNode) {
+    parent?.register(() => {
+      this.run();
+    });
+  }
+
   register(cleanup: Cleanup): Cleanup {
     if (!this.calls) {
       this.calls = new Set();
