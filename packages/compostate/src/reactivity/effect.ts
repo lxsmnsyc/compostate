@@ -25,16 +25,15 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { CLEANUP } from './nodes/cleanup';
 import EffectNode, { BATCH_EFFECTS } from './nodes/effect';
 import { ERROR_BOUNDARY } from './nodes/error-boundary';
+import onCleanup from './on-cleanup';
 import { Effect, Cleanup } from './types';
 
 export default function effect(callback: Effect): Cleanup {
   const instance = new EffectNode(
     callback,
     ERROR_BOUNDARY.current(),
-    CLEANUP.current(),
   );
 
   const batching = BATCH_EFFECTS.current();
@@ -44,7 +43,11 @@ export default function effect(callback: Effect): Cleanup {
     instance.flush();
   }
 
-  return () => {
+  const cleanup = () => {
     instance.stop();
   };
+
+  onCleanup(cleanup);
+
+  return cleanup;
 }
