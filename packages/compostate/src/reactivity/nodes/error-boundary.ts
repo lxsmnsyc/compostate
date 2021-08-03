@@ -12,7 +12,7 @@ export default class ErrorBoundary {
     this.parent = parent;
   }
 
-  register(cleanup: ErrorCapture): ErrorCapture {
+  register(cleanup: ErrorCapture): () => void {
     if (!this.calls) {
       this.calls = new Set();
     }
