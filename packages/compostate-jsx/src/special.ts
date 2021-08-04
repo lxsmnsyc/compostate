@@ -1,5 +1,6 @@
 import { Ref } from 'compostate';
 import {
+  VErrorBoundary,
   VFor,
   VFragment,
   VNode,
@@ -19,7 +20,7 @@ export interface SuspenseProps {
 
 export interface PortalProps {
   target: HTMLElement;
-  render?: () => VNode[];
+  render?: () => VNode;
 }
 
 export interface OffscreenProps {
@@ -32,11 +33,17 @@ export interface ForProps<T> {
   each: (item: T, index: Ref<number>) => VNode;
 }
 
+export interface ErrorBoundaryProps {
+  onError?: (error: Error) => void;
+  render?: () => VNode;
+}
+
 export const Fragment: VFragment = 1;
 export const Suspense: VSuspense = 2;
 export const Offscreen: VOffscreen = 3;
 export const Portal: VPortal = 4;
 export const For: VFor = 5;
+export const ErrorBoundary: VErrorBoundary = 6;
 
 // Considerations
 

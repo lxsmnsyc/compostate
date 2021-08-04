@@ -6,6 +6,7 @@ import {
   Fragment,
   render,
   derived,
+  ErrorBoundary,
 } from 'compostate-jsx';
 import {
   computed,
@@ -134,11 +135,31 @@ function TodoList() {
   );
 }
 
+function Example() {
+  const hasError = ref(false);
+  return (
+    <ErrorBoundary
+      onError={(error) => {
+        console.log(error);
+        hasError.value = true;
+      }}
+      render={derived(() => {
+        if (hasError.value) {
+          console.log('Hello');
+          return <h1>Something went wrong</h1>;
+        }
+        throw new Error('Example');
+      })}
+    />
+  );
+}
+
 function App() {
   return (
     <div className="app">
       <h1>Todo List</h1>
       <TodoList />
+      <Example />
     </div>
   );
 }

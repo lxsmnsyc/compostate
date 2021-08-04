@@ -58,6 +58,7 @@ export type VSuspense = 2;
 export type VOffscreen = 3;
 export type VPortal = 4;
 export type VFor = 5;
+export type VErrorBoundary = 6;
 
 // Considerations
 // export type VErrorBoundary = 255;
@@ -68,7 +69,8 @@ export type VSpecialConstructor =
   | VSuspense
   | VOffscreen
   | VPortal
-  | VFor;
+  | VFor
+  | VErrorBoundary;
 
 export type VConstructor<P extends Record<string, any> = Record<string, any>> =
   | string
