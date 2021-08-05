@@ -1,4 +1,3 @@
-import Context from '../../context';
 import {
   cloneList,
   createLinkedList,
@@ -9,8 +8,16 @@ import {
   removeNode,
 } from '../../linked-list';
 
-export const TRACKING = new Context<LinkedWork | undefined>();
-export const BATCH_UPDATES = new Context<Set<LinkedWork> | undefined>();
+export let TRACKING: LinkedWork | undefined;
+export let BATCH_UPDATES: Set<LinkedWork> | undefined;
+
+export function setTracking(instance: LinkedWork | undefined): void {
+  TRACKING = instance;
+}
+
+export function setBatchUpdates(instance: Set<LinkedWork> | undefined): void {
+  BATCH_UPDATES = instance;
+}
 
 let ID = 0;
 

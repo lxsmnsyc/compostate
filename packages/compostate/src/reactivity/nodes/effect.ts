@@ -1,11 +1,14 @@
-import Context from '../../context';
 import batch from '../batch';
 import batchCleanup from '../batch-cleanup';
 import { Effect } from '../types';
-import ErrorBoundary, { ERROR_BOUNDARY } from './error-boundary';
-import LinkedWork, { TRACKING } from './linked-work';
+import ErrorBoundary, { ERROR_BOUNDARY, setErrorBoundary } from './error-boundary';
+import LinkedWork, { setTracking, TRACKING } from './linked-work';
 
-export const BATCH_EFFECTS = new Context<EffectNode[] | undefined>();
+export let BATCH_EFFECTS: EffectNode[] | undefined;
+
+export function setBatchEffects(instance: EffectNode[] | undefined): void {
+  BATCH_EFFECTS = instance;
+}
 
 export default class EffectNode {
   private alive = true;
@@ -62,12 +65,15 @@ export default class EffectNode {
 
   revalidate(): void {
     if (this.alive) {
-      this.cleanup();
-      TRACKING.push(this.revalidateWork);
-      ERROR_BOUNDARY.push(this.errorBoundary);
-      BATCH_EFFECTS.push(undefined);
+      const parentTracking = TRACKING;
+      const parentErrorBoundary = ERROR_BOUNDARY;
+      const parentBatchEffects = BATCH_EFFECTS;
+      setTracking(this.revalidateWork);
+      setErrorBoundary(this.errorBoundary);
+      setBatchEffects(undefined);
       try {
         batch(() => {
+          this.cleanup();
           this.currentCleanup = batchCleanup(() => this.effect());
         });
       } catch (error) {
@@ -77,9 +83,9 @@ export default class EffectNode {
           throw error;
         }
       } finally {
-        BATCH_EFFECTS.pop();
-        ERROR_BOUNDARY.pop();
-        TRACKING.pop();
+        setBatchEffects(parentBatchEffects);
+        setErrorBoundary(parentErrorBoundary);
+        setTracking(parentTracking);
       }
     }
   }

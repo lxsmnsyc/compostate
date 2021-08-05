@@ -25,57 +25,61 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { CLEANUP } from './nodes/cleanup';
-import { BATCH_EFFECTS } from './nodes/effect';
-import { BATCH_UPDATES, TRACKING } from './nodes/linked-work';
+import { CLEANUP, setCleanup } from './nodes/cleanup';
+import { BATCH_EFFECTS, setBatchEffects } from './nodes/effect';
+import {
+  BATCH_UPDATES,
+  setBatchUpdates,
+  setTracking,
+  TRACKING,
+} from './nodes/linked-work';
 
 export function unbatch<T>(callback: () => T): T {
-  BATCH_UPDATES.push(undefined);
+  const parent = BATCH_UPDATES;
+  setBatchUpdates(undefined);
   try {
     return callback();
   } finally {
-    BATCH_UPDATES.pop();
+    setBatchUpdates(parent);
   }
 }
 
 export function unbatchCleanup<T>(callback: () => T): T {
-  CLEANUP.push(undefined);
+  const parentInstance = CLEANUP;
+  setCleanup(undefined);
   try {
     return callback();
   } finally {
-    CLEANUP.pop();
+    setCleanup(parentInstance);
   }
 }
 
 export function unbatchEffects<T>(callback: () => T): T {
-  BATCH_EFFECTS.push(undefined);
+  const parent = BATCH_EFFECTS;
+  setBatchEffects(undefined);
   try {
     return callback();
   } finally {
-    BATCH_EFFECTS.pop();
+    setBatchEffects(parent);
   }
 }
 
 export function untrack<T>(callback: () => T): T {
-  TRACKING.push(undefined);
+  const parent = TRACKING;
+  setTracking(undefined);
   try {
     return callback();
   } finally {
-    TRACKING.pop();
+    setTracking(parent);
   }
 }
 
 export function createRoot<T>(callback: () => T): T {
-  BATCH_UPDATES.push(undefined);
-  BATCH_EFFECTS.push(undefined);
-  TRACKING.push(undefined);
-  CLEANUP.push(undefined);
-  try {
-    return callback();
-  } finally {
-    CLEANUP.pop();
-    TRACKING.pop();
-    BATCH_EFFECTS.pop();
-    BATCH_UPDATES.pop();
-  }
+  return untrack(() => (
+    unbatch(() => (
+      unbatchEffects(() => (
+        unbatchCleanup(callback)
+      ))
+    ))
+  ));
 }

@@ -1,7 +1,10 @@
-import Context from '../../context';
 import { ErrorCapture } from '../types';
 
-export const ERROR_BOUNDARY = new Context<ErrorBoundary | undefined>();
+export let ERROR_BOUNDARY: ErrorBoundary | undefined;
+
+export function setErrorBoundary(instance: ErrorBoundary | undefined): void {
+  ERROR_BOUNDARY = instance;
+}
 
 export default class ErrorBoundary {
   private calls?: Set<ErrorCapture>;

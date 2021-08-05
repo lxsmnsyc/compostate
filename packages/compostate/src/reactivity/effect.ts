@@ -33,12 +33,11 @@ import { Effect, Cleanup } from './types';
 export default function effect(callback: Effect): Cleanup {
   const instance = new EffectNode(
     callback,
-    ERROR_BOUNDARY.current(),
+    ERROR_BOUNDARY,
   );
 
-  const batching = BATCH_EFFECTS.current();
-  if (batching) {
-    batching.push(instance);
+  if (BATCH_EFFECTS) {
+    BATCH_EFFECTS.push(instance);
   } else {
     instance.flush();
   }

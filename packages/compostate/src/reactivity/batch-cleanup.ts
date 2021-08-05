@@ -1,18 +1,24 @@
-import CleanupNode, { CLEANUP } from './nodes/cleanup';
+import { CLEANUP, runCleanups, setCleanup } from './nodes/cleanup';
+import onCleanup from './on-cleanup';
 import { Cleanup } from './types';
 
 export default function batchCleanup(callback: () => void | undefined | Cleanup): Cleanup {
-  const node = new CleanupNode(CLEANUP.current());
-  CLEANUP.push(node);
+  const cleanups = new Set<Cleanup>();
+  const parentCleanup = CLEANUP;
+  setCleanup(cleanups);
   try {
     const cleanup = callback();
+    // Add the returned cleanup as well
     if (cleanup) {
-      node.register(cleanup);
+      cleanups.add(cleanup);
     }
   } finally {
-    CLEANUP.pop();
+    setCleanup(parentCleanup);
   }
-  return () => {
-    node.run();
+  // Create return cleanup
+  const returnCleanup = () => {
+    runCleanups(cleanups);
   };
+  onCleanup(returnCleanup);
+  return returnCleanup;
 }

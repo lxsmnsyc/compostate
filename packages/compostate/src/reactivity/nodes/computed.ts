@@ -1,6 +1,6 @@
-import CleanupNode from './cleanup';
-import ErrorBoundary, { ERROR_BOUNDARY } from './error-boundary';
-import LinkedWork, { TRACKING } from './linked-work';
+import onCleanup from '../on-cleanup';
+import ErrorBoundary, { ERROR_BOUNDARY, setErrorBoundary } from './error-boundary';
+import LinkedWork, { setTracking, TRACKING } from './linked-work';
 import ReactiveAtom from './reactive-atom';
 import { registerTrackable } from './track-map';
 
@@ -13,11 +13,16 @@ export default class ComputedNode<T> {
 
   private atom = new ReactiveAtom();
 
-  constructor(compute: () => T, errorBoundary?: ErrorBoundary, cleanupNode?: CleanupNode) {
+  constructor(
+    compute: () => T,
+    errorBoundary?: ErrorBoundary,
+  ) {
     const work = new LinkedWork(() => {
       work.unlinkDependencies();
-      TRACKING.push(work);
-      ERROR_BOUNDARY.push(errorBoundary);
+      const parentTracking = TRACKING;
+      const parentErrorBoundary = ERROR_BOUNDARY;
+      setTracking(work);
+      setErrorBoundary(errorBoundary);
       try {
         this.val = {
           value: compute(),
@@ -29,15 +34,15 @@ export default class ComputedNode<T> {
           throw error;
         }
       } finally {
-        ERROR_BOUNDARY.pop();
-        TRACKING.pop();
+        setErrorBoundary(parentErrorBoundary);
+        setTracking(parentTracking);
       }
       this.atom.notify();
     });
 
     work.run();
 
-    cleanupNode?.register(() => {
+    onCleanup(() => {
       work.destroy();
     });
 

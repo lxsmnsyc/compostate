@@ -3,9 +3,7 @@ import onCleanup from './on-cleanup';
 import { ErrorCapture } from './types';
 
 export default function onError(errorCapture: ErrorCapture): void {
-  const boundary = ERROR_BOUNDARY.current();
-
-  if (boundary) {
-    onCleanup(boundary.register(errorCapture));
+  if (ERROR_BOUNDARY) {
+    onCleanup(ERROR_BOUNDARY.register(errorCapture));
   }
 }

@@ -25,15 +25,16 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import LinkedWork, { BATCH_UPDATES } from './nodes/linked-work';
+import LinkedWork, { BATCH_UPDATES, setBatchUpdates } from './nodes/linked-work';
 
 export default function batch(callback: () => void): void {
   const batchedWork = new Set<LinkedWork>();
-  BATCH_UPDATES.push(batchedWork);
+  const parent = BATCH_UPDATES;
+  setBatchUpdates(batchedWork);
   try {
     callback();
   } finally {
-    BATCH_UPDATES.pop();
+    setBatchUpdates(parent);
   }
   batchedWork.forEach((work) => {
     work.run();

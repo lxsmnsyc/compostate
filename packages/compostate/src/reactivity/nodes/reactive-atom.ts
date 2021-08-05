@@ -47,19 +47,17 @@ export default class ReactiveAtom {
   }
 
   track(): void {
-    const tracking = TRACKING.current();
-    if (tracking) {
+    if (TRACKING) {
       const work = this.getWork();
-      work.addDependent(tracking);
-      tracking.addDependency(work);
+      work.addDependent(TRACKING);
+      TRACKING.addDependency(work);
     }
   }
 
   notify(): void {
-    const batching = BATCH_UPDATES.current();
     if (this.work) {
-      if (batching) {
-        batching.add(this.work);
+      if (BATCH_UPDATES) {
+        BATCH_UPDATES.add(this.work);
       } else {
         this.work.run();
       }

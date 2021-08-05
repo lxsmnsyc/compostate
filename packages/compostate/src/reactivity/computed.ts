@@ -25,11 +25,9 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-
-import { CLEANUP } from './nodes/cleanup';
 import ComputedNode from './nodes/computed';
 import { ERROR_BOUNDARY } from './nodes/error-boundary';
 
 export default function computed<T>(compute: () => T): ComputedNode<T> {
-  return new ComputedNode(compute, ERROR_BOUNDARY.current(), CLEANUP.current());
+  return new ComputedNode(compute, ERROR_BOUNDARY);
 }
