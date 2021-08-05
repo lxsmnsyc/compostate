@@ -65,6 +65,7 @@ export default class EffectNode {
 
   revalidate(): void {
     if (this.alive) {
+      this.cleanup();
       const parentTracking = TRACKING;
       const parentErrorBoundary = ERROR_BOUNDARY;
       const parentBatchEffects = BATCH_EFFECTS;
@@ -73,7 +74,6 @@ export default class EffectNode {
       setBatchEffects(undefined);
       try {
         batch(() => {
-          this.cleanup();
           this.currentCleanup = batchCleanup(() => this.effect());
         });
       } catch (error) {

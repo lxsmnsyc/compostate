@@ -1,12 +1,10 @@
-import { Cleanup, Ref } from 'compostate';
+import { Ref } from 'compostate';
 import { VNode } from '../types';
 import { Marker } from '../dom';
-import ErrorBoundary from '../error-boundary';
 import { ProviderData } from '../provider';
 import { SuspenseData } from '../suspense';
 
 export interface Boundary {
-  error?: ErrorBoundary;
   suspense?: SuspenseData;
   provider?: ProviderData;
 }
@@ -20,6 +18,6 @@ export type RenderChildren = (
   children: VNode,
   marker?: Lazy<Marker | null>,
   suspended?: InternalShallowReactive<boolean | undefined>,
-) => Cleanup;
+) => void;
 
 export type Lazy<T> = T | (() => T);

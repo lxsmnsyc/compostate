@@ -1,4 +1,4 @@
-import { effect, Cleanup } from 'compostate';
+import { effect } from 'compostate';
 import { PortalProps } from '../../core';
 import { Reactive } from '../../types';
 import {
@@ -12,35 +12,37 @@ export default function renderPortalNode(
   props: Reactive<PortalProps>,
   renderChildren: RenderChildren,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): Cleanup {
+): void {
   if (props.target instanceof HTMLElement) {
-    return renderChildren(
+    renderChildren(
       boundary,
       props.target,
       props.children,
       null,
       suspended,
     );
+  } else {
+    const el = props.target;
+    if ('derive' in el) {
+      effect(() => (
+        renderChildren(
+          boundary,
+          el.derive(),
+          props.children,
+          null,
+          suspended,
+        )
+      ));
+    } else {
+      effect(() => (
+        renderChildren(
+          boundary,
+          el.value,
+          props.children,
+          null,
+          suspended,
+        )
+      ));
+    }
   }
-  const el = props.target;
-  if ('derive' in el) {
-    return effect(() => (
-      renderChildren(
-        boundary,
-        el.derive(),
-        props.children,
-        null,
-        suspended,
-      )
-    ));
-  }
-  return effect(() => (
-    renderChildren(
-      boundary,
-      el.value,
-      props.children,
-      null,
-      suspended,
-    )
-  ));
 }

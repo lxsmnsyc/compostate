@@ -1,4 +1,3 @@
-import onCleanup from '../on-cleanup';
 import ErrorBoundary, { ERROR_BOUNDARY, setErrorBoundary } from './error-boundary';
 import LinkedWork, { setTracking, TRACKING } from './linked-work';
 import ReactiveAtom from './reactive-atom';
@@ -41,10 +40,6 @@ export default class ComputedNode<T> {
     });
 
     work.run();
-
-    onCleanup(() => {
-      work.destroy();
-    });
 
     registerTrackable(this.atom, this);
   }

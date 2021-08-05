@@ -1,16 +1,13 @@
 /* eslint-disable no-param-reassign */
 import {
-  Cleanup,
+  onCleanup,
   effect,
   untrack,
   Ref,
-  watch,
 } from 'compostate';
 import Context from '../context';
-import { Marker, insert, remove } from '../dom';
-import ErrorBoundary, { handleError } from '../error-boundary';
+import { Marker, insert, remove, append } from '../dom';
 import { InternalShallowReactive, Lazy } from './types';
-import { NO_OP } from './utils';
 
 export const UNMOUNTING = new Context<boolean | undefined>();
 
@@ -18,36 +15,31 @@ function watchNonLazyMarkerForMarker(
   root: HTMLElement,
   parent: Marker,
   child: Marker,
-): Cleanup {
+): void {
   let initialCall = true;
   let parentVersion: number | undefined;
-  return watch(
-    parent.version,
-    () => {
-      const newVersion = parent.version.value;
-      if (parentVersion !== newVersion) {
-        parentVersion = newVersion;
-        insert(root, child.node, parent.node);
-        if (!initialCall) {
-          child.version.value = untrack(() => child.version.value) + 1;
-        }
+  effect(() => {
+    const newVersion = parent.version.value;
+    if (parentVersion !== newVersion) {
+      parentVersion = newVersion;
+      insert(root, child.node, parent.node);
+      if (!initialCall) {
+        child.version.value = untrack(() => child.version.value) + 1;
       }
-      initialCall = false;
-    },
-    true,
-  );
+    }
+    initialCall = false;
+  });
 }
 
 function watchLazyMarkerForMarker(
   root: HTMLElement,
   parent: () => Marker | null,
   child: Marker,
-  boundary?: ErrorBoundary,
-): Cleanup {
+): void {
   let initialCall = true;
   let parentVersion: number | undefined;
   let previousParent: Marker | null = null;
-  return effect(() => {
+  effect(() => {
     // Insert new marker before the parent marker
     const actualParent = parent();
     if (actualParent !== previousParent) {
@@ -67,10 +59,6 @@ function watchLazyMarkerForMarker(
       insert(root, child.node);
     }
     initialCall = false;
-  }, {
-    onError(error) {
-      handleError(boundary, error);
-    },
   });
 }
 
@@ -78,24 +66,21 @@ export function watchMarkerForMarker(
   root: HTMLElement,
   parent: Lazy<Marker | null>,
   child: Marker,
-  boundary?: ErrorBoundary,
-): Cleanup {
-  let currentCleanup: Cleanup | undefined;
+): void {
   if (parent) {
     if (typeof parent === 'function') {
-      currentCleanup = watchLazyMarkerForMarker(root, parent, child, boundary);
+      watchLazyMarkerForMarker(root, parent, child);
     } else {
-      currentCleanup = watchNonLazyMarkerForMarker(root, parent, child);
+      watchNonLazyMarkerForMarker(root, parent, child);
     }
   } else {
-    insert(root, child.node);
+    append(root, child.node);
   }
-  return () => {
-    currentCleanup?.();
+  onCleanup(() => {
     if (!UNMOUNTING.getContext()) {
       remove(child.node);
     }
-  };
+  });
 }
 
 function watchLazyMarkerForNodeWithLazySuspend(
@@ -103,18 +88,17 @@ function watchLazyMarkerForNodeWithLazySuspend(
   parent: () => Marker | null,
   child: Node,
   suspended: () => boolean | undefined,
-  boundary?: ErrorBoundary,
-): Cleanup {
+): void {
   let parentVersion: number | undefined;
   let previousParent: Marker | null = null;
-  return effect(() => {
+  effect(() => {
     // Do not insert node if the tree is suspended
     const actualParent = parent();
     if (actualParent !== previousParent) {
       parentVersion = undefined;
       previousParent = actualParent;
     }
-    if (suspended()) {
+    if (!suspended()) {
       if (actualParent) {
         const newVersion = actualParent.version.value;
         // Check if the parent marker has changed position
@@ -124,13 +108,11 @@ function watchLazyMarkerForNodeWithLazySuspend(
         }
       } else {
         // No parent, just append child
-        insert(root, child);
+        append(root, child);
       }
+    } else {
+      remove(child);
     }
-  }, {
-    onError(error) {
-      handleError(boundary, error);
-    },
   });
 }
 
@@ -139,18 +121,17 @@ function watchLazyMarkerForNodeWithRefSuspend(
   parent: () => Marker | null,
   child: Node,
   suspended: Ref<boolean | undefined>,
-  boundary?: ErrorBoundary,
-): Cleanup {
+): void {
   let parentVersion: number | undefined;
   let previousParent: Marker | null = null;
-  return effect(() => {
+  effect(() => {
     // Do not insert node if the tree is suspended
     const actualParent = parent();
     if (actualParent !== previousParent) {
       parentVersion = undefined;
       previousParent = actualParent;
     }
-    if (suspended.value) {
+    if (!suspended.value) {
       if (actualParent) {
         const newVersion = actualParent.version.value;
         // Check if the parent marker has changed position
@@ -160,13 +141,11 @@ function watchLazyMarkerForNodeWithRefSuspend(
         }
       } else {
         // No parent, just append child
-        insert(root, child);
+        append(root, child);
       }
+    } else {
+      remove(child);
     }
-  }, {
-    onError(error) {
-      handleError(boundary, error);
-    },
   });
 }
 
@@ -174,11 +153,10 @@ function watchLazyMarkerForNode(
   root: HTMLElement,
   parent: () => Marker | null,
   child: Node,
-  boundary?: ErrorBoundary,
-): Cleanup {
+): void {
   let parentVersion: number | undefined;
   let previousParent: Marker | null = null;
-  return effect(() => {
+  effect(() => {
     const actualParent = parent();
     if (actualParent !== previousParent) {
       parentVersion = undefined;
@@ -193,12 +171,8 @@ function watchLazyMarkerForNode(
       }
     } else {
       // No parent, just append child
-      insert(root, child);
+      append(root, child);
     }
-  }, {
-    onError(error) {
-      handleError(boundary, error);
-    },
   });
 }
 
@@ -207,19 +181,16 @@ function watchMarkerForNodeWithLazySuspend(
   parent: Marker,
   child: Node,
   suspended: () => boolean | undefined,
-  boundary?: ErrorBoundary,
-): Cleanup {
+): void {
   let parentVersion: number | undefined;
-  return effect(() => {
+  effect(() => {
     const newVersion = parent.version.value;
-    if (suspended() && parentVersion !== newVersion) {
+    if (suspended()) {
+      remove(child);
+    } else if (parentVersion !== newVersion) {
       parentVersion = newVersion;
       insert(root, child, parent.node);
     }
-  }, {
-    onError(error) {
-      handleError(boundary, error);
-    },
   });
 }
 
@@ -228,19 +199,16 @@ function watchMarkerForNodeWithRefSuspend(
   parent: Marker,
   child: Node,
   suspended: Ref<boolean | undefined>,
-  boundary?: ErrorBoundary,
-): Cleanup {
+): void {
   let parentVersion: number | undefined;
-  return effect(() => {
+  effect(() => {
     const newVersion = parent.version.value;
-    if (suspended.value && parentVersion !== newVersion) {
+    if (suspended.value) {
+      remove(child);
+    } else if (parentVersion !== newVersion) {
       parentVersion = newVersion;
       insert(root, child, parent.node);
     }
-  }, {
-    onError(error) {
-      handleError(boundary, error);
-    },
   });
 }
 
@@ -248,35 +216,29 @@ function watchActualMarkerForMarker(
   root: HTMLElement,
   parent: Marker,
   child: Node,
-): Cleanup {
+): void {
   let parentVersion: number | undefined;
-  return watch(
-    parent.version,
-    () => {
-      const newVersion = parent.version.value;
-      if (parentVersion !== newVersion) {
-        parentVersion = newVersion;
-        insert(root, child, parent.node);
-      }
-    },
-    true,
-  );
+  effect(() => {
+    const newVersion = parent.version.value;
+    if (parentVersion !== newVersion) {
+      parentVersion = newVersion;
+      insert(root, child, parent.node);
+    }
+  });
 }
 
 function watchNoMarkerForNodeWithRefSuspend(
   root: HTMLElement,
   child: Node,
   suspended: Ref<boolean | undefined>,
-): Cleanup {
-  return watch(
-    suspended,
-    () => {
-      if (suspended.value) {
-        insert(root, child);
-      }
-    },
-    true,
-  );
+): void {
+  effect(() => {
+    if (suspended.value) {
+      remove(child);
+    } else {
+      append(root, child);
+    }
+  });
 }
 
 export function watchMarkerForNode(
@@ -284,78 +246,70 @@ export function watchMarkerForNode(
   parent: Lazy<Marker | null>,
   child: Node,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-  boundary?: ErrorBoundary,
-): Cleanup {
-  let currentCleanup: Cleanup | undefined;
+): void {
   if (parent) {
     if (typeof parent === 'function') {
       if (typeof suspended === 'function') {
-        currentCleanup = watchLazyMarkerForNodeWithLazySuspend(
+        watchLazyMarkerForNodeWithLazySuspend(
           root,
           parent,
           child,
           suspended,
-          boundary,
         );
       } else if (typeof suspended === 'object') {
-        currentCleanup = watchLazyMarkerForNodeWithRefSuspend(
+        watchLazyMarkerForNodeWithRefSuspend(
           root,
           parent,
           child,
           suspended,
-          boundary,
         );
       } else if (suspended) {
-        currentCleanup = NO_OP;
+        // no-op
       } else {
-        currentCleanup = watchLazyMarkerForNode(
+        watchLazyMarkerForNode(
           root,
           parent,
           child,
-          boundary,
         );
       }
     } else if (typeof suspended === 'function') {
-      currentCleanup = watchMarkerForNodeWithLazySuspend(
+      watchMarkerForNodeWithLazySuspend(
         root,
         parent,
         child,
         suspended,
-        boundary,
       );
     } else if (typeof suspended === 'object') {
-      currentCleanup = watchMarkerForNodeWithRefSuspend(
+      watchMarkerForNodeWithRefSuspend(
         root,
         parent,
         child,
         suspended,
-        boundary,
       );
     } else if (suspended) {
-      currentCleanup = NO_OP;
+      // no-op
     } else {
-      currentCleanup = watchActualMarkerForMarker(
+      watchActualMarkerForMarker(
         root,
         parent,
         child,
       );
     }
   } else if (typeof suspended === 'object') {
-    currentCleanup = watchNoMarkerForNodeWithRefSuspend(
+    watchNoMarkerForNodeWithRefSuspend(
       root,
       child,
       suspended,
     );
   } else if (suspended) {
-    currentCleanup = NO_OP;
+    // no-op
   } else {
-    insert(root, child);
+    append(root, child);
   }
 
-  return () => {
-    currentCleanup?.();
+  onCleanup(() => {
     if (!UNMOUNTING.getContext()) {
       remove(child);
     }
-  };
+  });
 }

@@ -1,4 +1,3 @@
-import { Cleanup } from 'compostate';
 import { OffscreenProps } from '../../core';
 import { createMarker, Marker } from '../../dom';
 import { Reactive } from '../../types';
@@ -17,122 +16,22 @@ export default function renderOffscreenNode(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): Cleanup {
+): void {
   const offscreenMarker = createMarker();
 
-  const cleanups = [
-    watchMarkerForMarker(root, marker, offscreenMarker, boundary.error),
-    (() => {
-      if (typeof suspended === 'object') {
-        if (typeof props.mount === 'object') {
-          const mountRef = props.mount;
-          if ('derive' in mountRef) {
-            return renderChildren(
-              boundary,
-              root,
-              props.children,
-              offscreenMarker,
-              // Forward the suspend state
-              () => suspended.value || !mountRef.derive(),
-            );
-          }
-          return renderChildren(
-            boundary,
-            root,
-            props.children,
-            offscreenMarker,
-            // Forward the suspend state
-            () => suspended.value || !mountRef.value,
-          );
-        }
-        if (props.mount) {
-          return renderChildren(
-            boundary,
-            root,
-            props.children,
-            offscreenMarker,
-            // Forward the suspend state
-            suspended,
-          );
-        }
+  watchMarkerForMarker(root, marker, offscreenMarker);
+
+  if (typeof suspended === 'object') {
+    if (typeof props.mount === 'object') {
+      const mountRef = props.mount;
+      if ('derive' in mountRef) {
         return renderChildren(
           boundary,
           root,
           props.children,
           offscreenMarker,
           // Forward the suspend state
-          true,
-        );
-      }
-      if (typeof suspended === 'function') {
-        if (typeof props.mount === 'object') {
-          const mountRef = props.mount;
-          if ('derive' in mountRef) {
-            return renderChildren(
-              boundary,
-              root,
-              props.children,
-              offscreenMarker,
-              // Forward the suspend state
-              () => suspended() || !mountRef.derive(),
-            );
-          }
-          return renderChildren(
-            boundary,
-            root,
-            props.children,
-            offscreenMarker,
-            // Forward the suspend state
-            () => suspended() || !mountRef.value,
-          );
-        }
-        if (props.mount) {
-          return renderChildren(
-            boundary,
-            root,
-            props.children,
-            offscreenMarker,
-            // Forward the suspend state
-            suspended,
-          );
-        }
-        return renderChildren(
-          boundary,
-          root,
-          props.children,
-          offscreenMarker,
-          // Forward the suspend state
-          true,
-        );
-      }
-      if (typeof props.mount === 'object') {
-        const mountRef = props.mount;
-        if (suspended) {
-          return renderChildren(
-            boundary,
-            root,
-            props.children,
-            offscreenMarker,
-            // Forward the suspend state
-            true,
-          );
-        }
-        return renderChildren(
-          boundary,
-          root,
-          props.children,
-          offscreenMarker,
-          'derive' in mountRef ? mountRef.derive : mountRef,
-        );
-      }
-      if (props.mount) {
-        return renderChildren(
-          boundary,
-          root,
-          props.children,
-          offscreenMarker,
-          // Forward the suspend state
-          suspended,
+          () => suspended.value || !mountRef.derive(),
         );
       }
       return renderChildren(
@@ -141,14 +40,105 @@ export default function renderOffscreenNode(
         props.children,
         offscreenMarker,
         // Forward the suspend state
+        () => suspended.value || !mountRef.value,
+      );
+    }
+    if (props.mount) {
+      return renderChildren(
+        boundary,
+        root,
+        props.children,
+        offscreenMarker,
+        // Forward the suspend state
+        suspended,
+      );
+    }
+    return renderChildren(
+      boundary,
+      root,
+      props.children,
+      offscreenMarker,
+      // Forward the suspend state
+      true,
+    );
+  }
+  if (typeof suspended === 'function') {
+    if (typeof props.mount === 'object') {
+      const mountRef = props.mount;
+      if ('derive' in mountRef) {
+        return renderChildren(
+          boundary,
+          root,
+          props.children,
+          offscreenMarker,
+          // Forward the suspend state
+          () => suspended() || !mountRef.derive(),
+        );
+      }
+      return renderChildren(
+        boundary,
+        root,
+        props.children,
+        offscreenMarker,
+        // Forward the suspend state
+        () => suspended() || !mountRef.value,
+      );
+    }
+    if (props.mount) {
+      return renderChildren(
+        boundary,
+        root,
+        props.children,
+        offscreenMarker,
+        // Forward the suspend state
+        suspended,
+      );
+    }
+    return renderChildren(
+      boundary,
+      root,
+      props.children,
+      offscreenMarker,
+      // Forward the suspend state
+      true,
+    );
+  }
+  if (typeof props.mount === 'object') {
+    const mountRef = props.mount;
+    if (suspended) {
+      return renderChildren(
+        boundary,
+        root,
+        props.children,
+        offscreenMarker,
+        // Forward the suspend state
         true,
       );
-    })(),
-  ];
-
-  return () => {
-    cleanups.forEach((cleanup) => {
-      cleanup();
-    });
-  };
+    }
+    return renderChildren(
+      boundary,
+      root,
+      props.children,
+      offscreenMarker,
+      'derive' in mountRef ? mountRef.derive : mountRef,
+    );
+  }
+  if (props.mount) {
+    return renderChildren(
+      boundary,
+      root,
+      props.children,
+      offscreenMarker,
+      // Forward the suspend state
+      suspended,
+    );
+  }
+  return renderChildren(
+    boundary,
+    root,
+    props.children,
+    offscreenMarker,
+    // Forward the suspend state
+    true,
+  );
 }

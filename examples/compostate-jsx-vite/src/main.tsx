@@ -30,7 +30,7 @@ const initialData = new Array(1000)
     })
   ));
 
-const USE_INITIAL = true;
+const USE_INITIAL = false;
 
 const list = reactive<TodoItem[]>(USE_INITIAL ? initialData : []);
 

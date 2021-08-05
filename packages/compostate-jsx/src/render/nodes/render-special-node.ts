@@ -1,4 +1,3 @@
-import { Cleanup } from 'compostate';
 import {
   For,
   ForProps,
@@ -25,7 +24,6 @@ import {
   Lazy,
   RenderChildren,
 } from '../types';
-import { NO_OP } from '../utils';
 import renderForNode from './render-for-node';
 import renderFragmentNode from './render-fragment-node';
 import renderOffscreenNode from './render-offscreen-node';
@@ -46,10 +44,10 @@ export default function renderSpecialNode(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): Cleanup {
+): void {
   switch (node.constructor) {
     case Fragment:
-      return renderFragmentNode(
+      renderFragmentNode(
         boundary,
         root,
         node.props,
@@ -57,8 +55,9 @@ export default function renderSpecialNode(
         marker,
         suspended,
       );
+      break;
     case Suspense:
-      return renderSuspenseNode(
+      renderSuspenseNode(
         boundary,
         root,
         node.props,
@@ -66,8 +65,9 @@ export default function renderSpecialNode(
         marker,
         suspended,
       );
+      break;
     case Offscreen:
-      return renderOffscreenNode(
+      renderOffscreenNode(
         boundary,
         root,
         node.props,
@@ -75,16 +75,17 @@ export default function renderSpecialNode(
         marker,
         suspended,
       );
+      break;
     case Portal:
-      return renderPortalNode(
+      renderPortalNode(
         boundary,
         node.props,
         renderChildren,
-        marker,
         suspended,
       );
+      break;
     case For:
-      return renderForNode(
+      renderForNode(
         boundary,
         root,
         node.props,
@@ -92,7 +93,8 @@ export default function renderSpecialNode(
         marker,
         suspended,
       );
+      break;
     default:
-      return NO_OP;
+      break;
   }
 }

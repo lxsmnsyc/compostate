@@ -4,11 +4,12 @@ import {
   Ref,
   ref,
   track,
-  untrack,
+  batchCleanup,
+  onCleanup,
+  createRoot,
 } from 'compostate';
 import { ForProps } from '../../core';
 import { createMarker, Marker } from '../../dom';
-import { handleError } from '../../error-boundary';
 import { derived } from '../../reactivity';
 import { Reactive } from '../../types';
 import {
@@ -31,7 +32,7 @@ export default function renderForNode<T>(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): Cleanup {
+): void {
   // The memoized array based on the source array
   const memory: any[] = [];
 
@@ -39,37 +40,38 @@ export default function renderForNode<T>(
 
   // Markers for the child position
   const markers: Marker[] = [];
-  // Lifecycles of markers
   const markersLifecycle: Cleanup[] = [];
 
   function getNode(index: number, item: any) {
     const position = ref(index);
     const each = (() => {
       const factory = props.each;
-      if ('value' in factory) {
-        return derived(() => factory.value(item, position));
+      if (typeof factory === 'function') {
+        return factory(item, position);
       }
       if ('derive' in factory) {
         return derived(() => factory.derive()(item, position));
       }
-      return factory(item, position);
+      return derived(() => factory.value(item, position));
     })();
     return {
       position,
-      cleanup: renderChildren(
-        boundary,
-        root,
-        // Reactively track changes
-        // on the produced children
-        each,
-        // Track marker positions
-        () => markers[position.value],
-        suspended,
-      ),
+      cleanup: batchCleanup(() => {
+        renderChildren(
+          boundary,
+          root,
+          // Reactively track changes
+          // on the produced children
+          each,
+          // Track marker positions
+          () => markers[position.value],
+          suspended,
+        );
+      }),
     };
   }
 
-  const cleanups = [
+  batchCleanup(() => {
     effect(() => {
       let tracked: any[];
       const origin = props.in;
@@ -81,14 +83,12 @@ export default function renderForNode<T>(
         tracked = track(origin);
       }
       // Expand markers if the tracked array has suffix inserts
-      untrack(() => {
-        // for (let i = tracked.length; i < markers.length; i += 1) {
-        //   markersLifecycle[i]();
-        //   delete markers[i];
-        // }
+      createRoot(() => {
         for (let i = markers.length; i < tracked.length; i += 1) {
           markers[i] = createMarker();
-          markersLifecycle[i] = watchMarkerForMarker(root, marker, markers[i], boundary.error);
+          markersLifecycle[i] = batchCleanup(() => {
+            watchMarkerForMarker(root, marker, markers[i]);
+          });
         }
         // Shortcut for empty tracked array
         if (tracked.length === 0) {
@@ -157,27 +157,17 @@ export default function renderForNode<T>(
       });
 
       return undefined;
-    }, {
-      onError(error) {
-        handleError(boundary.error, error);
-      },
-    }),
-    () => {
+    });
+    onCleanup(() => {
       memoryMap.forEach((items) => {
         items.forEach((item) => {
           item.cleanup();
         });
       });
-      memoryMap.clear();
       markersLifecycle.forEach((cleanup) => {
         cleanup();
       });
-    },
-  ];
-
-  return () => {
-    cleanups.forEach((cleanup) => {
-      cleanup();
+      memoryMap.clear();
     });
-  };
+  });
 }

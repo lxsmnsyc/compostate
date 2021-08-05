@@ -1,5 +1,7 @@
 /* eslint-disable no-param-reassign */
 import {
+  batchCleanup,
+  createRoot,
   untrack,
 } from 'compostate';
 import {
@@ -15,13 +17,15 @@ import {
 } from './types';
 
 export function render(root: HTMLElement, element: VNode): () => void {
-  return untrack(() => renderChildren({}, root, element));
+  return createRoot(() => batchCleanup(() => {
+    renderChildren({}, root, element);
+  }));
 }
 
 export function hydrate(root: HTMLElement, element: VNode): () => void {
   const popHydration = HYDRATION.push(createHydration(root));
   try {
-    return untrack(() => renderChildren({}, root, element));
+    return render(root, element);
   } finally {
     popHydration();
   }

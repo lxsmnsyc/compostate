@@ -7,6 +7,12 @@ import {
   removeNode,
 } from './linked-list';
 
+interface Append {
+  type: 'append';
+  parent: Node;
+  marker?: undefined;
+}
+
 interface Insert {
   type: 'insert';
   parent: Node;
@@ -19,7 +25,7 @@ interface Remove {
   marker?: undefined;
 }
 
-type Operation = Insert | Remove;
+type Operation = Insert | Remove | Append;
 
 interface CommitAction {
   target: Node;
@@ -39,6 +45,9 @@ function commit(node: Node, op: Operation): void {
       while (call) {
         const { target, operation } = call.value;
         switch (operation.type) {
+          case 'append':
+            operation.parent.appendChild(target);
+            break;
           case 'insert':
             operation.parent.insertBefore(target, operation.marker ?? null);
             break;
@@ -76,25 +85,49 @@ function commit(node: Node, op: Operation): void {
   }
 }
 
+const SCHEDULING = true;
+
 /* eslint-disable no-param-reassign */
 export function insert(
   parent: Node,
   child: Node,
   marker: Node | null = null,
 ): void {
-  commit(child, {
-    type: 'insert',
-    parent,
-    marker,
-  });
+  if (SCHEDULING) {
+    commit(child, {
+      type: 'insert',
+      parent,
+      marker,
+    });
+  } else {
+    parent.insertBefore(child, marker);
+  }
+}
+
+export function append(
+  parent: Node,
+  child: Node,
+): void {
+  if (SCHEDULING) {
+    commit(child, {
+      type: 'append',
+      parent,
+    });
+  } else {
+    parent.appendChild(child);
+  }
 }
 
 export function remove(
   node: Node,
 ): void {
-  commit(node, {
-    type: 'remove',
-  });
+  if (SCHEDULING) {
+    commit(node, {
+      type: 'remove',
+    });
+  } else {
+    node.parentNode?.removeChild(node);
+  }
 }
 
 export function createText(value: string): Node {

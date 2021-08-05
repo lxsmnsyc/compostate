@@ -1,4 +1,4 @@
-import { Cleanup } from 'compostate';
+import { batchCleanup } from 'compostate';
 import { FragmentProps } from '../../core';
 import { Marker } from '../../dom';
 import {
@@ -15,13 +15,15 @@ export default function renderFragmentNode(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): Cleanup {
-  // Fragment renderer
-  return renderChildren(
-    boundary,
-    root,
-    props.children,
-    marker,
-    suspended,
-  );
+): void {
+  batchCleanup(() => {
+    // Fragment renderer
+    renderChildren(
+      boundary,
+      root,
+      props.children,
+      marker,
+      suspended,
+    );
+  });
 }

@@ -1,9 +1,7 @@
 import {
   effect,
-  Cleanup,
 } from 'compostate';
 import { Marker } from '../dom';
-import { handleError } from '../error-boundary';
 import { VConstructor, VRawElement } from '../types';
 import renderComponentNode from './nodes/render-component-node';
 import renderHostNode from './nodes/render-host-node';
@@ -23,10 +21,10 @@ function renderConstructor(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): Cleanup {
+): void {
   // Construct DOM element
   if (typeof constructor === 'string') {
-    return renderHostNode(
+    renderHostNode(
       boundary,
       root,
       constructor,
@@ -35,9 +33,8 @@ function renderConstructor(
       marker,
       suspended,
     );
-  }
-  if (typeof constructor === 'function') {
-    return renderComponentNode(
+  } else if (typeof constructor === 'function') {
+    renderComponentNode(
       boundary,
       root,
       constructor,
@@ -46,18 +43,19 @@ function renderConstructor(
       marker,
       suspended,
     );
+  } else {
+    renderSpecialNode(
+      boundary,
+      root,
+      {
+        constructor,
+        props,
+      } as SpecialNode,
+      renderChildren,
+      marker,
+      suspended,
+    );
   }
-  return renderSpecialNode(
-    boundary,
-    root,
-    {
-      constructor,
-      props,
-    } as SpecialNode,
-    renderChildren,
-    marker,
-    suspended,
-  );
 }
 
 export default function renderNode(
@@ -67,59 +65,49 @@ export default function renderNode(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): Cleanup {
+): void {
   const rawConstructor = node.type;
   const props = {
     ...node.props,
   };
 
   if (typeof rawConstructor === 'object') {
-    if ('value' in rawConstructor) {
-      return effect(() => {
+    if ('derive' in rawConstructor) {
+      effect(() => {
         // Unwrap constructor (useful if constructor is reactively changed).
-        const constructor = rawConstructor.value;
-
-        return renderConstructor(
+        renderConstructor(
           boundary,
           root,
-          constructor,
+          rawConstructor.derive(),
           props,
           renderChildren,
           marker,
           suspended,
         );
-      }, {
-        onError(error) {
-          handleError(boundary.error, error);
-        },
+      });
+    } else {
+      effect(() => {
+        // Unwrap constructor (useful if constructor is reactively changed).
+        renderConstructor(
+          boundary,
+          root,
+          rawConstructor.value,
+          props,
+          renderChildren,
+          marker,
+          suspended,
+        );
       });
     }
-    return effect(() => {
-      // Unwrap constructor (useful if constructor is reactively changed).
-      const constructor = rawConstructor.derive();
-
-      return renderConstructor(
-        boundary,
-        root,
-        constructor,
-        props,
-        renderChildren,
-        marker,
-        suspended,
-      );
-    }, {
-      onError(error) {
-        handleError(boundary.error, error);
-      },
-    });
+  } else {
+    renderConstructor(
+      boundary,
+      root,
+      rawConstructor,
+      props,
+      renderChildren,
+      marker,
+      suspended,
+    );
   }
-  return renderConstructor(
-    boundary,
-    root,
-    rawConstructor,
-    props,
-    renderChildren,
-    marker,
-    suspended,
-  );
 }

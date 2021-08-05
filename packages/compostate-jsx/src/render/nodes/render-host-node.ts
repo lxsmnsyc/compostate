@@ -1,12 +1,12 @@
 import {
   batch,
   effect,
-  Cleanup,
   untrack,
-  watch,
+  batchCleanup,
+  onCleanup,
+  captureError,
 } from 'compostate';
 import { Marker, registerEvent, setAttribute } from '../../dom';
-import { handleError } from '../../error-boundary';
 import { claimHydration, HYDRATION } from '../../hydration';
 import { Reactive, RefAttributes } from '../../types';
 import { DOMAttributes } from '../../types/dom';
@@ -19,11 +19,11 @@ import {
 import { UNMOUNTING, watchMarkerForNode } from '../watch-marker';
 
 function applyHostProperty(
-  boundary: Boundary,
   el: HTMLElement,
   key: string,
   property: any,
-): Cleanup | undefined {
+): void {
+  const capture = captureError();
   if (key.startsWith('on')) {
     const wrappedEvent = <E extends Event>(evt: E) => {
       // In case of synchronous calls
@@ -34,14 +34,13 @@ function applyHostProperty(
             (property as unknown as EventListener)(evt);
           });
         } catch (error) {
-          handleError(boundary.error, error);
+          capture(error);
         }
       });
     };
 
-    return registerEvent(el, key, wrappedEvent);
-  }
-  if (key === 'style') {
+    onCleanup(registerEvent(el, key, wrappedEvent));
+  } else if (key === 'style') {
     // TODO Style Object parsing
   } else if (typeof property === 'boolean') {
     setAttribute(el, key, property ? 'true' : null);
@@ -59,75 +58,51 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
   renderChildren: RenderChildren,
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
-): Cleanup {
-  const hydration = HYDRATION.getContext();
-  const claim = hydration ? claimHydration(hydration) : null;
-  let el = document.createElement(constructor);
+): void {
+  batchCleanup(() => {
+    const hydration = HYDRATION.getContext();
+    const claim = hydration ? claimHydration(hydration) : null;
+    let el = document.createElement(constructor);
 
-  if (hydration) {
-    if (claim) {
-      if (claim.tagName !== constructor.toUpperCase()) {
-        throw new Error(`Hydration mismatch. (Expected: ${constructor}, Received: ${claim.tagName})`);
-      }
-      el = claim as HTMLElement;
-    } else {
-      throw new Error(`Hydration mismatch. (Expected: ${constructor}, Received: null)`);
-    }
-  }
-
-  const cleanups: Cleanup[] = [];
-
-  Object.keys(props).forEach((key) => {
-    // Ref handler
-    if (key === 'ref') {
-      const elRef = props.ref;
-      if (elRef) {
-        elRef.value = el;
-      }
-    // Children handler
-    } else if (key === 'children') {
-      const cleanup = renderChildren(boundary, el, props.children);
-      const children = () => {
-        const popUnmounting = UNMOUNTING.push(true);
-        try {
-          cleanup();
-        } finally {
-          popUnmounting();
+    if (hydration) {
+      if (claim) {
+        if (claim.tagName !== constructor.toUpperCase()) {
+          throw new Error(`Hydration mismatch. (Expected: ${constructor}, Received: ${claim.tagName})`);
         }
-      };
-      cleanups.push(children);
-    } else {
-      const rawProperty = props[key as keyof typeof props];
-      if (typeof rawProperty === 'object') {
-        if ('value' in rawProperty) {
-          cleanups.push(
-            watch(
-              rawProperty,
-              () => (
-                applyHostProperty(boundary, el, key, rawProperty.value)
-              ),
-              true,
-            ),
-          );
-        } else {
-          cleanups.push(effect(() => (
-            applyHostProperty(boundary, el, key, rawProperty.derive())
-          )));
-        }
+        el = claim as HTMLElement;
       } else {
-        const cleanup = applyHostProperty(boundary, el, key, rawProperty);
-        if (cleanup) {
-          cleanups.push(cleanup);
-        }
+        throw new Error(`Hydration mismatch. (Expected: ${constructor}, Received: null)`);
       }
     }
-  });
 
-  cleanups.push(watchMarkerForNode(root, marker, el, suspended, boundary.error));
-
-  return () => {
-    cleanups.forEach((cleanup) => {
-      cleanup();
+    Object.keys(props).forEach((key) => {
+      // Ref handler
+      if (key === 'ref') {
+        const elRef = props.ref;
+        if (elRef) {
+          elRef.value = el;
+        }
+      // Children handler
+      } else if (key === 'children') {
+        renderChildren(boundary, el, props.children);
+      } else {
+        const rawProperty = props[key as keyof typeof props];
+        if (typeof rawProperty === 'object') {
+          if ('derive' in rawProperty) {
+            effect(() => {
+              applyHostProperty(el, key, rawProperty.derive());
+            });
+          } else {
+            effect(() => {
+              applyHostProperty(el, key, rawProperty.value);
+            });
+          }
+        } else {
+          applyHostProperty(el, key, rawProperty);
+        }
+      }
     });
-  };
+
+    watchMarkerForNode(root, marker, el, suspended);
+  });
 }
