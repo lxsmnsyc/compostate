@@ -25,9 +25,9 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-
 import ComputedNode from './nodes/computed';
+import { ERROR_BOUNDARY } from './nodes/error-boundary';
 
 export default function computed<T>(compute: () => T): ComputedNode<T> {
-  return new ComputedNode(compute);
+  return new ComputedNode(compute, ERROR_BOUNDARY);
 }

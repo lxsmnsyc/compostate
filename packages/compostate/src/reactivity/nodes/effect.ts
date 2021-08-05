@@ -1,11 +1,14 @@
-import Context from '../../context';
 import batch from '../batch';
-import cleanup from '../cleanup';
-import { Effect, EffectOptions } from '../types';
-import LinkedWork, { TRACKING } from './linked-work';
+import batchCleanup from '../batch-cleanup';
+import { Effect } from '../types';
+import ErrorBoundary, { ERROR_BOUNDARY, setErrorBoundary } from './error-boundary';
+import LinkedWork, { setTracking, TRACKING } from './linked-work';
 
-export const EFFECT = new Context<EffectNode | undefined>();
-export const BATCH_EFFECTS = new Context<EffectNode[] | undefined>();
+export let BATCH_EFFECTS: EffectNode[] | undefined;
+
+export function setBatchEffects(instance: EffectNode[] | undefined): void {
+  BATCH_EFFECTS = instance;
+}
 
 export default class EffectNode {
   private alive = true;
@@ -14,36 +17,13 @@ export default class EffectNode {
 
   private effect: Effect;
 
-  private parent?: EffectNode;
+  private errorBoundary?: ErrorBoundary;
 
   private revalidateWork?: LinkedWork;
 
-  private options?: Partial<EffectOptions>;
-
-  constructor(effect: Effect, options?: Partial<EffectOptions>) {
+  constructor(effect: Effect, errorBoundary?: ErrorBoundary) {
     this.effect = effect;
-    this.options = options;
-  }
-
-  forwardError(error: Error): void {
-    if (this.parent) {
-      this.parent.handleError(error);
-    } else {
-      throw error;
-    }
-  }
-
-  handleError(error: Error): void {
-    if (this.options?.onError) {
-      try {
-        this.options.onError(error);
-      } catch (newError) {
-        this.forwardError(error);
-        this.forwardError(newError);
-      }
-    } else {
-      this.forwardError(error);
-    }
+    this.errorBoundary = errorBoundary;
   }
 
   cleanup(): void {
@@ -54,7 +34,11 @@ export default class EffectNode {
         try {
           this.currentCleanup();
         } catch (error) {
-          this.handleError(error);
+          if (this.errorBoundary) {
+            this.errorBoundary.handleError(error);
+          } else {
+            throw error;
+          }
         }
 
         this.currentCleanup = undefined;
@@ -76,31 +60,32 @@ export default class EffectNode {
         this.revalidateWork = new LinkedWork(this.revalidate.bind(this));
       }
       this.revalidateWork.run();
-      const currentEffect = EFFECT.getContext();
-      if (currentEffect) {
-        this.parent = currentEffect;
-      }
     }
   }
 
   revalidate(): void {
     if (this.alive) {
-      this.cleanup();
-      const popTracking = TRACKING.push(this.revalidateWork);
-      const popEffect = EFFECT.push(this);
-      const popBatchEffects = BATCH_EFFECTS.push(undefined);
+      const parentTracking = TRACKING;
+      const parentErrorBoundary = ERROR_BOUNDARY;
+      const parentBatchEffects = BATCH_EFFECTS;
+      setTracking(this.revalidateWork);
+      setErrorBoundary(this.errorBoundary);
+      setBatchEffects(undefined);
       try {
         batch(() => {
-          this.currentCleanup = cleanup(() => {
-            this.effect();
-          });
+          this.cleanup();
+          this.currentCleanup = batchCleanup(() => this.effect());
         });
       } catch (error) {
-        this.handleError(error);
+        if (this.errorBoundary) {
+          this.errorBoundary.handleError(error);
+        } else {
+          throw error;
+        }
       } finally {
-        popBatchEffects();
-        popEffect();
-        popTracking();
+        setBatchEffects(parentBatchEffects);
+        setErrorBoundary(parentErrorBoundary);
+        setTracking(parentTracking);
       }
     }
   }

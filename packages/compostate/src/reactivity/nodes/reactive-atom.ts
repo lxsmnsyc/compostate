@@ -25,7 +25,7 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import untrack from '../untrack';
+import { untrack } from '../create-root';
 import LinkedWork, { BATCH_UPDATES, TRACKING } from './linked-work';
 
 export default class ReactiveAtom {
@@ -47,19 +47,17 @@ export default class ReactiveAtom {
   }
 
   track(): void {
-    const tracking = TRACKING.getContext();
-    if (tracking) {
+    if (TRACKING) {
       const work = this.getWork();
-      work.addDependent(tracking);
-      tracking.addDependency(work);
+      work.addDependent(TRACKING);
+      TRACKING.addDependency(work);
     }
   }
 
   notify(): void {
-    const batching = BATCH_UPDATES.getContext();
     if (this.work) {
-      if (batching) {
-        batching.add(this.work);
+      if (BATCH_UPDATES) {
+        BATCH_UPDATES.add(this.work);
       } else {
         this.work.run();
       }

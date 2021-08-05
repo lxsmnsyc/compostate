@@ -25,7 +25,9 @@ export default function spread<T extends ReactiveObject>(
       if (ref) {
         return ref;
       }
-      return computed(() => Reflect.get(target, key, receiver));
+      const newRef = computed(() => Reflect.get(target, key, receiver));
+      cache.set(key, newRef);
+      return newRef;
     },
   });
 

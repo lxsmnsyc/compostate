@@ -25,19 +25,61 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-export default class Context<T> {
-  private current: T | undefined;
+import { CLEANUP, setCleanup } from './nodes/cleanup';
+import { BATCH_EFFECTS, setBatchEffects } from './nodes/effect';
+import {
+  BATCH_UPDATES,
+  setBatchUpdates,
+  setTracking,
+  TRACKING,
+} from './nodes/linked-work';
 
-  push(value: T): () => T {
-    const parent = this.current;
-    this.current = value;
-    return () => {
-      this.current = parent;
-      return value;
-    };
+export function unbatch<T>(callback: () => T): T {
+  const parent = BATCH_UPDATES;
+  setBatchUpdates(undefined);
+  try {
+    return callback();
+  } finally {
+    setBatchUpdates(parent);
   }
+}
 
-  getContext(): T | undefined {
-    return this.current;
+export function unbatchCleanup<T>(callback: () => T): T {
+  const parentInstance = CLEANUP;
+  setCleanup(undefined);
+  try {
+    return callback();
+  } finally {
+    setCleanup(parentInstance);
   }
+}
+
+export function unbatchEffects<T>(callback: () => T): T {
+  const parent = BATCH_EFFECTS;
+  setBatchEffects(undefined);
+  try {
+    return callback();
+  } finally {
+    setBatchEffects(parent);
+  }
+}
+
+export function untrack<T>(callback: () => T): T {
+  const parent = TRACKING;
+  setTracking(undefined);
+  try {
+    return callback();
+  } finally {
+    setTracking(parent);
+  }
+}
+
+export function createRoot<T>(callback: () => T): T {
+  return untrack(() => (
+    unbatch(() => (
+      unbatchEffects(() => (
+        unbatchCleanup(callback)
+      ))
+    ))
+  ));
 }

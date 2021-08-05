@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-types */
+import { untrack } from './create-root';
 import { getTrackableAtom } from './nodes/track-map';
 import onCleanup from './on-cleanup';
 import { Ref } from './ref';
-import untrack from './untrack';
 
 function watch<T>(
   source: Ref<T>,

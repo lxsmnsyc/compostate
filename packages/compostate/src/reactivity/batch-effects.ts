@@ -25,15 +25,16 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import EffectNode, { BATCH_EFFECTS } from './nodes/effect';
+import EffectNode, { BATCH_EFFECTS, setBatchEffects } from './nodes/effect';
 
 export default function batchEffects(callback: () => void): () => void {
   const batchedEffects: EffectNode[] = [];
-  const popBatchEffects = BATCH_EFFECTS.push(batchedEffects);
+  const parent = BATCH_EFFECTS;
+  setBatchEffects(batchedEffects);
   try {
     callback();
   } finally {
-    popBatchEffects();
+    setBatchEffects(parent);
   }
   return () => {
     batchedEffects.forEach((effect) => {

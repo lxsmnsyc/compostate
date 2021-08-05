@@ -1,24 +1,13 @@
-import Context from '../../context';
 import { Cleanup } from '../types';
 
-export const CLEANUP = new Context<CleanupNode | undefined>();
+export let CLEANUP: Set<Cleanup> | undefined;
 
-export default class CleanupNode {
-  private calls?: Set<Cleanup>;
+export function setCleanup(cleanups: Set<Cleanup> | undefined): void {
+  CLEANUP = cleanups;
+}
 
-  register(cleanup: Cleanup): Cleanup {
-    if (!this.calls) {
-      this.calls = new Set();
-    }
-    this.calls.add(cleanup);
-    return () => {
-      this.calls?.delete(cleanup);
-    };
-  }
-
-  run(): void {
-    new Set(this.calls).forEach((cleanup) => {
-      cleanup();
-    });
-  }
+export function runCleanups(cleanups: Set<Cleanup>): void {
+  cleanups.forEach((cleanup) => {
+    cleanup();
+  });
 }

@@ -26,15 +26,18 @@
  * @copyright Alexis Munsayac 2021
  */
 import EffectNode, { BATCH_EFFECTS } from './nodes/effect';
+import { ERROR_BOUNDARY } from './nodes/error-boundary';
 import onCleanup from './on-cleanup';
-import { Effect, Cleanup, EffectOptions } from './types';
+import { Effect, Cleanup } from './types';
 
-export default function effect(callback: Effect, options?: EffectOptions): Cleanup {
-  const instance = new EffectNode(callback, options);
+export default function effect(callback: Effect): Cleanup {
+  const instance = new EffectNode(
+    callback,
+    ERROR_BOUNDARY,
+  );
 
-  const batching = BATCH_EFFECTS.getContext();
-  if (batching) {
-    batching.push(instance);
+  if (BATCH_EFFECTS) {
+    BATCH_EFFECTS.push(instance);
   } else {
     instance.flush();
   }
@@ -42,6 +45,8 @@ export default function effect(callback: Effect, options?: EffectOptions): Clean
   const cleanup = () => {
     instance.stop();
   };
+
   onCleanup(cleanup);
+
   return cleanup;
 }
