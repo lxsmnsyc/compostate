@@ -6,7 +6,6 @@ import {
   ref,
   track,
   createRoot,
-  untrack,
   captureError,
 } from 'compostate';
 import { ForProps } from '../../special';
@@ -94,7 +93,7 @@ export default function renderForNode<T>(
       tracked = track(origin);
     }
 
-    return untrack(() => {
+    return createRoot(() => {
       // Shortcut for empty tracked array
       if (tracked.length === 0) {
         memoryMap.forEach((items) => {
