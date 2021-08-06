@@ -1,7 +1,7 @@
 import {
+  createRoot,
   effect,
   reactive,
-  untrack,
 } from 'compostate';
 import {
   Context,
@@ -70,7 +70,7 @@ export default function define<RenderResult, Props extends string>(
     }
 
     connectedCallback() {
-      this.lifecycle = untrack(() => (
+      this.lifecycle = createRoot(() => (
         // Isolate so that the lifecycle of
         // this effect is not synchronously
         // tracked by a parent effect.
