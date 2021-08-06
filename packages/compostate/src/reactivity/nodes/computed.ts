@@ -1,5 +1,5 @@
 import onCleanup from '../on-cleanup';
-import ErrorBoundary, { ERROR_BOUNDARY, setErrorBoundary } from './error-boundary';
+import ErrorBoundary, { ERROR_BOUNDARY, handleError, setErrorBoundary } from './error-boundary';
 import LinkedWork, { setTracking, TRACKING } from './linked-work';
 import ReactiveAtom from './reactive-atom';
 import { registerTrackable } from './track-map';
@@ -28,11 +28,7 @@ export default class ComputedNode<T> {
           value: compute(),
         };
       } catch (error) {
-        if (errorBoundary) {
-          errorBoundary.handleError(error);
-        } else {
-          throw error;
-        }
+        handleError(errorBoundary, error);
       } finally {
         setErrorBoundary(parentErrorBoundary);
         setTracking(parentTracking);
