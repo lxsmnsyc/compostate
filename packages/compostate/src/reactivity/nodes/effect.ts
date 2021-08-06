@@ -1,7 +1,7 @@
 import batch from '../batch';
 import batchCleanup from '../batch-cleanup';
 import { Effect } from '../types';
-import ErrorBoundary, { ERROR_BOUNDARY, setErrorBoundary } from './error-boundary';
+import ErrorBoundary, { ERROR_BOUNDARY, handleError, setErrorBoundary } from './error-boundary';
 import LinkedWork, { setTracking, TRACKING } from './linked-work';
 
 export let BATCH_EFFECTS: EffectNode[] | undefined;
@@ -34,11 +34,7 @@ export default class EffectNode {
         try {
           this.currentCleanup();
         } catch (error) {
-          if (this.errorBoundary) {
-            this.errorBoundary.handleError(error);
-          } else {
-            throw error;
-          }
+          handleError(this.errorBoundary, error);
         }
 
         this.currentCleanup = undefined;
@@ -77,11 +73,7 @@ export default class EffectNode {
           this.currentCleanup = batchCleanup(() => this.effect());
         });
       } catch (error) {
-        if (this.errorBoundary) {
-          this.errorBoundary.handleError(error);
-        } else {
-          throw error;
-        }
+        handleError(this.errorBoundary, error);
       } finally {
         setBatchEffects(parentBatchEffects);
         setErrorBoundary(parentErrorBoundary);

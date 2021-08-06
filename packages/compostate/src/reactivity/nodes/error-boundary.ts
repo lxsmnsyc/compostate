@@ -6,6 +6,14 @@ export function setErrorBoundary(instance: ErrorBoundary | undefined): void {
   ERROR_BOUNDARY = instance;
 }
 
+export function handleError(instance: ErrorBoundary | undefined, error: Error): void {
+  if (instance) {
+    instance.handleError(error);
+  } else {
+    throw error;
+  }
+}
+
 export default class ErrorBoundary {
   private calls?: Set<ErrorCapture>;
 
@@ -25,14 +33,6 @@ export default class ErrorBoundary {
     };
   }
 
-  forwardError(error: Error): void {
-    if (this.parent) {
-      this.parent.handleError(error);
-    } else {
-      throw error;
-    }
-  }
-
   handleError(error: Error): void {
     if (this.calls?.size) {
       try {
@@ -40,11 +40,11 @@ export default class ErrorBoundary {
           handle(error);
         });
       } catch (newError) {
-        this.forwardError(error);
-        this.forwardError(newError);
+        handleError(this.parent, error);
+        handleError(this.parent, newError);
       }
     } else {
-      this.forwardError(error);
+      handleError(this.parent, error);
     }
   }
 }
