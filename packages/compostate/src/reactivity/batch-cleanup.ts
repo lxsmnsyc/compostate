@@ -1,4 +1,4 @@
-import { CLEANUP, runCleanups, setCleanup } from './nodes/cleanup';
+import { CLEANUP, setCleanup } from './nodes/cleanup';
 import onCleanup from './on-cleanup';
 import { Cleanup } from './types';
 
@@ -17,7 +17,10 @@ export default function batchCleanup(callback: () => void | undefined | Cleanup)
   }
   // Create return cleanup
   const returnCleanup = () => {
-    runCleanups(cleanups);
+    cleanups.forEach((cleanup) => {
+      cleanup();
+    });
+    cleanups.clear();
   };
   onCleanup(returnCleanup);
   return returnCleanup;

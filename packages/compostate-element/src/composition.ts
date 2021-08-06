@@ -79,18 +79,6 @@ The 'onUpdated' hook should only be called in Component setups.
   }
 }
 
-export function onErrorCaptured(callback: ContextMethods['errorCaptured']): void {
-  if (CURRENT_CONTEXT) {
-    CURRENT_CONTEXT.errorCaptured.push(callback);
-  } else {
-    throw new Error(`
-Invalid call for 'onErrorCaptured'.
-
-The 'onErrorCaptured' hook should only be called in Component setups.
-`);
-  }
-}
-
 export function onAdopted(callback: ContextMethods['adopted']): void {
   if (CURRENT_CONTEXT) {
     CURRENT_CONTEXT.adopted.push(callback);

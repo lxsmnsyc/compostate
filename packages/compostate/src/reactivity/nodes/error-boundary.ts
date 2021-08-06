@@ -25,18 +25,26 @@ export default class ErrorBoundary {
     };
   }
 
+  forwardError(error: Error): void {
+    if (this.parent) {
+      this.parent.handleError(error);
+    } else {
+      throw error;
+    }
+  }
+
   handleError(error: Error): void {
-    try {
-      new Set(this.calls).forEach((handle) => {
-        handle(error);
-      });
-    } catch (newError) {
-      if (this.parent) {
-        this.parent.handleError(error);
-        this.parent.handleError(newError);
-      } else {
-        throw newError;
+    if (this.calls?.size) {
+      try {
+        new Set(this.calls).forEach((handle) => {
+          handle(error);
+        });
+      } catch (newError) {
+        this.forwardError(error);
+        this.forwardError(newError);
       }
+    } else {
+      this.forwardError(error);
     }
   }
 }
