@@ -2,7 +2,6 @@ import {
   batch,
   effect,
   untrack,
-  batchCleanup,
   onCleanup,
   captureError,
 } from 'compostate';
@@ -16,7 +15,7 @@ import {
   Lazy,
   RenderChildren,
 } from '../types';
-import { UNMOUNTING, watchMarkerForNode } from '../watch-marker';
+import { watchMarkerForNode } from '../watch-marker';
 
 function applyHostProperty(
   el: HTMLElement,
@@ -59,50 +58,48 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
   marker: Lazy<Marker | null> = null,
   suspended: InternalShallowReactive<boolean | undefined> = false,
 ): void {
-  batchCleanup(() => {
-    const hydration = HYDRATION.getContext();
-    const claim = hydration ? claimHydration(hydration) : null;
-    let el = document.createElement(constructor);
+  const hydration = HYDRATION.getContext();
+  const claim = hydration ? claimHydration(hydration) : null;
+  let el = document.createElement(constructor);
 
-    if (hydration) {
-      if (claim) {
-        if (claim.tagName !== constructor.toUpperCase()) {
-          throw new Error(`Hydration mismatch. (Expected: ${constructor}, Received: ${claim.tagName})`);
+  if (hydration) {
+    if (claim) {
+      if (claim.tagName !== constructor.toUpperCase()) {
+        throw new Error(`Hydration mismatch. (Expected: ${constructor}, Received: ${claim.tagName})`);
+      }
+      el = claim as HTMLElement;
+    } else {
+      throw new Error(`Hydration mismatch. (Expected: ${constructor}, Received: null)`);
+    }
+  }
+
+  Object.keys(props).forEach((key) => {
+    // Ref handler
+    if (key === 'ref') {
+      const elRef = props.ref;
+      if (elRef) {
+        elRef.value = el;
+      }
+    // Children handler
+    } else if (key === 'children') {
+      renderChildren(boundary, el, props.children);
+    } else {
+      const rawProperty = props[key as keyof typeof props];
+      if (typeof rawProperty === 'object') {
+        if ('derive' in rawProperty) {
+          effect(() => {
+            applyHostProperty(el, key, rawProperty.derive());
+          });
+        } else {
+          effect(() => {
+            applyHostProperty(el, key, rawProperty.value);
+          });
         }
-        el = claim as HTMLElement;
       } else {
-        throw new Error(`Hydration mismatch. (Expected: ${constructor}, Received: null)`);
+        applyHostProperty(el, key, rawProperty);
       }
     }
-
-    Object.keys(props).forEach((key) => {
-      // Ref handler
-      if (key === 'ref') {
-        const elRef = props.ref;
-        if (elRef) {
-          elRef.value = el;
-        }
-      // Children handler
-      } else if (key === 'children') {
-        renderChildren(boundary, el, props.children);
-      } else {
-        const rawProperty = props[key as keyof typeof props];
-        if (typeof rawProperty === 'object') {
-          if ('derive' in rawProperty) {
-            effect(() => {
-              applyHostProperty(el, key, rawProperty.derive());
-            });
-          } else {
-            effect(() => {
-              applyHostProperty(el, key, rawProperty.value);
-            });
-          }
-        } else {
-          applyHostProperty(el, key, rawProperty);
-        }
-      }
-    });
-
-    watchMarkerForNode(root, marker, el, suspended);
   });
+
+  watchMarkerForNode(root, marker, el, suspended);
 }
