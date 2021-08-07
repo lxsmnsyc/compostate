@@ -1,16 +1,12 @@
-import { captureError } from 'compostate';
-import { PROVIDER } from '../../provider';
 import { derived } from '../../reactivity';
 import { OffscreenProps } from '../../special';
-import { SUSPENSE } from '../../suspense';
+import { setSuspense, SUSPENSE } from '../../suspense';
 import { Reactive, VNode } from '../../types';
 import {
-  Boundary,
   Lazy,
 } from '../types';
 
 export default function renderOffscreenNode(
-  boundary: Boundary,
   props: Reactive<OffscreenProps>,
 ): VNode {
   const { render, mount } = props;
@@ -35,7 +31,8 @@ export default function renderOffscreenNode(
 
   let suspendChildren: Lazy<boolean>;
 
-  const suspended = boundary.suspense?.suspend;
+  const currentSuspense = SUSPENSE;
+  const suspended = currentSuspense?.suspend;
 
   if (typeof suspended === 'function') {
     suspendChildren = () => !suspended() && !normalizedMount();
@@ -47,14 +44,12 @@ export default function renderOffscreenNode(
     suspendChildren = () => !normalizedMount();
   }
 
-  const handleError = captureError();
-
   return derived(() => {
-    SUSPENSE.push({
-      capture: boundary.suspense?.capture,
+    const parentSuspense = SUSPENSE;
+    setSuspense({
+      capture: parentSuspense?.capture,
       suspend: suspendChildren,
     });
-    PROVIDER.push(boundary.provider);
     try {
       if ('value' in render) {
         return render.value?.();
@@ -63,12 +58,8 @@ export default function renderOffscreenNode(
         return render.derive()?.();
       }
       return render();
-    } catch (error) {
-      handleError(error);
-      return undefined;
     } finally {
-      PROVIDER.pop();
-      SUSPENSE.pop();
+      setSuspense(parentSuspense);
     }
   });
 }

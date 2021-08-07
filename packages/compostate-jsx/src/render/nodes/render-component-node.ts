@@ -10,9 +10,11 @@ import {
   MOUNT,
   UNMOUNT,
   Lifecycle,
+  setMount,
+  setUnmount,
 } from '../../lifecycle';
-import { PROVIDER } from '../../provider';
-import { SUSPENSE } from '../../suspense';
+import { PROVIDER, setProvider } from '../../provider';
+import { setSuspense, SUSPENSE } from '../../suspense';
 import {
   Reactive,
   RefAttributes,
@@ -20,12 +22,8 @@ import {
   VNode,
   WithChildren,
 } from '../../types';
-import {
-  Boundary,
-} from '../types';
 
 export default function renderComponentNode<P extends Record<string, any>>(
-  boundary: Boundary,
   constructor: VComponent<P>,
   props: Reactive<P>,
 ): VNode {
@@ -59,19 +57,24 @@ export default function renderComponentNode<P extends Record<string, any>>(
   });
 
   // Push lifecycle hooks
+  const parentMount = MOUNT;
+  const parentUnmount = UNMOUNT;
   const mounts: Lifecycle[] = [];
   const unmounts: Lifecycle[] = [];
-  MOUNT.push(mounts);
-  UNMOUNT.push(mounts);
+  setMount(mounts);
+  setUnmount(unmounts);
 
   // Create a provider boundary
+  const parentProvider = PROVIDER;
+  const parentSuspense = SUSPENSE;
+
   const provider = {
     data: reactive({}),
-    parent: boundary.provider,
+    parent: parentProvider,
   };
 
   const newBoundary = {
-    suspense: boundary.suspense,
+    suspense: parentSuspense,
     provider,
   };
 
@@ -83,19 +86,19 @@ export default function renderComponentNode<P extends Record<string, any>>(
   // This is useful in SSR so that effects
   // never run and only run on client-side.
   const flushEffects = batchEffects(() => {
-    SUSPENSE.push(newBoundary.suspense);
-    PROVIDER.push(newBoundary.provider);
+    setSuspense(newBoundary.suspense);
+    setProvider(newBoundary.provider);
     try {
       result = constructor(unwrappedProps);
     } finally {
-      PROVIDER.pop();
-      SUSPENSE.pop();
+      setProvider(parentProvider);
+      setSuspense(parentSuspense);
     }
   });
 
   // Get all captured lifecycle callbacks
-  MOUNT.pop();
-  UNMOUNT.pop();
+  setUnmount(parentUnmount);
+  setMount(parentMount);
 
   // Create an effect scope
   // this is to properly setup

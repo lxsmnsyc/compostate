@@ -1,6 +1,5 @@
 import {
   batch,
-  Cleanup,
   effect,
   onCleanup,
   untrack,
@@ -11,13 +10,12 @@ import { claimHydration, HYDRATION } from '../../hydration';
 import { Reactive, RefAttributes, VNode } from '../../types';
 import { DOMAttributes } from '../../types/dom';
 import renderChildren from '../render-children';
-import { Boundary } from '../types';
 
 function applyHostProperty(
   el: HTMLElement,
   key: string,
   property: any,
-): Cleanup | undefined {
+): void {
   if (key.startsWith('on')) {
     const errorHandler = captureError();
 
@@ -35,24 +33,21 @@ function applyHostProperty(
       });
     };
 
-    return registerEvent(el, key, wrappedEvent);
-  }
-  if (key === 'style') {
+    onCleanup(registerEvent(el, key, wrappedEvent));
+  } else if (key === 'style') {
     // TODO Style Object parsing
   } else if (typeof property === 'boolean') {
     setAttribute(el, key, property ? 'true' : null);
   } else {
     setAttribute(el, key, property as string);
   }
-  return undefined;
 }
 
 export default function renderHostNode<P extends DOMAttributes<Element>>(
-  boundary: Boundary,
   constructor: string,
   props: Reactive<P> & RefAttributes<Element> | null,
 ): VNode {
-  const hydration = HYDRATION.current();
+  const hydration = HYDRATION;
   const claim = hydration ? claimHydration(hydration) : null;
   let el = document.createElement(constructor);
 
@@ -77,24 +72,21 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
         }
       // Children handler
       } else if (key === 'children') {
-        renderChildren(boundary, el, props.children, null, null);
+        renderChildren(el, props.children, null, null);
       } else {
         const rawProperty = props[key as keyof typeof props];
         if (typeof rawProperty === 'object') {
-          if ('value' in rawProperty) {
-            effect(() => (
-              applyHostProperty(el, key, rawProperty.value)
-            ));
+          if ('derive' in rawProperty) {
+            effect(() => {
+              applyHostProperty(el, key, rawProperty.derive());
+            });
           } else {
-            effect(() => (
-              applyHostProperty(el, key, rawProperty.derive())
-            ));
+            effect(() => {
+              applyHostProperty(el, key, rawProperty.value);
+            });
           }
         } else {
-          const cleanup = applyHostProperty(el, key, rawProperty);
-          if (cleanup) {
-            onCleanup(cleanup);
-          }
+          applyHostProperty(el, key, rawProperty);
         }
       }
     });

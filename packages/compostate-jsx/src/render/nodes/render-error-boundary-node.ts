@@ -1,92 +1,74 @@
-import { effect } from 'compostate';
-import { PROVIDER } from '../../provider';
+import {
+  captureError,
+  effect,
+  errorBoundary,
+  onError,
+} from 'compostate';
 import { derived } from '../../reactivity';
 import { ErrorBoundaryProps } from '../../special';
-import { SUSPENSE } from '../../suspense';
 import { Reactive, VNode } from '../../types';
-import { Boundary } from '../types';
 
 export default function renderErrorBoundaryNode(
-  boundary: Boundary,
   props: Reactive<ErrorBoundaryProps>,
 ): VNode {
-  const { render, onError } = props;
+  const { render, onError: errorHandler } = props;
 
-  let handleError: (error: Error) => void;
-
-  if (onError == null) {
-    // no-op
-  } else if (typeof onError === 'function') {
-    handleError = onError;
-  } else if ('derive' in onError) {
-    effect(() => {
-      const handler = onError.derive();
-      if (handler) {
-        handleError = handler;
-      }
+  return errorBoundary(() => {
+    let handleError: (error: Error) => void;
+    onError((error) => {
+      handleError(error);
     });
-  } else {
-    effect(() => {
-      const handler = onError.value;
-      if (handler) {
-        handleError = handler;
-      }
-    });
-  }
+    if (errorHandler == null) {
+      // no-op
+    } else if (typeof errorHandler === 'function') {
+      handleError = errorHandler;
+    } else if ('derive' in errorHandler) {
+      effect(() => {
+        const handler = errorHandler.derive();
+        if (handler) {
+          handleError = handler;
+        }
+      });
+    } else {
+      effect(() => {
+        const handler = errorHandler.value;
+        if (handler) {
+          handleError = handler;
+        }
+      });
+    }
 
-  if (render == null) {
-    return undefined;
-  }
-  if (typeof render === 'function') {
-    return derived(() => {
-      SUSPENSE.push(boundary.suspense);
-      PROVIDER.push(boundary.provider);
-      try {
-        return render();
-      } catch (error) {
-        if (handleError) {
-          handleError(error);
+    if (render == null) {
+      return undefined;
+    }
+    const internallyHandleError = captureError();
+    if (typeof render === 'function') {
+      return derived(() => {
+        try {
+          return render();
+        } catch (error) {
+          internallyHandleError(error);
           return undefined;
         }
-        throw error;
-      } finally {
-        PROVIDER.pop();
-        SUSPENSE.pop();
-      }
-    });
-  }
-  if ('derive' in render) {
-    return derived(() => {
-      SUSPENSE.push(boundary.suspense);
-      PROVIDER.push(boundary.provider);
-      try {
-        return render.derive()?.();
-      } catch (error) {
-        if (handleError) {
-          handleError(error);
+      });
+    }
+    if ('derive' in render) {
+      return derived(() => {
+        try {
+          return render.derive()?.();
+        } catch (error) {
+          internallyHandleError(error);
           return undefined;
         }
-        throw error;
-      } finally {
-        PROVIDER.pop();
-        SUSPENSE.pop();
-      }
-    });
-  }
-  return derived(() => {
-    SUSPENSE.push(boundary.suspense);
-    PROVIDER.push(boundary.provider);
-    try {
-      return render.value?.();
-    } catch (error) {
-      if (handleError) {
-        handleError(error);
+      });
+    }
+    return derived(() => {
+      try {
+        return render.value?.();
+      } catch (error) {
+        internallyHandleError(error);
         return undefined;
       }
-      throw error;
-    } finally {
-      PROVIDER.pop();
-      SUSPENSE.pop();
-    }
+    });
   });
 }

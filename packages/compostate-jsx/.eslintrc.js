@@ -13,5 +13,6 @@ module.exports = {
         "devDependencies": ["**/*.test.tsx"]
       }
     ],
+    "import/no-mutable-exports": "off"
   },
 };

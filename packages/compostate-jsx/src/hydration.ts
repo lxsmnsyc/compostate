@@ -1,4 +1,3 @@
-import Context from './context';
 import {
   createLinkedList,
   createLinkedListNode,
@@ -46,4 +45,8 @@ export function claimHydration(hydration: LinkedList<Element>): Element | null {
   return node?.value ?? null;
 }
 
-export const HYDRATION = new Context<LinkedList<Element>>();
+export let HYDRATION: LinkedList<Element> | undefined;
+
+export function setHydration(instance: LinkedList<Element> | undefined): void {
+  HYDRATION = instance;
+}

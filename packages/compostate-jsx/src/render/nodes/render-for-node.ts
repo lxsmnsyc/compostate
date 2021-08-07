@@ -11,9 +11,6 @@ import {
 import { ForProps } from '../../special';
 import { derived } from '../../reactivity';
 import { Reactive, VNode } from '../../types';
-import {
-  Boundary,
-} from '../types';
 
 interface MemoryItem {
   node: VNode;
@@ -24,7 +21,6 @@ interface MemoryItem {
 type EachTransform<T, R> = (item: T, position: Ref<number>) => R;
 
 export default function renderForNode<T>(
-  boundary: Boundary,
   props: Reactive<ForProps<T>>,
 ): VNode {
   const handleError = captureError();

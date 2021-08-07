@@ -1,5 +1,4 @@
 import {
-  captureError,
   effect,
   reactive,
   Resource,
@@ -8,15 +7,12 @@ import {
 import { SuspenseProps } from '../../special';
 import { Reactive, VNode } from '../../types';
 import {
-  Boundary,
   Lazy,
 } from '../types';
-import { SUSPENSE } from '../../suspense';
+import { setSuspense, SUSPENSE } from '../../suspense';
 import { derived } from '../../reactivity';
-import { PROVIDER } from '../../provider';
 
 export default function renderSuspenseNode(
-  boundary: Boundary,
   props: Reactive<SuspenseProps>,
 ): VNode {
   // This contains all of the tracked
@@ -40,7 +36,8 @@ export default function renderSuspenseNode(
   let suspendFallback: Lazy<boolean>;
   let suspendChildren: Lazy<boolean>;
 
-  const suspended = boundary.suspense?.suspend;
+  const currentSuspense = SUSPENSE;
+  const suspended = currentSuspense?.suspend;
 
   if (typeof suspended === 'function') {
     suspendFallback = () => !suspended() && suspend();
@@ -71,18 +68,16 @@ export default function renderSuspenseNode(
     });
   });
 
-  const handleError = captureError();
-
   const { fallback, render } = props;
   let renderFallback: VNode;
 
   if (fallback) {
     renderFallback = derived(() => {
-      SUSPENSE.push({
-        capture: boundary.suspense?.capture,
+      const parentSuspense = SUSPENSE;
+      setSuspense({
+        capture: parentSuspense?.capture,
         suspend: suspendFallback,
       });
-      PROVIDER.push(boundary.provider);
       try {
         if ('value' in fallback) {
           return fallback.value?.();
@@ -91,12 +86,8 @@ export default function renderSuspenseNode(
           return fallback.derive()?.();
         }
         return fallback();
-      } catch (error) {
-        handleError(error);
-        return undefined;
       } finally {
-        PROVIDER.pop();
-        SUSPENSE.pop();
+        setSuspense(parentSuspense);
       }
     });
   }
@@ -105,11 +96,11 @@ export default function renderSuspenseNode(
 
   if (render) {
     renderContent = derived(() => {
-      SUSPENSE.push({
+      const parentSuspense = SUSPENSE;
+      setSuspense({
         capture,
         suspend: suspendChildren,
       });
-      PROVIDER.push(boundary.provider);
       try {
         if ('value' in render) {
           return render.value?.();
@@ -118,12 +109,8 @@ export default function renderSuspenseNode(
           return render.derive()?.();
         }
         return render();
-      } catch (error) {
-        handleError(error);
-        return undefined;
       } finally {
-        PROVIDER.pop();
-        SUSPENSE.pop();
+        setSuspense(parentSuspense);
       }
     });
   }

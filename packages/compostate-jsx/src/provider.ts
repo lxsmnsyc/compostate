@@ -1,5 +1,4 @@
 import { computed, effect, Ref } from 'compostate';
-import Context from './context';
 import { MOUNT } from './lifecycle';
 
 export interface Provider<T> {
@@ -23,16 +22,20 @@ export interface ProviderData {
   data: Record<string, any>;
 }
 
-export const PROVIDER = new Context<ProviderData | undefined>();
+export let PROVIDER: ProviderData | undefined;
+
+export function setProvider(instance: ProviderData | undefined): void {
+  PROVIDER = instance;
+}
 
 export function provide<T>(provider: Provider<T>, value: Ref<T>): void {
-  const mounting = MOUNT.current();
+  const mounting = MOUNT;
 
   if (!mounting) {
     throw new Error('Illegal provide');
   }
 
-  const currentProvider = PROVIDER.current();
+  const currentProvider = PROVIDER;
 
   effect(() => {
     if (currentProvider) {
@@ -42,13 +45,13 @@ export function provide<T>(provider: Provider<T>, value: Ref<T>): void {
 }
 
 export function inject<T>(provider: Provider<T>): Ref<T> {
-  const mounting = MOUNT.current();
+  const mounting = MOUNT;
 
   if (!mounting) {
     throw new Error('Illegal inject');
   }
 
-  const currentProvider = PROVIDER.current();
+  const currentProvider = PROVIDER;
 
   function searchProvider(root?: ProviderData): T {
     if (!root) {

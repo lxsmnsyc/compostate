@@ -1,5 +1,4 @@
 import { Ref, Resource } from 'compostate';
-import Context from './context';
 import { MOUNT } from './lifecycle';
 
 export type SuspenseCapture = <T>(resource: Resource<T>) => void;
@@ -9,18 +8,20 @@ export interface SuspenseData {
   suspend: boolean | Ref<boolean> | (() => boolean);
 }
 
-export const SUSPENSE = new Context<SuspenseData | undefined>();
+export let SUSPENSE: SuspenseData | undefined;
+
+export function setSuspense(instance: SuspenseData | undefined): void {
+  SUSPENSE = instance;
+}
 
 export function suspend<T>(resource: Resource<T>): void {
-  const mounting = MOUNT.current();
+  const mounting = MOUNT;
 
   if (!mounting) {
     throw new Error('Illegal suspend');
   }
 
-  const suspense = SUSPENSE.current();
-
-  if (suspense?.capture) {
-    suspense.capture(resource);
+  if (SUSPENSE?.capture) {
+    SUSPENSE.capture(resource);
   }
 }

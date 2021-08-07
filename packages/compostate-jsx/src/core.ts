@@ -23,9 +23,6 @@ import {
 import { DOMAttributes } from './types/dom';
 import { HTMLAttributes, CompostateHTML } from './types/html';
 import { SVGAttributes, CompostateSVG } from './types/svg';
-import { Boundary } from './render/types';
-import { SUSPENSE } from './suspense';
-import { PROVIDER } from './provider';
 
 export function c<P extends HTMLAttributes<T>, T extends HTMLElement>(
   type: ShallowReactive<keyof CompostateHTML>,
@@ -77,9 +74,5 @@ export function c<P extends BaseProps<P>>(
   props: Reactive<P> | null,
   ...children: VNode[]
 ): VNode {
-  const boundary: Boundary = {
-    suspense: SUSPENSE.current(),
-    provider: PROVIDER.current(),
-  };
-  return renderCore(boundary, type, props, children);
+  return renderCore(type, props, children);
 }

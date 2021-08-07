@@ -3,10 +3,8 @@ import { derived } from '../../reactivity';
 import { PortalProps } from '../../special';
 import { Reactive, ShallowReactive, VNode } from '../../types';
 import renderChildren from '../render-children';
-import { Boundary } from '../types';
 
 function runPortalNodeRender(
-  boundary: Boundary,
   target: Node,
   render: ShallowReactive<PortalProps['render']>,
 ): void {
@@ -16,7 +14,6 @@ function runPortalNodeRender(
     effect(() => {
       const internalRender = render.derive();
       renderChildren(
-        boundary,
         target,
         derived(() => internalRender?.()),
         null,
@@ -26,7 +23,6 @@ function runPortalNodeRender(
   } else if (typeof render === 'function') {
     effect(() => {
       renderChildren(
-        boundary,
         target,
         derived(() => render()),
         null,
@@ -36,7 +32,6 @@ function runPortalNodeRender(
   } else {
     effect(() => {
       renderChildren(
-        boundary,
         target,
         derived(() => render.value?.()),
         null,
@@ -47,12 +42,10 @@ function runPortalNodeRender(
 }
 
 export default function renderPortalNode(
-  boundary: Boundary,
   props: Reactive<PortalProps>,
 ): VNode {
   if (props.target instanceof HTMLElement) {
     runPortalNodeRender(
-      boundary,
       props.target,
       props.render,
     );
@@ -62,7 +55,6 @@ export default function renderPortalNode(
   if ('derive' in el) {
     effect(() => {
       runPortalNodeRender(
-        boundary,
         el.derive(),
         props.render,
       );
@@ -71,7 +63,6 @@ export default function renderPortalNode(
   }
   effect(() => {
     runPortalNodeRender(
-      boundary,
       el.value,
       props.render,
     );

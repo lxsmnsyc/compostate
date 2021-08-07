@@ -1,25 +1,27 @@
-import Context from './context';
-
 export type Lifecycle = () => void;
 
-export const MOUNT = new Context<Lifecycle[]>();
-export const UNMOUNT = new Context<Lifecycle[]>();
+export let MOUNT: Lifecycle[];
+export let UNMOUNT: Lifecycle[];
+
+export function setMount(instance: Lifecycle[]): void {
+  MOUNT = instance;
+}
+
+export function setUnmount(instance: Lifecycle[]): void {
+  UNMOUNT = instance;
+}
 
 export function onMount(callback: () => void): void {
-  const current = MOUNT.current();
-
-  if (current) {
-    current.push(callback);
+  if (MOUNT) {
+    MOUNT.push(callback);
   } else {
     throw new Error('Invalid onMount');
   }
 }
 
 export function onUnmount(callback: () => void): void {
-  const current = UNMOUNT.current();
-
-  if (current) {
-    current.push(callback);
+  if (MOUNT) {
+    MOUNT.push(callback);
   } else {
     throw new Error('Invalid onUnmount');
   }

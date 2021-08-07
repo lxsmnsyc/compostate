@@ -1,7 +1,6 @@
 import { effect, onCleanup } from 'compostate';
 import { VNode } from '../types';
 import { createText, insert, remove } from '../dom';
-import { Boundary } from './types';
 import diff from './diff';
 
 function hasReactiveChildren(children: VNode[]): boolean {
@@ -48,7 +47,6 @@ function normalizeChildren(children: VNode[], base: Node[] = []): Node[] {
 }
 
 export default function renderChildren(
-  boundary: Boundary,
   root: Node,
   children: VNode,
   previous: VNode,
@@ -89,7 +87,7 @@ export default function renderChildren(
       insert(root, childMarker, marker);
       effect(() => {
         const newChildren = normalizeChildren(children);
-        renderChildren(boundary, root, newChildren, previousChildren, childMarker, true);
+        renderChildren(root, newChildren, previousChildren, childMarker, true);
         previousChildren = newChildren;
       });
       onCleanup(() => {
@@ -97,7 +95,6 @@ export default function renderChildren(
       });
     } else {
       renderChildren(
-        boundary,
         root,
         normalizeChildren(children),
         null,
@@ -121,7 +118,7 @@ export default function renderChildren(
     insert(root, childMarker, marker);
     effect(() => {
       const newChildren = children.derive();
-      renderChildren(boundary, root, newChildren, previousChildren, childMarker);
+      renderChildren(root, newChildren, previousChildren, childMarker);
       previousChildren = newChildren;
     });
     onCleanup(() => {
@@ -133,7 +130,7 @@ export default function renderChildren(
     insert(root, childMarker, marker);
     effect(() => {
       const newChildren = children.value;
-      renderChildren(boundary, root, newChildren, previousChildren, childMarker);
+      renderChildren(root, newChildren, previousChildren, childMarker);
       previousChildren = newChildren;
     });
     onCleanup(() => {

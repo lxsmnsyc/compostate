@@ -8,7 +8,7 @@ import {
   Fragment,
   Suspense,
 } from './special';
-import { createHydration, HYDRATION } from './hydration';
+import { createHydration, HYDRATION, setHydration } from './hydration';
 import renderChildren from './render/render-children';
 import unwrapRef from './render/unwrap-ref';
 import {
@@ -21,7 +21,6 @@ export function render(root: HTMLElement, element: () => VNode): () => void {
   return createRoot(() => effect(() => {
     const newNode = element();
     renderChildren(
-      {},
       root,
       newNode,
       previous,
@@ -32,11 +31,12 @@ export function render(root: HTMLElement, element: () => VNode): () => void {
 }
 
 export function hydrate(root: HTMLElement, element: () => VNode): () => void {
-  HYDRATION.push(createHydration(root));
+  const parent = HYDRATION;
+  setHydration(createHydration(root));
   try {
     return render(root, element);
   } finally {
-    HYDRATION.pop();
+    setHydration(parent);
   }
 }
 

@@ -21,7 +21,6 @@ import {
   VPortal,
   VSuspense,
 } from '../../types';
-import { Boundary } from '../types';
 import renderErrorBoundaryNode from './render-error-boundary-node';
 import renderForNode from './render-for-node';
 import renderOffscreenNode from './render-offscreen-node';
@@ -37,7 +36,6 @@ export type SpecialNode =
   | { constructor: VErrorBoundary, props: ErrorBoundaryProps, children: VNode[] }
 
 export default function renderSpecialNode(
-  boundary: Boundary,
   node: SpecialNode,
 ): VNode {
   switch (node.constructor) {
@@ -48,27 +46,22 @@ export default function renderSpecialNode(
       ];
     case Suspense:
       return renderSuspenseNode(
-        boundary,
         node.props,
       );
     case Offscreen:
       return renderOffscreenNode(
-        boundary,
         node.props,
       );
     case Portal:
       return renderPortalNode(
-        boundary,
         node.props,
       );
     case For:
       return renderForNode(
-        boundary,
         node.props,
       );
     case ErrorBoundary:
       return renderErrorBoundaryNode(
-        boundary,
         node.props,
       );
     default:
