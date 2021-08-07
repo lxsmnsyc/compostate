@@ -1,8 +1,4 @@
 export {
-  onMount,
-  onUnmount,
-} from './lifecycle';
-export {
   createProvider,
   provide,
   inject,
