@@ -30,7 +30,11 @@ export { default as batchEffects } from './reactivity/batch-effects';
 export { default as computed } from './reactivity/computed';
 export { default as debounce } from './reactivity/debounce';
 export { default as effect } from './reactivity/effect';
-export { default as reactive, isReactive } from './reactivity/reactive';
+export {
+  isTrackable,
+  isTrackable as isReactive,
+} from './reactivity/nodes/track-map';
+export { default as reactive } from './reactivity/reactive';
 export { default as readonly, isReadonly } from './reactivity/readonly';
 export { default as ref, Ref } from './reactivity/ref';
 export {

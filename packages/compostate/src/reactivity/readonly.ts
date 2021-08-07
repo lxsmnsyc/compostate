@@ -25,6 +25,7 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
+import { getTrackableAtom, isTrackable, registerTrackable } from './nodes/track-map';
 import { ReactiveBaseObject } from './types';
 
 const readonlies = new WeakMap();
@@ -45,6 +46,12 @@ export default function readonly<T extends ReactiveBaseObject>(object: T): T {
     return currentReadonly;
   }
   const newReadonly = new Proxy(object, HANDLER);
+  if (isTrackable(object)) {
+    const trackable = getTrackableAtom(object);
+    if (trackable) {
+      registerTrackable(trackable, newReadonly);
+    }
+  }
   readonlies.set(object, newReadonly);
   return newReadonly;
 }

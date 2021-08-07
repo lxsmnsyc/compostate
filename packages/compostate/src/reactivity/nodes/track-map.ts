@@ -9,6 +9,12 @@ export function registerTrackable<T>(
   TRACK_MAP.set(trackable, atom);
 }
 
+export function isTrackable<T>(
+  trackable: T,
+): boolean {
+  return TRACK_MAP.has(trackable);
+}
+
 export function getTrackableAtom<T>(
   trackable: T,
 ): ReactiveAtom | undefined {

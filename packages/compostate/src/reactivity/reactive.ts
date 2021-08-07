@@ -32,13 +32,8 @@ import createReactiveObject from './reactive-object';
 import ReactiveSet from './reactive-set';
 import ReactiveWeakMap from './reactive-weak-map';
 import ReactiveWeakSet from './reactive-weak-set';
-import { ReactiveBaseObject } from './types';
 
 const proxies = new WeakMap();
-
-export function isReactive<T extends ReactiveBaseObject>(source: T): boolean {
-  return proxies.has(source);
-}
 
 function getReactive(source: unknown): any {
   if (source instanceof Map) {
