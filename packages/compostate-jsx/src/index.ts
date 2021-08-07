@@ -12,7 +12,6 @@ export {
   Offscreen,
   Portal,
   For,
-  ErrorBoundary,
 } from './special';
 export {
   render,

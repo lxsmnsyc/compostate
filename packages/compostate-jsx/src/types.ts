@@ -1,5 +1,8 @@
 import { Ref } from 'compostate';
-import { Derived } from './reactivity';
+
+export interface Derived<T> {
+  derive: () => T;
+}
 
 export type VText = string | number;
 export type VNull = boolean | null | undefined;
@@ -58,7 +61,6 @@ export type VSuspense = 2;
 export type VOffscreen = 3;
 export type VPortal = 4;
 export type VFor = 5;
-export type VErrorBoundary = 6;
 
 // Considerations
 // export type VErrorBoundary = 255;
@@ -69,8 +71,7 @@ export type VSpecialConstructor =
   | VSuspense
   | VOffscreen
   | VPortal
-  | VFor
-  | VErrorBoundary;
+  | VFor;
 
 export type VConstructor<P extends Record<string, any> = Record<string, any>> =
   | string

@@ -1,6 +1,4 @@
 import {
-  ErrorBoundary,
-  ErrorBoundaryProps,
   For,
   ForProps,
   Fragment,
@@ -13,7 +11,6 @@ import {
   SuspenseProps,
 } from '../../special';
 import {
-  VErrorBoundary,
   VFor,
   VFragment,
   VNode,
@@ -21,7 +18,6 @@ import {
   VPortal,
   VSuspense,
 } from '../../types';
-import renderErrorBoundaryNode from './render-error-boundary-node';
 import renderForNode from './render-for-node';
 import renderOffscreenNode from './render-offscreen-node';
 import renderPortalNode from './render-portal-node';
@@ -33,7 +29,6 @@ export type SpecialNode =
   | { constructor: VSuspense, props: SuspenseProps, children: VNode[] }
   | { constructor: VPortal, props: PortalProps, children: VNode[] }
   | { constructor: VOffscreen, props: OffscreenProps, children: VNode[] }
-  | { constructor: VErrorBoundary, props: ErrorBoundaryProps, children: VNode[] }
 
 export default function renderSpecialNode(
   node: SpecialNode,
@@ -58,10 +53,6 @@ export default function renderSpecialNode(
       );
     case For:
       return renderForNode(
-        node.props,
-      );
-    case ErrorBoundary:
-      return renderErrorBoundaryNode(
         node.props,
       );
     default:
