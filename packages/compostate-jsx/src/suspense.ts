@@ -1,5 +1,4 @@
 import { Ref, Resource } from 'compostate';
-import { MOUNT } from './lifecycle';
 
 export type SuspenseCapture = <T>(resource: Resource<T>) => void;
 
@@ -15,12 +14,6 @@ export function setSuspense(instance: SuspenseData | undefined): void {
 }
 
 export function suspend<T>(resource: Resource<T>): void {
-  const mounting = MOUNT;
-
-  if (!mounting) {
-    throw new Error('Illegal suspend');
-  }
-
   if (SUSPENSE?.capture) {
     SUSPENSE.capture(resource);
   }
