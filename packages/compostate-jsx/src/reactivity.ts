@@ -9,14 +9,12 @@ import {
   ref,
   Ref,
   untrack,
+  track,
 } from 'compostate';
 
 import { PROVIDER, setProvider } from './provider';
 import { setSuspense, SUSPENSE } from './suspense';
-
-export interface Derived<T> {
-  derive: () => T;
-}
+import { Derived, ShallowReactive } from './types';
 
 export function derived<T>(value: () => T): Derived<T> {
   // Capture current contexts
@@ -46,8 +44,8 @@ function dispose(d: Cleanup[]) {
 
 // https://github.com/solidjs/solid/blob/main/packages/solid/src/reactive/array.ts#L8
 export function mapArray<T, U>(
-  list: Derived<readonly T[] | undefined | null | false>,
-  mapFn: Derived<(v: T, i: Ref<number>) => U>,
+  list: ShallowReactive<T[] | undefined | null>,
+  mapFn: ShallowReactive<(v: T, i: Ref<number>) => U>,
 ): Ref<U[]> {
   let items: T[] = [];
   let mapped: U[] = [];
@@ -57,12 +55,34 @@ export function mapArray<T, U>(
 
   onCleanup(() => dispose(disposers));
 
+  let derivedList: (() => T[] | undefined | null);
+
+  if (list == null) {
+    derivedList = () => null;
+  } else if ('derive' in list) {
+    derivedList = list.derive;
+  } else if (Array.isArray(list)) {
+    derivedList = () => track(list);
+  } else {
+    derivedList = () => list.value;
+  }
+
+  let derivedMap: () => (v: T, i: Ref<number>) => U;
+
+  if ('derive' in mapFn) {
+    derivedMap = mapFn.derive;
+  } else if (typeof mapFn === 'function') {
+    derivedMap = () => mapFn;
+  } else {
+    derivedMap = () => mapFn.value;
+  }
+
   return computed(() => {
-    const newItems = list.derive() || [];
+    const newItems = derivedList() || [];
     let i: number;
     let j: number;
 
-    const currentMap = mapFn.derive();
+    const currentMap = derivedMap();
 
     function mapper() {
       let result: U | undefined;
