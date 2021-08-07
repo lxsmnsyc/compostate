@@ -49,5 +49,9 @@ export { default as onCleanup } from './reactivity/on-cleanup';
 export { default as errorBoundary } from './reactivity/error-boundary';
 export { default as onError } from './reactivity/on-error';
 export { default as captureError } from './reactivity/capture-error';
+export {
+  capturedErrorBoundary,
+  capturedBatchCleanup,
+} from './reactivity/captured';
 export * from './reactivity/resource';
 export { Effect, Cleanup } from './reactivity/types';
