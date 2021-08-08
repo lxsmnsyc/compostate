@@ -1,5 +1,10 @@
 import onCleanup from '../on-cleanup';
-import ErrorBoundary, { ERROR_BOUNDARY, handleError, setErrorBoundary } from './error-boundary';
+import {
+  ErrorBoundary,
+  ERROR_BOUNDARY,
+  handleError,
+  setErrorBoundary,
+} from './error-boundary';
 import {
   createLinkedWork,
   destroyLinkedWork,
@@ -8,7 +13,11 @@ import {
   TRACKING,
   unlinkLinkedWorkDependencies,
 } from './linked-work';
-import ReactiveAtom from './reactive-atom';
+import {
+  createReactiveAtom,
+  notifyReactiveAtom,
+  trackReactiveAtom,
+} from './reactive-atom';
 import { registerTrackable } from './track-map';
 
 interface Value<T> {
@@ -18,7 +27,7 @@ interface Value<T> {
 export default class ComputedNode<T> {
   private val: Value<T> | undefined;
 
-  private atom = new ReactiveAtom();
+  private atom = createReactiveAtom();
 
   constructor(
     compute: () => T,
@@ -40,7 +49,7 @@ export default class ComputedNode<T> {
         setErrorBoundary(parentErrorBoundary);
         setTracking(parentTracking);
       }
-      this.atom.notify();
+      notifyReactiveAtom(this.atom);
     });
 
     runLinkedWork(work);
@@ -53,7 +62,7 @@ export default class ComputedNode<T> {
   }
 
   get value(): T {
-    this.atom.track();
+    trackReactiveAtom(this.atom);
     if (this.val) {
       return this.val.value;
     }
