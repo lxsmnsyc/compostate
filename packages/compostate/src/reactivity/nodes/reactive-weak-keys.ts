@@ -25,7 +25,12 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import ReactiveAtom from './reactive-atom';
+import {
+  createReactiveAtom,
+  notifyReactiveAtom,
+  ReactiveAtom,
+  trackReactiveAtom,
+} from './reactive-atom';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export default class ReactiveWeakKeys<K extends object> {
@@ -36,16 +41,16 @@ export default class ReactiveWeakKeys<K extends object> {
     if (current) {
       return current;
     }
-    const atom = new ReactiveAtom();
+    const atom = createReactiveAtom();
     this.atoms.set(key, atom);
     return atom;
   }
 
   notify(key: K): void {
-    this.getAtom(key).notify();
+    notifyReactiveAtom(this.getAtom(key));
   }
 
   track(key: K): void {
-    this.getAtom(key).track();
+    trackReactiveAtom(this.getAtom(key));
   }
 }

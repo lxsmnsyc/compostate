@@ -1,10 +1,10 @@
-import ReactiveAtom from './reactive-atom';
+import { createReactiveAtom, notifyReactiveAtom, trackReactiveAtom } from './reactive-atom';
 import { registerTrackable } from './track-map';
 
 export default class RefNode<T> {
   private val: T;
 
-  private atom = new ReactiveAtom();
+  private atom = createReactiveAtom();
 
   constructor(val: T) {
     this.val = val;
@@ -13,14 +13,14 @@ export default class RefNode<T> {
   }
 
   get value(): T {
-    this.atom.track();
+    trackReactiveAtom(this.atom);
     return this.val;
   }
 
   set value(val: T) {
     if (!Object.is(val, this.val)) {
       this.val = val;
-      this.atom.notify();
+      notifyReactiveAtom(this.atom);
     }
   }
 }

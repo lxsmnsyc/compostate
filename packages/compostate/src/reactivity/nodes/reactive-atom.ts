@@ -26,6 +26,7 @@
  * @copyright Alexis Munsayac 2021
  */
 import { untrack } from '../create-root';
+import { Cleanup } from '../types';
 import {
   addLinkedWorkDependency,
   addLinkedWorkDependent,
@@ -36,50 +37,43 @@ import {
   TRACKING,
 } from './linked-work';
 
-export default class ReactiveAtom {
-  private work?: LinkedWork;
+export interface ReactiveAtom extends LinkedWork {
+  listeners?: Set<() => void>;
+}
 
-  private listeners?: Set<() => void>;
-
-  private getWork(): LinkedWork {
-    if (!this.work) {
-      this.work = createLinkedWork(() => {
-        untrack(() => {
-          this.listeners?.forEach((listener) => {
-            listener();
-          });
-        });
+export function createReactiveAtom(): ReactiveAtom {
+  const atom: ReactiveAtom = createLinkedWork(() => {
+    untrack(() => {
+      atom.listeners?.forEach((listener) => {
+        listener();
       });
-    }
-    return this.work;
-  }
+    });
+  });
 
-  track(): void {
-    if (TRACKING) {
-      const work = this.getWork();
-      addLinkedWorkDependent(work, TRACKING);
-      addLinkedWorkDependency(TRACKING, work);
-    }
-  }
+  return atom;
+}
 
-  notify(): void {
-    if (this.work) {
-      if (BATCH_UPDATES) {
-        BATCH_UPDATES.add(this.work);
-      } else {
-        runLinkedWork(this.work);
-      }
-    }
+export function trackReactiveAtom(target: ReactiveAtom): void {
+  if (TRACKING) {
+    addLinkedWorkDependent(target, TRACKING);
+    addLinkedWorkDependency(TRACKING, target);
   }
+}
 
-  subscribe(listener: () => void): () => void {
-    this.getWork();
-    if (!this.listeners) {
-      this.listeners = new Set();
-    }
-    this.listeners.add(listener);
-    return () => {
-      this.listeners?.delete(listener);
-    };
+export function notifyReactiveAtom(target: ReactiveAtom): void {
+  if (BATCH_UPDATES) {
+    BATCH_UPDATES.add(target);
+  } else {
+    runLinkedWork(target);
   }
+}
+
+export function subscribeReactiveAtom(target: ReactiveAtom, listener: () => void): Cleanup {
+  if (!target.listeners) {
+    target.listeners = new Set();
+  }
+  target.listeners.add(listener);
+  return () => {
+    target.listeners?.delete(listener);
+  };
 }
