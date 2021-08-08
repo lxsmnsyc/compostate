@@ -57,5 +57,8 @@ export {
   capturedErrorBoundary,
   capturedBatchCleanup,
 } from './reactivity/captured';
+export {
+  default as template,
+} from './reactivity/template';
 export * from './reactivity/resource';
 export { Effect, Cleanup } from './reactivity/types';
