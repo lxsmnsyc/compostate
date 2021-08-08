@@ -10,6 +10,7 @@ import {
   Ref,
   untrack,
   track,
+  isReactive,
 } from 'compostate';
 
 import { PROVIDER, setProvider } from './provider';
@@ -62,7 +63,11 @@ export function mapArray<T, U>(
   } else if ('derive' in list) {
     derivedList = list.derive;
   } else if (Array.isArray(list)) {
-    derivedList = () => track(list);
+    if (isReactive(list)) {
+      derivedList = () => track(list);
+    } else {
+      derivedList = () => list;
+    }
   } else {
     derivedList = () => list.value;
   }
