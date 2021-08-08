@@ -2,7 +2,15 @@ import batch from '../batch';
 import batchCleanup from '../batch-cleanup';
 import { Effect } from '../types';
 import ErrorBoundary, { ERROR_BOUNDARY, handleError, setErrorBoundary } from './error-boundary';
-import LinkedWork, { setTracking, TRACKING } from './linked-work';
+import {
+  createLinkedWork,
+  destroyLinkedWork,
+  LinkedWork,
+  runLinkedWork,
+  setTracking,
+  TRACKING,
+  unlinkLinkedWorkDependencies,
+} from './linked-work';
 
 export let BATCH_EFFECTS: EffectNode[] | undefined;
 
@@ -28,7 +36,9 @@ export default class EffectNode {
 
   cleanup(): void {
     if (this.alive) {
-      this.revalidateWork?.unlinkDependencies();
+      if (this.revalidateWork) {
+        unlinkLinkedWorkDependencies(this.revalidateWork);
+      }
 
       if (this.currentCleanup) {
         try {
@@ -45,7 +55,9 @@ export default class EffectNode {
   stop(): void {
     if (this.alive) {
       this.cleanup();
-      this.revalidateWork?.destroy();
+      if (this.revalidateWork) {
+        destroyLinkedWork(this.revalidateWork);
+      }
       this.alive = false;
     }
   }
@@ -53,9 +65,11 @@ export default class EffectNode {
   flush(): void {
     if (this.alive) {
       if (!this.revalidateWork) {
-        this.revalidateWork = new LinkedWork(this.revalidate.bind(this));
+        this.revalidateWork = createLinkedWork(() => {
+          this.revalidate();
+        });
       }
-      this.revalidateWork.run();
+      runLinkedWork(this.revalidateWork);
     }
   }
 

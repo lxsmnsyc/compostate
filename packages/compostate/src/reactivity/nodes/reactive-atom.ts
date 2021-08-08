@@ -26,7 +26,15 @@
  * @copyright Alexis Munsayac 2021
  */
 import { untrack } from '../create-root';
-import LinkedWork, { BATCH_UPDATES, TRACKING } from './linked-work';
+import {
+  addLinkedWorkDependency,
+  addLinkedWorkDependent,
+  BATCH_UPDATES,
+  createLinkedWork,
+  LinkedWork,
+  runLinkedWork,
+  TRACKING,
+} from './linked-work';
 
 export default class ReactiveAtom {
   private work?: LinkedWork;
@@ -35,7 +43,7 @@ export default class ReactiveAtom {
 
   private getWork(): LinkedWork {
     if (!this.work) {
-      this.work = new LinkedWork(() => {
+      this.work = createLinkedWork(() => {
         untrack(() => {
           this.listeners?.forEach((listener) => {
             listener();
@@ -49,8 +57,8 @@ export default class ReactiveAtom {
   track(): void {
     if (TRACKING) {
       const work = this.getWork();
-      work.addDependent(TRACKING);
-      TRACKING.addDependency(work);
+      addLinkedWorkDependent(work, TRACKING);
+      addLinkedWorkDependency(TRACKING, work);
     }
   }
 
@@ -59,7 +67,7 @@ export default class ReactiveAtom {
       if (BATCH_UPDATES) {
         BATCH_UPDATES.add(this.work);
       } else {
-        this.work.run();
+        runLinkedWork(this.work);
       }
     }
   }
