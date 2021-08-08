@@ -1,7 +1,12 @@
 import batch from '../batch';
 import batchCleanup from '../batch-cleanup';
 import { Cleanup, Effect } from '../types';
-import ErrorBoundary, { ERROR_BOUNDARY, handleError, setErrorBoundary } from './error-boundary';
+import {
+  ErrorBoundary,
+  ERROR_BOUNDARY,
+  handleError,
+  setErrorBoundary,
+} from './error-boundary';
 import {
   createLinkedWork,
   destroyLinkedWork,

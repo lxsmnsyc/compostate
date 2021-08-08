@@ -1,5 +1,10 @@
 import onCleanup from '../on-cleanup';
-import ErrorBoundary, { ERROR_BOUNDARY, handleError, setErrorBoundary } from './error-boundary';
+import {
+  ErrorBoundary,
+  ERROR_BOUNDARY,
+  handleError,
+  setErrorBoundary,
+} from './error-boundary';
 import {
   createLinkedWork,
   destroyLinkedWork,
