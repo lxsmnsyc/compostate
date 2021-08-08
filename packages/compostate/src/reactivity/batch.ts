@@ -25,7 +25,12 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import LinkedWork, { BATCH_UPDATES, setBatchUpdates } from './nodes/linked-work';
+import {
+  BATCH_UPDATES,
+  LinkedWork,
+  runLinkedWork,
+  setBatchUpdates,
+} from './nodes/linked-work';
 
 export default function batch(callback: () => void): void {
   const batchedWork = new Set<LinkedWork>();
@@ -37,7 +42,7 @@ export default function batch(callback: () => void): void {
     setBatchUpdates(parent);
   }
   batchedWork.forEach((work) => {
-    work.run();
+    runLinkedWork(work);
   });
   batchedWork.clear();
 }

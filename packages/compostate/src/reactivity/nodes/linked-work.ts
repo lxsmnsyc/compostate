@@ -27,106 +27,104 @@ function getID() {
   return id;
 }
 
-export default class LinkedWork {
-  private id = getID();
+export interface LinkedWork {
+  (): void;
+  id: number;
+  alive: boolean;
+  dependents?: LinkedList<LinkedWork>;
+  dependentsPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
+  dependencies?: LinkedList<LinkedWork>;
+  dependenciesPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
+}
 
-  private work?: () => void;
+export function createLinkedWork(work?: () => void): LinkedWork {
+  return Object.assign(work ?? (() => { /* no-op */ }), {
+    id: getID(),
+    alive: true,
+  });
+}
 
-  private alive = true;
-
-  constructor(work?: () => void) {
-    this.work = work;
-  }
-
-  private dependents?: LinkedList<LinkedWork>;
-
-  private dependentsPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
-
-  addDependent(dependent: LinkedWork): void {
-    if (this.alive) {
-      if (!this.dependents || !this.dependentsPosition) {
-        this.dependents = createLinkedList();
-        this.dependentsPosition = {};
-      }
-      if (!this.dependentsPosition[dependent.id]) {
-        const node = createLinkedListNode(dependent);
-        this.dependentsPosition[dependent.id] = node;
-        insertTail(this.dependents, node);
-      }
+export function addLinkedWorkDependent(target: LinkedWork, dependent: LinkedWork): void {
+  if (target.alive) {
+    if (!target.dependents || !target.dependentsPosition) {
+      target.dependents = createLinkedList();
+      target.dependentsPosition = {};
+    }
+    if (!target.dependentsPosition[dependent.id]) {
+      const node = createLinkedListNode(dependent);
+      target.dependentsPosition[dependent.id] = node;
+      insertTail(target.dependents, node);
     }
   }
+}
 
-  removeDependent(dependent: LinkedWork): void {
-    if (!this.dependents || !this.dependentsPosition) {
-      return;
+export function removeLinkedWorkDependent(target: LinkedWork, dependent: LinkedWork): void {
+  if (!target.dependents || !target.dependentsPosition) {
+    return;
+  }
+  const node = target.dependentsPosition[dependent.id];
+  if (node) {
+    removeNode(target.dependents, node);
+    target.dependentsPosition[dependent.id] = undefined;
+  }
+}
+
+export function addLinkedWorkDependency(target: LinkedWork, dependency: LinkedWork): void {
+  if (target.alive) {
+    if (!target.dependencies || !target.dependenciesPosition) {
+      target.dependencies = createLinkedList();
+      target.dependenciesPosition = {};
     }
-    const node = this.dependentsPosition[dependent.id];
-    if (node) {
-      removeNode(this.dependents, node);
-      this.dependentsPosition[dependent.id] = undefined;
+    if (!target.dependenciesPosition[dependency.id]) {
+      const node = createLinkedListNode(dependency);
+      target.dependenciesPosition[dependency.id] = node;
+      insertTail(target.dependencies, node);
     }
   }
+}
 
-  private dependencies?: LinkedList<LinkedWork>;
-
-  private dependenciesPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
-
-  addDependency(dependency: LinkedWork): void {
-    if (this.alive) {
-      if (!this.dependencies || !this.dependenciesPosition) {
-        this.dependencies = createLinkedList();
-        this.dependenciesPosition = {};
-      }
-      if (!this.dependenciesPosition[dependency.id]) {
-        const node = createLinkedListNode(dependency);
-        this.dependenciesPosition[dependency.id] = node;
-        insertTail(this.dependencies, node);
-      }
-    }
+export function removeLinkedWorkDependency(target: LinkedWork, dependency: LinkedWork): void {
+  if (!target.dependencies || !target.dependenciesPosition) {
+    return;
   }
-
-  removeDependency(dependency: LinkedWork): void {
-    if (!this.dependencies || !this.dependenciesPosition) {
-      return;
-    }
-    const node = this.dependenciesPosition[dependency.id];
-    if (node) {
-      removeNode(this.dependencies, node);
-      this.dependenciesPosition[dependency.id] = undefined;
-    }
+  const node = target.dependenciesPosition[dependency.id];
+  if (node) {
+    removeNode(target.dependencies, node);
+    target.dependenciesPosition[dependency.id] = undefined;
   }
+}
 
-  run(): void {
-    if (this.alive) {
-      this.work?.();
+export function runLinkedWork(target: LinkedWork): void {
+  if (target.alive) {
+    target();
 
-      if (this.dependents) {
-        const list = cloneList(this.dependents);
-        let node = list.head;
-        while (node) {
-          node.value.run();
-          node = node.next;
-        }
-      }
-    }
-  }
-
-  unlinkDependencies(): void {
-    if (this.dependencies) {
-      const list = cloneList(this.dependencies);
+    if (target.dependents) {
+      const list = cloneList(target.dependents);
       let node = list.head;
       while (node) {
-        node.value.removeDependent(this);
+        runLinkedWork(node.value);
         node = node.next;
       }
     }
   }
+}
 
-  destroy(): void {
-    this.alive = false;
-    delete this.dependencies;
-    delete this.dependents;
-    delete this.dependenciesPosition;
-    delete this.dependentsPosition;
+export function unlinkLinkedWorkDependencies(target: LinkedWork): void {
+  if (target.dependencies) {
+    const list = cloneList(target.dependencies);
+    let node = list.head;
+    while (node) {
+      removeLinkedWorkDependent(node.value, target);
+      node = node.next;
+    }
   }
+}
+
+export function destroyLinkedWork(target: LinkedWork): void {
+  target.alive = false;
+  unlinkLinkedWorkDependencies(target);
+  delete target.dependencies;
+  delete target.dependents;
+  delete target.dependenciesPosition;
+  delete target.dependentsPosition;
 }

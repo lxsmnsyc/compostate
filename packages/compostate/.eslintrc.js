@@ -15,6 +15,7 @@ module.exports = {
     ],
     "@typescript-eslint/no-unsafe-return": "off",
     "@typescript-eslint/no-unsafe-assignment": "off",
-    "import/no-mutable-exports": "off"
+    "import/no-mutable-exports": "off",
+    "no-param-reassign": "off"
   }
 };
