@@ -1,6 +1,6 @@
 import batch from '../batch';
 import batchCleanup from '../batch-cleanup';
-import { Effect } from '../types';
+import { Cleanup, Effect } from '../types';
 import ErrorBoundary, { ERROR_BOUNDARY, handleError, setErrorBoundary } from './error-boundary';
 import {
   createLinkedWork,
@@ -18,81 +18,71 @@ export function setBatchEffects(instance: EffectNode[] | undefined): void {
   BATCH_EFFECTS = instance;
 }
 
-export default class EffectNode {
-  private alive = true;
+export interface EffectNode extends LinkedWork {
+  (): void;
+  errorBoundary?: ErrorBoundary;
+  cleanup?: Cleanup;
+}
 
-  private currentCleanup?: ReturnType<Effect>;
+export function cleanupEffect(effect: EffectNode): void {
+  if (effect.alive) {
+    unlinkLinkedWorkDependencies(effect);
 
-  private effect: Effect;
-
-  private errorBoundary?: ErrorBoundary;
-
-  private revalidateWork?: LinkedWork;
-
-  constructor(effect: Effect, errorBoundary?: ErrorBoundary) {
-    this.effect = effect;
-    this.errorBoundary = errorBoundary;
-  }
-
-  cleanup(): void {
-    if (this.alive) {
-      if (this.revalidateWork) {
-        unlinkLinkedWorkDependencies(this.revalidateWork);
-      }
-
-      if (this.currentCleanup) {
-        try {
-          this.currentCleanup();
-        } catch (error) {
-          handleError(this.errorBoundary, error);
-        }
-
-        this.currentCleanup = undefined;
-      }
-    }
-  }
-
-  stop(): void {
-    if (this.alive) {
-      this.cleanup();
-      if (this.revalidateWork) {
-        destroyLinkedWork(this.revalidateWork);
-      }
-      this.alive = false;
-    }
-  }
-
-  flush(): void {
-    if (this.alive) {
-      if (!this.revalidateWork) {
-        this.revalidateWork = createLinkedWork(() => {
-          this.revalidate();
-        });
-      }
-      runLinkedWork(this.revalidateWork);
-    }
-  }
-
-  revalidate(): void {
-    if (this.alive) {
-      const parentTracking = TRACKING;
-      const parentErrorBoundary = ERROR_BOUNDARY;
-      const parentBatchEffects = BATCH_EFFECTS;
-      setTracking(this.revalidateWork);
-      setErrorBoundary(this.errorBoundary);
-      setBatchEffects(undefined);
+    if (effect.cleanup) {
       try {
-        batch(() => {
-          this.cleanup();
-          this.currentCleanup = batchCleanup(() => this.effect());
-        });
+        effect.cleanup();
       } catch (error) {
-        handleError(this.errorBoundary, error);
-      } finally {
-        setBatchEffects(parentBatchEffects);
-        setErrorBoundary(parentErrorBoundary);
-        setTracking(parentTracking);
+        handleError(effect.errorBoundary, error);
       }
+
+      effect.cleanup = undefined;
     }
   }
+}
+
+export function flushEffect(effect: EffectNode): void {
+  runLinkedWork(effect);
+}
+
+export function stopEffect(effect: EffectNode): void {
+  if (effect.alive) {
+    cleanupEffect(effect);
+    destroyLinkedWork(effect);
+  }
+}
+
+function revalidateEffect(
+  effect: EffectNode,
+  callback: Effect,
+): void {
+  const parentTracking = TRACKING;
+  const parentErrorBoundary = ERROR_BOUNDARY;
+  const parentBatchEffects = BATCH_EFFECTS;
+  setTracking(effect);
+  setErrorBoundary(effect.errorBoundary);
+  setBatchEffects(undefined);
+  try {
+    batch(() => {
+      cleanupEffect(effect);
+      effect.cleanup = batchCleanup(callback);
+    });
+  } catch (error) {
+    handleError(effect.errorBoundary, error);
+  } finally {
+    setBatchEffects(parentBatchEffects);
+    setErrorBoundary(parentErrorBoundary);
+    setTracking(parentTracking);
+  }
+}
+
+export function createEffect(effect: Effect): EffectNode {
+  const node = Object.assign(
+    createLinkedWork(() => {
+      revalidateEffect(node, effect);
+    }),
+    {
+      errorBoundary: ERROR_BOUNDARY,
+    },
+  );
+  return node;
 }
