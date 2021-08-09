@@ -1,4 +1,4 @@
-import { untrack } from 'compostate';
+import { batch, untrack } from 'compostate';
 
 export function insert(
   parent: Node,
@@ -251,16 +251,18 @@ function eventHandler<E extends Event>(e: E) {
   });
 
   untrack(() => {
-    while (node !== null) {
-      const handler = node[key];
-      if (handler && !node.disabled) {
-        handler(e);
-        if (e.cancelBubble) return;
+    batch(() => {
+      while (node !== null) {
+        const handler = node[key];
+        if (handler && !node.disabled) {
+          handler(e);
+          if (e.cancelBubble) return;
+        }
+        node = node.host
+          && node.host !== node
+          && node.host instanceof Node ? node.host : node.parentNode;
       }
-      node = node.host
-        && node.host !== node
-        && node.host instanceof Node ? node.host : node.parentNode;
-    }
+    });
   });
 }
 
@@ -311,7 +313,9 @@ export function registerEvent<E extends Element>(
 
   // Register
   if (capture) {
-    const wrappedHandler: typeof handler = (evt) => untrack(() => handler(evt));
+    const wrappedHandler: typeof handler = (evt) => (
+      untrack(() => batch(() => handler(evt)))
+    );
     el.addEventListener(actualEvent, wrappedHandler, {
       capture,
     });
