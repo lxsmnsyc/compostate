@@ -196,45 +196,29 @@ export function createStyle(obj: Record<string, string>): string {
   return lines.join('');
 }
 
-// From https://github.com/facebook/react/blob/main/packages/react-dom/src/events/DOMPluginEventSystem.js#L177-L219
-const mediaEventTypes = [
-  'abort',
-  'canplay',
-  'canplaythrough',
-  'durationchange',
-  'emptied',
-  'encrypted',
-  'ended',
-  'error',
-  'loadeddata',
-  'loadedmetadata',
-  'loadstart',
-  'pause',
-  'play',
-  'playing',
-  'progress',
-  'ratechange',
-  'seeked',
-  'seeking',
-  'stalled',
-  'suspend',
-  'timeupdate',
-  'volumechange',
-  'waiting',
-];
-
-const nonDelegatedEvents = new Set([
-  'cancel',
-  'close',
-  'invalid',
-  'load',
-  'scroll',
-  'toggle',
-  // In order to reduce bytes, we insert the above array of media events
-  // into this Set. Note: the "error" event isn't an exclusive media event,
-  // and can occur on other elements too. Rather than duplicate that event,
-  // we just take it from the media events array.
-  ...mediaEventTypes,
+// https://github.com/ryansolid/dom-expressions/blob/main/packages/dom-expressions/src/constants.js#L48
+const delegatedEvents = new Set([
+  'beforeinput',
+  'click',
+  'dblclick',
+  'focusin',
+  'focusout',
+  'input',
+  'keydown',
+  'keyup',
+  'mousedown',
+  'mousemove',
+  'mouseout',
+  'mouseover',
+  'mouseup',
+  'pointerdown',
+  'pointermove',
+  'pointerout',
+  'pointerover',
+  'pointerup',
+  'touchend',
+  'touchmove',
+  'touchstart',
 ]);
 
 function getDelegatedEventKey(name: string): string {
@@ -291,7 +275,9 @@ function addEventListener(
       node[key] = undefined;
     };
   }
-  const wrappedHandler: typeof handler = (evt) => untrack(() => handler(evt));
+  const wrappedHandler: typeof handler = (evt) => (
+    untrack(() => batch(() => handler(evt)))
+  );
   node.addEventListener(name, wrappedHandler);
   return () => {
     node.removeEventListener(name, wrappedHandler);
@@ -337,7 +323,7 @@ export function registerEvent<E extends Element>(
       });
     };
   }
-  const shouldDelegate = !nonDelegatedEvents.has(actualEvent);
+  const shouldDelegate = delegatedEvents.has(actualEvent);
   const cleanup = addEventListener(el, actualEvent, handler, shouldDelegate);
   if (shouldDelegate) {
     delegateEvents(actualEvent);
