@@ -319,6 +319,7 @@ export function createTransition(timeout?: number): Transition {
 
   function schedule() {
     if (!isPending) {
+      isPending = true;
       task = requestCallback(() => {
         transitions.forEach((transition) => {
           runLinkedWork(transition);
@@ -343,9 +344,7 @@ export function createTransition(timeout?: number): Transition {
         // Unbatch first so that the scheduled updates
         // do not get pushed synchronously
         unbatch(() => {
-          batch(() => {
-            callback();
-          });
+          callback();
         });
       } finally {
         TRANSITION = parent;

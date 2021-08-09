@@ -11,6 +11,7 @@ import {
   ref,
   computed,
   onCleanup,
+  createTransition,
 } from 'compostate';
 import './main.css';
 
@@ -104,6 +105,8 @@ const Triangle = (props: TriangleProps) => {
   );
 };
 
+const baseTransition = createTransition();
+
 const TriangleDemo = () => {
   const elapsed = ref(0);
   const seconds = ref(0);
@@ -113,7 +116,9 @@ const TriangleDemo = () => {
   });
   const start = Date.now();
   const t = setInterval(() => {
-    seconds.value = (seconds.value % 10) + 1;
+    baseTransition.start(() => {
+      seconds.value = (seconds.value % 10) + 1;
+    });
   }, 1000);
 
   let f: number;
