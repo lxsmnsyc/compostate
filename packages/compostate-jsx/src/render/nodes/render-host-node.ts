@@ -23,7 +23,7 @@ function applyHostProperty(
   if (key.startsWith('on')) {
     const errorHandler = captureError();
 
-    const wrappedEvent = <E extends Event>(evt: E) => {
+    onCleanup(registerEvent(el, key, (evt) => {
       // In case of synchronous calls
       untrack(() => {
         // Allow update batching
@@ -35,9 +35,7 @@ function applyHostProperty(
           errorHandler(error);
         }
       });
-    };
-
-    onCleanup(registerEvent(el, key, wrappedEvent));
+    }));
   } else if (key === 'style') {
     // TODO Style Object parsing
   } else if (typeof property === 'boolean') {
@@ -51,11 +49,10 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
   constructor: string,
   props: Reactive<P> & RefAttributes<Element> | null,
 ): VNode {
-  const hydration = HYDRATION;
-  const claim = hydration ? claimHydration(hydration) : null;
   let el = document.createElement(constructor);
 
-  if (hydration) {
+  if (HYDRATION) {
+    const claim = claimHydration(HYDRATION);
     if (claim) {
       if (claim.tagName !== constructor.toUpperCase()) {
         throw new Error(`Hydration mismatch. (Expected: ${constructor}, Received: ${claim.tagName})`);
