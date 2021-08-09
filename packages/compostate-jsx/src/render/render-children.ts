@@ -61,25 +61,25 @@ export default function renderChildren(
       if (Array.isArray(previous)) {
         if (previous.length === 0) {
           // insert shortcut
-          normal.forEach((child) => {
-            insert(root, child, marker);
-          });
+          for (let i = 0; i < normal.length; i += 1) {
+            insert(root, normal[i], marker);
+          }
         } else if (normal.length === 0) {
-          normalPrev.forEach((child) => {
-            remove(child);
-          });
+          for (let i = 0; i < normal.length; i += 1) {
+            remove(normalPrev[i]);
+          }
         } else {
           diff(root, normalPrev, normal, marker);
         }
       } else if (previous instanceof Node) {
         remove(previous);
-        normal.forEach((child) => {
-          insert(root, child, marker);
-        });
+        for (let i = 0; i < normal.length; i += 1) {
+          insert(root, normal[i], marker);
+        }
       } else {
-        normal.forEach((child) => {
-          insert(root, child, marker);
-        });
+        for (let i = 0; i < normal.length; i += 1) {
+          insert(root, normal[i], marker);
+        }
       }
     } else if (hasReactiveChildren(children)) {
       let previousChildren: Node[];
