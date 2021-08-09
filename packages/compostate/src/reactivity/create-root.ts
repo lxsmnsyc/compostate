@@ -45,12 +45,12 @@ export function unbatch<T>(callback: () => T): T {
 }
 
 export function unbatchCleanup<T>(callback: () => T): T {
-  const parentInstance = CLEANUP;
+  const parent = CLEANUP;
   setCleanup(undefined);
   try {
     return callback();
   } finally {
-    setCleanup(parentInstance);
+    setCleanup(parent);
   }
 }
 
@@ -75,11 +75,20 @@ export function untrack<T>(callback: () => T): T {
 }
 
 export function createRoot<T>(callback: () => T): T {
-  return untrack(() => (
-    unbatch(() => (
-      unbatchEffects(() => (
-        unbatchCleanup(callback)
-      ))
-    ))
-  ));
+  const parentBatchUpdates = BATCH_UPDATES;
+  const parentBatchEffects = BATCH_EFFECTS;
+  const parentTracking = TRACKING;
+  const parentCleanup = CLEANUP;
+  setBatchUpdates(undefined);
+  setBatchEffects(undefined);
+  setTracking(undefined);
+  setCleanup(undefined);
+  try {
+    return callback();
+  } finally {
+    setCleanup(parentCleanup);
+    setTracking(parentTracking);
+    setBatchEffects(parentBatchEffects);
+    setBatchUpdates(parentBatchUpdates);
+  }
 }
