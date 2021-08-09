@@ -184,6 +184,18 @@ export function setAttribute(el: Element, attribute: string, value: string | nul
   }
 }
 
+function kebabify(str: string): string {
+  return str.replace(/([A-Z])([A-Z])/g, '$1-$2')
+    .replace(/([a-z])([A-Z])/g, '$1-$2')
+    .replace(/[\s_]+/g, '-')
+    .toLowerCase();
+}
+
+export function createStyle(obj: Record<string, string>): string {
+  const lines = Object.keys(obj).map((prop) => `${kebabify(prop)}:${obj[prop]};`);
+  return lines.join('');
+}
+
 // From https://github.com/facebook/react/blob/main/packages/react-dom/src/events/DOMPluginEventSystem.js#L177-L219
 const mediaEventTypes = [
   'abort',

@@ -4,6 +4,7 @@ import {
   captureError,
 } from 'compostate';
 import {
+  createStyle,
   registerEvent,
   remove,
   setAttribute,
@@ -31,7 +32,7 @@ function applyHostProperty(
       }
     }));
   } else if (key === 'style') {
-    // TODO Style Object parsing
+    el.style.cssText = createStyle(property);
   } else if (typeof property === 'boolean') {
     setAttribute(el, key, property ? 'true' : null);
   } else {
