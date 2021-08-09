@@ -1,5 +1,3 @@
-import { computed, effect, Ref } from 'compostate';
-
 export interface Provider<T> {
   readonly id: string;
   readonly defaultValue: T;
@@ -27,17 +25,15 @@ export function setProvider(instance: ProviderData | undefined): void {
   PROVIDER = instance;
 }
 
-export function provide<T>(provider: Provider<T>, value: Ref<T>): void {
+export function provide<T>(provider: Provider<T>, value: T): void {
   const currentProvider = PROVIDER;
 
-  effect(() => {
-    if (currentProvider) {
-      currentProvider.data[provider.id] = value.value;
-    }
-  });
+  if (currentProvider) {
+    currentProvider.data[provider.id] = value;
+  }
 }
 
-export function inject<T>(provider: Provider<T>): Ref<T> {
+export function inject<T>(provider: Provider<T>): T {
   const currentProvider = PROVIDER;
 
   function searchProvider(root?: ProviderData): T {
@@ -50,5 +46,5 @@ export function inject<T>(provider: Provider<T>): Ref<T> {
     return searchProvider(root.parent);
   }
 
-  return computed(() => searchProvider(currentProvider));
+  return searchProvider(currentProvider);
 }

@@ -51,7 +51,7 @@ export default function renderComponentNode<P extends Record<string, any>>(
     const parentProvider = PROVIDER;
 
     setProvider({
-      data: reactive({}),
+      data: {},
       parent: parentProvider,
     });
     try {
