@@ -320,14 +320,18 @@ export function createTransition(timeout?: number): Transition {
   function schedule() {
     if (!isPending) {
       isPending = true;
-      task = requestCallback(() => {
-        transitions.forEach((transition) => {
-          runLinkedWork(transition);
-        });
-        transitions.clear();
-        isPending = false;
-      }, { timeout });
     }
+    if (task) {
+      cancelCallback(task);
+    }
+    task = requestCallback(() => {
+      transitions.forEach((transition) => {
+        runLinkedWork(transition);
+      });
+      transitions.clear();
+      isPending = false;
+      task = undefined;
+    }, { timeout });
   }
 
   onCleanup(() => {
