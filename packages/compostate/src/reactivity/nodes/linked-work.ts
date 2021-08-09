@@ -9,13 +9,13 @@ import {
 } from '../../linked-list';
 
 export let TRACKING: LinkedWork | undefined;
-export let BATCH_UPDATES: Set<LinkedWork> | undefined;
+export let BATCH_UPDATES: LinkedWork[] | undefined;
 
 export function setTracking(instance: LinkedWork | undefined): void {
   TRACKING = instance;
 }
 
-export function setBatchUpdates(instance: Set<LinkedWork> | undefined): void {
+export function setBatchUpdates(instance: LinkedWork[] | undefined): void {
   BATCH_UPDATES = instance;
 }
 
@@ -35,6 +35,7 @@ export interface LinkedWork {
   dependentsPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
   dependencies?: LinkedList<LinkedWork>;
   dependenciesPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
+  pending?: boolean;
 }
 
 export function createLinkedWork(work?: () => void): LinkedWork {
@@ -96,14 +97,23 @@ export function removeLinkedWorkDependency(target: LinkedWork, dependency: Linke
 
 export function runLinkedWork(target: LinkedWork): void {
   if (target.alive) {
-    target();
+    if (BATCH_UPDATES) {
+      if (!target.pending) {
+        target.pending = true;
+        BATCH_UPDATES.push(target);
+      }
+    } else {
+      target();
 
-    if (target.dependents) {
-      const list = cloneList(target.dependents);
-      let node = list.head;
-      while (node) {
-        runLinkedWork(node.value);
-        node = node.next;
+      target.pending = false;
+
+      if (target.dependents) {
+        const list = cloneList(target.dependents);
+        let node = list.head;
+        while (node) {
+          runLinkedWork(node.value);
+          node = node.next;
+        }
       }
     }
   }

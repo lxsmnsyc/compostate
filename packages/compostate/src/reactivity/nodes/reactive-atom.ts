@@ -30,7 +30,6 @@ import { Cleanup } from '../types';
 import {
   addLinkedWorkDependency,
   addLinkedWorkDependent,
-  BATCH_UPDATES,
   createLinkedWork,
   LinkedWork,
   runLinkedWork,
@@ -61,11 +60,7 @@ export function trackReactiveAtom(target: ReactiveAtom): void {
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
-  if (BATCH_UPDATES) {
-    BATCH_UPDATES.add(target);
-  } else {
-    runLinkedWork(target);
-  }
+  runLinkedWork(target);
 }
 
 export function subscribeReactiveAtom(target: ReactiveAtom, listener: () => void): Cleanup {
