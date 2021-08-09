@@ -1,56 +1,10 @@
 /* eslint-disable no-param-reassign */
-
-type Task = () => void;
-
-const writes: Task[] = [];
-const reads: Task[] = [];
-
-function runTasks(tasks: Task[]) {
-  let task = tasks.shift();
-  while (task) {
-    task();
-    task = tasks.shift();
-  }
-}
-
-let scheduled = false;
-
-function scheduleFlush() {
-  function flush() {
-    try {
-      runTasks(reads);
-      runTasks(writes);
-    } finally {
-      scheduled = false;
-    }
-    if (reads.length || writes.length) {
-      scheduleFlush();
-    }
-  }
-  if (!scheduled) {
-    scheduled = true;
-    window.requestAnimationFrame(flush);
-  }
-}
-
-function measure(task: Task) {
-  reads.push(task);
-  scheduleFlush();
-}
-
-function mutate(task: Task) {
-  writes.push(task);
-  scheduleFlush();
-}
-
 export function insert(
   parent: Node,
   child: Node,
   marker: Node | null = null,
 ): void {
-  mutate(() => {
-    parent.insertBefore(child, marker);
-  });
+  parent.insertBefore(child, marker);
 }
 
 export function replace(
@@ -58,26 +12,20 @@ export function replace(
   child: Node,
   marker: Node,
 ): void {
-  mutate(() => {
-    parent.replaceChild(child, marker);
-  });
+  parent.replaceChild(child, marker);
 }
 
 export function append(
   parent: Node,
   child: Node,
 ): void {
-  mutate(() => {
-    parent.appendChild(child);
-  });
+  parent.appendChild(child);
 }
 
 export function remove(
   node: Node,
 ): void {
-  mutate(() => {
-    node.parentNode?.removeChild(node);
-  });
+  node.parentNode?.removeChild(node);
 }
 
 export function createText(value: string): Node {
@@ -106,19 +54,17 @@ export function setAttribute(el: Element, attribute: string, value: string | nul
   const prototype = Object.getPrototypeOf(el);
   const descriptor = Object.getOwnPropertyDescriptor(prototype, attribute);
 
-  mutate(() => {
-    if (attribute === 'className') {
-      setAttributeSafe(el, 'class', value);
-    } else if (attribute === 'textContent') {
-      el.textContent = value;
-    } else if (attribute === 'innerHTML') {
-      el.innerHTML = value ?? '';
-    } else if (descriptor && descriptor.set) {
-      (el as Record<string, any>)[attribute] = value;
-    } else {
-      setAttributeSafe(el, attribute, value);
-    }
-  });
+  if (attribute === 'className') {
+    setAttributeSafe(el, 'class', value);
+  } else if (attribute === 'textContent') {
+    el.textContent = value;
+  } else if (attribute === 'innerHTML') {
+    el.innerHTML = value ?? '';
+  } else if (descriptor && descriptor.set) {
+    (el as Record<string, any>)[attribute] = value;
+  } else {
+    setAttributeSafe(el, attribute, value);
+  }
 }
 
 export function registerEvent<E extends Element>(
@@ -137,18 +83,14 @@ export function registerEvent<E extends Element>(
   );
 
   // Register
-  mutate(() => {
-    el.addEventListener(actualEvent, handler, {
-      capture,
-    });
+  el.addEventListener(actualEvent, handler, {
+    capture,
   });
 
   // Unregister
   return () => {
-    mutate(() => {
-      el.removeEventListener(actualEvent, handler, {
-        capture,
-      });
+    el.removeEventListener(actualEvent, handler, {
+      capture,
     });
   };
 }
