@@ -1,7 +1,7 @@
 import { derived, evalDerived } from '../../reactivity';
 import { OffscreenProps } from '../../special';
 import { setSuspense, SUSPENSE } from '../../suspense';
-import { Reactive, VNode } from '../../types';
+import { Derived, Reactive, VNode } from '../../types';
 import {
   Lazy,
 } from '../types';
@@ -48,15 +48,14 @@ export default function renderOffscreenNode(
     capture: currentSuspense?.capture,
     suspend: suspendChildren,
   });
-  try {
-    if ('value' in render) {
-      return derived(() => render.value?.());
-    }
-    if ('derive' in render) {
-      return derived(() => evalDerived<OffscreenProps['render']>(render)?.());
-    }
-    return derived(render);
-  } finally {
-    setSuspense(currentSuspense);
+  let result: Derived<VNode>;
+  if ('value' in render) {
+    result = derived(() => render.value?.());
+  } else if ('derive' in render) {
+    result = derived(() => evalDerived<OffscreenProps['render']>(render)?.());
+  } else {
+    result = derived(render);
   }
+  setSuspense(currentSuspense);
+  return result;
 }
