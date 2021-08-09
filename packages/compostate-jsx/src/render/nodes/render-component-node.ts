@@ -4,8 +4,6 @@ import {
   reactive,
 } from 'compostate';
 import { PROVIDER, setProvider } from '../../provider';
-import { derived } from '../../reactivity';
-import { setSuspense, SUSPENSE } from '../../suspense';
 import {
   Reactive,
   RefAttributes,
