@@ -165,16 +165,12 @@ function addEventListener(
 }
 
 export function delegateEvents(
-  eventNames: string[],
-  document = window.document,
+  eventNames: string,
 ): void {
   const e: Set<string> = document[$$EVENTS] || (document[$$EVENTS] = new Set());
-  for (let i = 0, l = eventNames.length; i < l; i += 1) {
-    const name = eventNames[i];
-    if (!e.has(name)) {
-      e.add(name);
-      document.addEventListener(name, eventHandler);
-    }
+  if (!e.has(eventNames)) {
+    e.add(eventNames);
+    document.addEventListener(eventNames, eventHandler);
   }
 }
 
@@ -207,7 +203,7 @@ export function registerEvent<E extends Element>(
   const shouldDelegate = !nonDelegatedEvents.has(actualEvent);
   const cleanup = addEventListener(el, actualEvent, handler, shouldDelegate);
   if (shouldDelegate) {
-    delegateEvents([actualEvent]);
+    delegateEvents(actualEvent);
   }
 
   // Unregister
