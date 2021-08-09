@@ -1,11 +1,3 @@
-import { ref, Ref } from 'compostate';
-
-export let UNMOUNTING = false;
-
-export function setUnmounting(flag: boolean): void {
-  UNMOUNTING = flag;
-}
-
 /* eslint-disable no-param-reassign */
 export function insert(
   parent: Node,
@@ -33,33 +25,21 @@ export function append(
 export function remove(
   node: Node,
 ): void {
-  if (!UNMOUNTING) {
-    node.parentNode?.removeChild(node);
-  }
+  node.parentNode?.removeChild(node);
 }
 
 export function createText(value: string): Node {
   return document.createTextNode(value);
 }
 
-export interface Marker {
-  id: number;
-  version: Ref<number>;
-  node: Node;
-}
-
 let id = 0;
 
 const USE_COMMENT = false;
 
-export function createMarker(): Marker {
+export function createMarker(): Node {
   const newID = id;
   id += 1;
-  return {
-    id: newID,
-    version: ref(0),
-    node: USE_COMMENT ? document.createComment(`${newID}`) : createText(''),
-  };
+  return USE_COMMENT ? document.createComment(`${newID}`) : createText('');
 }
 
 function setAttributeSafe(el: Element, attribute: string, value: string | null): void {

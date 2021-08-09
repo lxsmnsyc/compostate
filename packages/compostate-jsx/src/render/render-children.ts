@@ -1,6 +1,6 @@
 import { effect, onCleanup } from 'compostate';
 import { VNode } from '../types';
-import { createText, insert, remove } from '../dom';
+import { createMarker, createText, insert, remove } from '../dom';
 import diff from './diff';
 
 function hasReactiveChildren(children: VNode[]): boolean {
@@ -83,7 +83,7 @@ export default function renderChildren(
       }
     } else if (hasReactiveChildren(children)) {
       let previousChildren: Node[];
-      const childMarker = createText('');
+      const childMarker = createMarker();
       insert(root, childMarker, marker);
       effect(() => {
         const newChildren = normalizeChildren(children);
@@ -114,7 +114,7 @@ export default function renderChildren(
     // skip
   } else if ('derive' in children) {
     let previousChildren: VNode;
-    const childMarker = createText('');
+    const childMarker = createMarker();
     insert(root, childMarker, marker);
     effect(() => {
       const newChildren = children.derive();
@@ -126,7 +126,7 @@ export default function renderChildren(
     });
   } else {
     let previousChildren: VNode;
-    const childMarker = createText('');
+    const childMarker = createMarker();
     insert(root, childMarker, marker);
     effect(() => {
       const newChildren = children.value;
