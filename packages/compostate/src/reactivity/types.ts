@@ -41,3 +41,7 @@ export type Cleanup = () => void;
 export type Effect = () => Cleanup | undefined | void;
 
 export type ErrorCapture = (error: Error) => void;
+
+export interface Ref<T> {
+  value: T;
+}

@@ -25,9 +25,8 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { createReactiveAtom, notifyReactiveAtom } from './nodes/reactive-atom';
+import { createReactiveAtom, registerTrackable, notifyReactiveAtom } from './core';
 import ReactiveKeys from './nodes/reactive-keys';
-import { registerTrackable } from './nodes/track-map';
 
 export default class ReactiveMap<K, V> implements Map<K, V> {
   private source: Map<K, V>;

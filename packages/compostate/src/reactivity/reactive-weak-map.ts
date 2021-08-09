@@ -25,9 +25,8 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { createReactiveAtom, notifyReactiveAtom } from './nodes/reactive-atom';
+import { createReactiveAtom, notifyReactiveAtom, registerTrackable } from './core';
 import ReactiveWeakKeys from './nodes/reactive-weak-keys';
-import { registerTrackable } from './nodes/track-map';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, V> {

@@ -1,18 +1,12 @@
 import {
-  cloneList,
+  LinkedList,
+  LinkedListNode,
   createLinkedList,
   createLinkedListNode,
   insertTail,
-  LinkedList,
-  LinkedListNode,
   removeNode,
-} from '../../linked-list';
-
-export let TRACKING: LinkedWork | undefined;
-
-export function setTracking(instance: LinkedWork | undefined): void {
-  TRACKING = instance;
-}
+  cloneList,
+} from './linked-list';
 
 let ID = 0;
 

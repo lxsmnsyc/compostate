@@ -27,10 +27,7 @@
  */
 
 import RefNode from './nodes/ref';
-
-export interface Ref<T> {
-  value: T;
-}
+import { Ref } from './types';
 
 export default function ref<T>(value: T): Ref<T> {
   return new RefNode(value);
