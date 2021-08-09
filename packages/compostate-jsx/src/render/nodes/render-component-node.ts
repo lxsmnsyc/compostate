@@ -50,11 +50,6 @@ export default function renderComponentNode<P extends Record<string, any>>(
     // Create a provider boundary
     const parentProvider = PROVIDER;
 
-    // Batch effects inside the constructor
-    // so that it only runs when the element
-    // actually gets committed.
-    // This is useful in SSR so that effects
-    // never run and only run on client-side.
     setProvider({
       data: reactive({}),
       parent: parentProvider,

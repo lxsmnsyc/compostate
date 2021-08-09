@@ -76,19 +76,14 @@ export default function renderSuspenseNode(
       capture: currentSuspense?.capture,
       suspend: suspendFallback,
     });
-    try {
-      renderFallback = derived(() => {
-        if ('value' in fallback) {
-          return fallback.value?.();
-        }
-        if ('derive' in fallback) {
-          return evalDerived(fallback)?.();
-        }
-        return fallback();
-      });
-    } finally {
-      setSuspense(currentSuspense);
+    if ('value' in fallback) {
+      renderFallback = derived(() => fallback.value?.());
+    } else if ('derive' in fallback) {
+      renderFallback = derived(() => evalDerived<SuspenseProps['fallback']>(fallback)?.());
+    } else {
+      renderFallback = derived(fallback);
     }
+    setSuspense(currentSuspense);
   }
 
   let renderContent: VNode;
@@ -98,19 +93,14 @@ export default function renderSuspenseNode(
       capture,
       suspend: suspendChildren,
     });
-    try {
-      renderContent = derived(() => {
-        if ('value' in render) {
-          return render.value?.();
-        }
-        if ('derive' in render) {
-          return evalDerived(render)?.();
-        }
-        return render();
-      });
-    } finally {
-      setSuspense(currentSuspense);
+    if ('value' in render) {
+      renderContent = derived(() => render.value?.());
+    } else if ('derive' in render) {
+      renderContent = derived(() => evalDerived<SuspenseProps['render']>(render)?.());
+    } else {
+      renderContent = derived(render);
     }
+    setSuspense(currentSuspense);
   }
 
   return [

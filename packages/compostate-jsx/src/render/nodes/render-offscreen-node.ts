@@ -49,15 +49,13 @@ export default function renderOffscreenNode(
     suspend: suspendChildren,
   });
   try {
-    return derived(() => {
-      if ('value' in render) {
-        return render.value?.();
-      }
-      if ('derive' in render) {
-        return evalDerived(render)?.();
-      }
-      return render();
-    });
+    if ('value' in render) {
+      return derived(() => render.value?.());
+    }
+    if ('derive' in render) {
+      return derived(() => evalDerived<OffscreenProps['render']>(render)?.());
+    }
+    return derived(render);
   } finally {
     setSuspense(currentSuspense);
   }
