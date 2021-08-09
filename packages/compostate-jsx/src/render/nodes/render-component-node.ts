@@ -4,6 +4,7 @@ import {
   reactive,
 } from 'compostate';
 import { PROVIDER, setProvider } from '../../provider';
+import { derived } from '../../reactivity';
 import { setSuspense, SUSPENSE } from '../../suspense';
 import {
   Reactive,
@@ -49,34 +50,20 @@ export default function renderComponentNode<P extends Record<string, any>>(
 
     // Create a provider boundary
     const parentProvider = PROVIDER;
-    const parentSuspense = SUSPENSE;
-
-    const provider = {
-      data: reactive({}),
-      parent: parentProvider,
-    };
-
-    const newBoundary = {
-      suspense: parentSuspense,
-      provider,
-    };
-
-    let result: VNode;
 
     // Batch effects inside the constructor
     // so that it only runs when the element
     // actually gets committed.
     // This is useful in SSR so that effects
     // never run and only run on client-side.
-    setSuspense(newBoundary.suspense);
-    setProvider(newBoundary.provider);
+    setProvider({
+      data: reactive({}),
+      parent: parentProvider,
+    });
     try {
-      result = constructor(unwrappedProps);
+      return constructor(unwrappedProps);
     } finally {
       setProvider(parentProvider);
-      setSuspense(parentSuspense);
     }
-
-    return result;
   });
 }
