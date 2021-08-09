@@ -25,7 +25,6 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { untrack } from '../create-root';
 import { Cleanup } from '../types';
 import {
   addLinkedWorkDependency,
@@ -33,6 +32,7 @@ import {
   createLinkedWork,
   LinkedWork,
   runLinkedWork,
+  setTracking,
   TRACKING,
 } from './linked-work';
 
@@ -42,11 +42,18 @@ export interface ReactiveAtom extends LinkedWork {
 
 export function createReactiveAtom(): ReactiveAtom {
   const atom: ReactiveAtom = createLinkedWork(() => {
-    untrack(() => {
-      atom.listeners?.forEach((listener) => {
-        listener();
-      });
-    });
+    if (atom.listeners?.size) {
+      // inlined
+      const parent = TRACKING;
+      setTracking(undefined);
+      try {
+        atom.listeners.forEach((listener) => {
+          listener();
+        });
+      } finally {
+        setTracking(parent);
+      }
+    }
   });
 
   return atom;
