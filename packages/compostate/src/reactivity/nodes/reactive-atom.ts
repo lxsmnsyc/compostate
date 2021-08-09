@@ -80,8 +80,8 @@ export function notifyReactiveAtom(target: ReactiveAtom): void {
       BATCH_UPDATES.push(target);
     }
   } else {
-    runLinkedWork(target);
     target.pending = false;
+    runLinkedWork(target);
   }
 }
 
