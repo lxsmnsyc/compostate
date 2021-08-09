@@ -36,8 +36,15 @@ import {
   TRACKING,
 } from './linked-work';
 
+export let BATCH_UPDATES: LinkedWork[] | undefined;
+
+export function setBatchUpdates(instance: LinkedWork[] | undefined): void {
+  BATCH_UPDATES = instance;
+}
+
 export interface ReactiveAtom extends LinkedWork {
   listeners?: Set<() => void>;
+  pending?: boolean;
 }
 
 export function createReactiveAtom(): ReactiveAtom {
@@ -67,7 +74,15 @@ export function trackReactiveAtom(target: ReactiveAtom): void {
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
-  runLinkedWork(target);
+  if (BATCH_UPDATES) {
+    if (!target.pending) {
+      target.pending = true;
+      BATCH_UPDATES.push(target);
+    }
+  } else {
+    runLinkedWork(target);
+    target.pending = false;
+  }
 }
 
 export function subscribeReactiveAtom(target: ReactiveAtom, listener: () => void): Cleanup {

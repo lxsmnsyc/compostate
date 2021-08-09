@@ -27,12 +27,8 @@
  */
 import { CLEANUP, setCleanup } from './nodes/cleanup';
 import { BATCH_EFFECTS, setBatchEffects } from './nodes/effect';
-import {
-  BATCH_UPDATES,
-  setBatchUpdates,
-  setTracking,
-  TRACKING,
-} from './nodes/linked-work';
+import { setTracking, TRACKING } from './nodes/linked-work';
+import { BATCH_UPDATES, setBatchUpdates } from './nodes/reactive-atom';
 
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
