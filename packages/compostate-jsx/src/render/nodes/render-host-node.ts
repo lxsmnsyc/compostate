@@ -4,8 +4,10 @@ import {
   onCleanup,
   untrack,
   captureError,
+  createRoot,
+  batchCleanup,
 } from 'compostate';
-import { registerEvent, remove, setAttribute } from '../../dom';
+import { registerEvent, remove, setAttribute, setUnmounting, UNMOUNTING } from '../../dom';
 import { claimHydration, HYDRATION } from '../../hydration';
 import { Reactive, RefAttributes, VNode } from '../../types';
 import { DOMAttributes } from '../../types/dom';
@@ -72,7 +74,18 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
         }
       // Children handler
       } else if (key === 'children') {
-        renderChildren(el, props.children, null, null);
+        const cleanup = createRoot(() => (
+          batchCleanup(() => renderChildren(el, props.children, null, null))
+        ));
+        onCleanup(() => {
+          const parent = UNMOUNTING;
+          setUnmounting(true);
+          try {
+            cleanup();
+          } finally {
+            setUnmounting(parent);
+          }
+        });
       } else {
         const rawProperty = props[key as keyof typeof props];
         if (typeof rawProperty === 'object') {

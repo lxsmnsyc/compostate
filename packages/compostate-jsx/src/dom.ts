@@ -1,5 +1,11 @@
 import { ref, Ref } from 'compostate';
 
+export let UNMOUNTING = false;
+
+export function setUnmounting(flag: boolean): void {
+  UNMOUNTING = flag;
+}
+
 /* eslint-disable no-param-reassign */
 export function insert(
   parent: Node,
@@ -27,7 +33,9 @@ export function append(
 export function remove(
   node: Node,
 ): void {
-  node.parentNode?.removeChild(node);
+  if (!UNMOUNTING) {
+    node.parentNode?.removeChild(node);
+  }
 }
 
 export function createText(value: string): Node {
