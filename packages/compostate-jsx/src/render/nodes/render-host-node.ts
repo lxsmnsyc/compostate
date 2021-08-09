@@ -4,8 +4,6 @@ import {
   onCleanup,
   untrack,
   captureError,
-  watch,
-  Cleanup,
 } from 'compostate';
 import {
   registerEvent,
@@ -21,7 +19,7 @@ function applyHostProperty(
   el: HTMLElement,
   key: string,
   property: any,
-): Cleanup | undefined {
+): void {
   if (key.startsWith('on')) {
     const errorHandler = captureError();
 
@@ -39,16 +37,14 @@ function applyHostProperty(
       });
     };
 
-    return registerEvent(el, key, wrappedEvent);
-  }
-  if (key === 'style') {
+    onCleanup(registerEvent(el, key, wrappedEvent));
+  } else if (key === 'style') {
     // TODO Style Object parsing
   } else if (typeof property === 'boolean') {
     setAttribute(el, key, property ? 'true' : null);
   } else {
     setAttribute(el, key, property as string);
   }
-  return undefined;
 }
 
 export default function renderHostNode<P extends DOMAttributes<Element>>(
@@ -85,15 +81,13 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
         const rawProperty = props[key as keyof typeof props];
         if (typeof rawProperty === 'object') {
           if ('derive' in rawProperty) {
-            effect(() => (
-              applyHostProperty(el, key, rawProperty.derive())
-            ));
+            effect(() => {
+              applyHostProperty(el, key, rawProperty.derive());
+            });
           } else {
-            let cleanup: Cleanup | undefined;
-            watch(rawProperty, () => {
-              cleanup?.();
-              cleanup = applyHostProperty(el, key, rawProperty.value);
-            }, true);
+            effect(() => {
+              applyHostProperty(el, key, rawProperty.value);
+            });
           }
         } else {
           applyHostProperty(el, key, rawProperty);

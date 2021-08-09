@@ -3,7 +3,6 @@ import {
   effect,
   errorBoundary,
   reactive,
-  watch,
 } from 'compostate';
 import { PROVIDER, setProvider } from '../../provider';
 import { setSuspense, SUSPENSE } from '../../suspense';
@@ -33,7 +32,7 @@ export default function renderComponentNode<P extends Record<string, any>>(
         const property = props[key];
         if (typeof property === 'object') {
           if ('value' in property) {
-            watch(property, () => {
+            effect(() => {
               unwrappedProps[key] = property.value;
             });
           } else if ('derive' in property) {
