@@ -1,5 +1,4 @@
 import {
-  batchEffects,
   effect,
   errorBoundary,
   reactive,
@@ -69,20 +68,14 @@ export default function renderComponentNode<P extends Record<string, any>>(
     // actually gets committed.
     // This is useful in SSR so that effects
     // never run and only run on client-side.
-    const flushEffects = batchEffects(() => {
-      setSuspense(newBoundary.suspense);
-      setProvider(newBoundary.provider);
-      try {
-        result = constructor(unwrappedProps);
-      } finally {
-        setProvider(parentProvider);
-        setSuspense(parentSuspense);
-      }
-    });
-
-    effect(() => {
-      flushEffects();
-    });
+    setSuspense(newBoundary.suspense);
+    setProvider(newBoundary.provider);
+    try {
+      result = constructor(unwrappedProps);
+    } finally {
+      setProvider(parentProvider);
+      setSuspense(parentSuspense);
+    }
 
     return result;
   });
