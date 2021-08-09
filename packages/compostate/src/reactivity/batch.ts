@@ -41,7 +41,7 @@ export default function batch(callback: () => void): void {
   } finally {
     setBatchUpdates(parent);
   }
-  batchedWork.forEach((work) => {
-    notifyReactiveAtom(work);
-  });
+  for (let i = 0; i < batchedWork.length; i += 1) {
+    notifyReactiveAtom(batchedWork[i]);
+  }
 }
