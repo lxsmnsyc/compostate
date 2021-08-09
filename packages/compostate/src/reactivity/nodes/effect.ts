@@ -24,7 +24,6 @@ export function setBatchEffects(instance: EffectNode[] | undefined): void {
 }
 
 export interface EffectNode extends LinkedWork {
-  (): void;
   errorBoundary?: ErrorBoundary;
   cleanup?: Cleanup;
 }
