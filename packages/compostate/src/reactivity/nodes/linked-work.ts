@@ -9,14 +9,9 @@ import {
 } from '../../linked-list';
 
 export let TRACKING: LinkedWork | undefined;
-export let BATCH_UPDATES: LinkedWork[] | undefined;
 
 export function setTracking(instance: LinkedWork | undefined): void {
   TRACKING = instance;
-}
-
-export function setBatchUpdates(instance: LinkedWork[] | undefined): void {
-  BATCH_UPDATES = instance;
 }
 
 let ID = 0;
@@ -35,7 +30,6 @@ export interface LinkedWork {
   dependentsPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
   dependencies?: LinkedList<LinkedWork>;
   dependenciesPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
-  pending?: boolean;
 }
 
 export function createLinkedWork(work?: () => void): LinkedWork {
@@ -97,23 +91,14 @@ export function removeLinkedWorkDependency(target: LinkedWork, dependency: Linke
 
 export function runLinkedWork(target: LinkedWork): void {
   if (target.alive) {
-    if (BATCH_UPDATES) {
-      if (!target.pending) {
-        target.pending = true;
-        BATCH_UPDATES.push(target);
-      }
-    } else {
-      target();
+    target();
 
-      target.pending = false;
-
-      if (target.dependents) {
-        const list = cloneList(target.dependents);
-        let node = list.head;
-        while (node) {
-          runLinkedWork(node.value);
-          node = node.next;
-        }
+    if (target.dependents) {
+      const list = cloneList(target.dependents);
+      let node = list.head;
+      while (node) {
+        runLinkedWork(node.value);
+        node = node.next;
       }
     }
   }

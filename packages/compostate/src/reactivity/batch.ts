@@ -27,13 +27,13 @@
  */
 import {
   BATCH_UPDATES,
-  LinkedWork,
-  runLinkedWork,
+  notifyReactiveAtom,
+  ReactiveAtom,
   setBatchUpdates,
-} from './nodes/linked-work';
+} from './nodes/reactive-atom';
 
 export default function batch(callback: () => void): void {
-  const batchedWork: LinkedWork[] = [];
+  const batchedWork: ReactiveAtom[] = [];
   const parent = BATCH_UPDATES;
   setBatchUpdates(batchedWork);
   try {
@@ -42,6 +42,6 @@ export default function batch(callback: () => void): void {
     setBatchUpdates(parent);
   }
   batchedWork.forEach((work) => {
-    runLinkedWork(work);
+    notifyReactiveAtom(work);
   });
 }
