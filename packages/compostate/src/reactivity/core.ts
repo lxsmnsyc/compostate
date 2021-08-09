@@ -35,7 +35,7 @@ import {
   runLinkedWork,
   unlinkLinkedWorkDependencies,
 } from '../linked-work';
-import { requestCallback } from '../scheduler';
+import { cancelCallback, requestCallback, Task } from '../scheduler';
 import {
   Cleanup,
   Effect,
@@ -49,7 +49,7 @@ let TRACKING: LinkedWork | undefined;
 let BATCH_UPDATES: LinkedWork[] | undefined;
 let BATCH_EFFECTS: EffectNode[] | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
-let TRANSITION: LinkedWork[] | undefined;
+let TRANSITION: Set<LinkedWork> | undefined;
 
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
@@ -276,10 +276,7 @@ export function notifyReactiveAtom(target: ReactiveAtom): void {
       BATCH_UPDATES.push(target);
     }
   } else if (TRANSITION) {
-    if (!target.pending) {
-      target.pending = true;
-      TRANSITION.push(target);
-    }
+    TRANSITION.add(target);
   } else {
     target.pending = false;
     runLinkedWork(target);
@@ -310,27 +307,56 @@ export function batch(callback: () => void): void {
   }
 }
 
-export function transition(callback: () => void, timeout?: number): void {
-  const transitions: LinkedWork[] = [];
-  const parent = TRANSITION;
-  TRANSITION = transitions;
-  try {
-    // Unbatch first so that the scheduled updates
-    // do not get pushed synchronously
-    unbatch(() => {
-      batch(() => {
-        callback();
-      });
-    });
-  } finally {
-    TRANSITION = parent;
+export interface Transition {
+  start: (cb: () => void) => void;
+  isPending: () => boolean;
+}
+
+export function createTransition(timeout?: number): Transition {
+  const transitions: Set<LinkedWork> = new Set();
+  let isPending = false;
+  let task: Task | undefined;
+
+  function schedule() {
+    if (!isPending) {
+      task = requestCallback(() => {
+        transitions.forEach((transition) => {
+          runLinkedWork(transition);
+        });
+        transitions.clear();
+        isPending = false;
+      }, { timeout });
+    }
   }
 
-  requestCallback(() => {
-    for (let i = 0; i < transitions.length; i += 1) {
-      runLinkedWork(transitions[i]);
+  onCleanup(() => {
+    if (task) {
+      cancelCallback(task);
     }
-  }, { timeout });
+  });
+
+  return {
+    start(callback: () => void) {
+      const parent = TRANSITION;
+      TRANSITION = transitions;
+      try {
+        // Unbatch first so that the scheduled updates
+        // do not get pushed synchronously
+        unbatch(() => {
+          batch(() => {
+            callback();
+          });
+        });
+      } finally {
+        TRANSITION = parent;
+      }
+
+      schedule();
+    },
+    isPending() {
+      return isPending;
+    },
+  };
 }
 
 interface EffectNode extends LinkedWork {
