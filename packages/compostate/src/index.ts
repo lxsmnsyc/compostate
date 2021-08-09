@@ -26,6 +26,7 @@
  * @copyright Alexis Munsayac 2021
  */
 export {
+  transition,
   batch,
   unbatch,
   createRoot,
