@@ -33,7 +33,7 @@ import {
 } from './nodes/linked-work';
 
 export default function batch(callback: () => void): void {
-  const batchedWork = new Set<LinkedWork>();
+  const batchedWork: LinkedWork[] = [];
   const parent = BATCH_UPDATES;
   setBatchUpdates(batchedWork);
   try {
@@ -44,5 +44,4 @@ export default function batch(callback: () => void): void {
   batchedWork.forEach((work) => {
     runLinkedWork(work);
   });
-  batchedWork.clear();
 }

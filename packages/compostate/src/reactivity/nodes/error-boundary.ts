@@ -1,4 +1,5 @@
 import { Cleanup, ErrorCapture } from '../types';
+import { setTracking, TRACKING } from './linked-work';
 
 export interface ErrorBoundary {
   calls?: Set<ErrorCapture>;
@@ -18,6 +19,8 @@ export function createErrorBoundary(parent?: ErrorBoundary): ErrorBoundary {
 export function handleError(instance: ErrorBoundary | undefined, error: Error): void {
   if (instance) {
     if (instance.calls?.size) {
+      const parentTracking = TRACKING;
+      setTracking(undefined);
       try {
         new Set(instance.calls).forEach((handle) => {
           handle(error);
@@ -25,6 +28,8 @@ export function handleError(instance: ErrorBoundary | undefined, error: Error): 
       } catch (newError) {
         handleError(instance.parent, error);
         handleError(instance.parent, newError);
+      } finally {
+        setTracking(parentTracking);
       }
     } else {
       handleError(instance.parent, error);
