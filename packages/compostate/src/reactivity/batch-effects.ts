@@ -42,8 +42,8 @@ export default function batchEffects(callback: () => void): () => void {
     setBatchEffects(parent);
   }
   return () => {
-    batchedEffects.forEach((effect) => {
-      flushEffect(effect);
-    });
+    for (let i = 0; i < batchedEffects.length; i += 1) {
+      flushEffect(batchedEffects[i]);
+    }
   };
 }
