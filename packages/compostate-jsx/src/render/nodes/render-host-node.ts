@@ -1,5 +1,4 @@
 import {
-  batch,
   effect,
   onCleanup,
   captureError,
@@ -26,9 +25,7 @@ function applyHostProperty(
     onCleanup(registerEvent(el, key, (evt) => {
       // In case of synchronous calls
       try {
-        batch(() => {
-          (property as unknown as EventListener)(evt);
-        });
+        (property as unknown as EventListener)(evt);
       } catch (error) {
         errorHandler(error);
       }
