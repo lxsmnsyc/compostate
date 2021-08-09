@@ -7,7 +7,13 @@ import {
   createRoot,
   batchCleanup,
 } from 'compostate';
-import { registerEvent, remove, setAttribute, setUnmounting, UNMOUNTING } from '../../dom';
+import {
+  registerEvent,
+  remove,
+  setAttribute,
+  setUnmounting,
+  UNMOUNTING,
+} from '../../dom';
 import { claimHydration, HYDRATION } from '../../hydration';
 import { Reactive, RefAttributes, VNode } from '../../types';
 import { DOMAttributes } from '../../types/dom';
@@ -77,6 +83,10 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
         const cleanup = createRoot(() => (
           batchCleanup(() => renderChildren(el, props.children, null, null))
         ));
+
+        // If the node is unmounting,
+        // we don't have to unmount the
+        // rest of the children recursively
         onCleanup(() => {
           const parent = UNMOUNTING;
           setUnmounting(true);
