@@ -4,6 +4,7 @@ import {
   reactive,
 } from 'compostate';
 import { PROVIDER, setProvider } from '../../provider';
+import { evalDerived } from '../../reactivity';
 import {
   Reactive,
   RefAttributes,
@@ -35,7 +36,7 @@ export default function renderComponentNode<P extends Record<string, any>>(
             });
           } else if ('derive' in property) {
             effect(() => {
-              unwrappedProps[key] = property.derive();
+              unwrappedProps[key] = evalDerived(property);
             });
           } else {
             unwrappedProps[key] = property;

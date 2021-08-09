@@ -1,4 +1,4 @@
-import { derived } from '../reactivity';
+import { derived, evalDerived } from '../reactivity';
 import { VNode, VReactiveConstructor, VSpecialConstructor } from '../types';
 import renderComponentNode from './nodes/render-component-node';
 import renderHostNode from './nodes/render-host-node';
@@ -11,9 +11,9 @@ export default function renderCore<P>(
 ): VNode {
   if (typeof type === 'object') {
     if ('derive' in type) {
-      return derived(() => renderCore(type.derive() as any, props, children));
+      return derived(() => renderCore(evalDerived(type), props, children));
     }
-    return derived(() => renderCore(type.value as any, props, children));
+    return derived(() => renderCore(type.value, props, children));
   }
   const fauxProps = props ?? {};
   if (typeof type === 'number') {

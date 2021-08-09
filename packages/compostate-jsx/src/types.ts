@@ -1,6 +1,10 @@
 import { Ref } from 'compostate';
+import { ProviderData } from './provider';
+import { SuspenseData } from './suspense';
 
 export interface Derived<T> {
+  suspense?: SuspenseData;
+  provider?: ProviderData;
   derive: () => T;
 }
 

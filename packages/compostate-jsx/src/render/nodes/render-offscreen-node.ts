@@ -1,4 +1,4 @@
-import { derived } from '../../reactivity';
+import { derived, evalDerived } from '../../reactivity';
 import { OffscreenProps } from '../../special';
 import { setSuspense, SUSPENSE } from '../../suspense';
 import { Reactive, VNode } from '../../types';
@@ -21,7 +21,7 @@ export default function renderOffscreenNode(
     normalizedMount = () => mount;
   } else if (typeof mount === 'object') {
     if ('derive' in mount) {
-      normalizedMount = () => !!mount.derive();
+      normalizedMount = () => !!evalDerived(mount);
     } else {
       normalizedMount = () => !!mount.value;
     }
@@ -44,22 +44,21 @@ export default function renderOffscreenNode(
     suspendChildren = () => !normalizedMount();
   }
 
-  return derived(() => {
-    const parentSuspense = SUSPENSE;
-    setSuspense({
-      capture: parentSuspense?.capture,
-      suspend: suspendChildren,
-    });
-    try {
+  setSuspense({
+    capture: currentSuspense?.capture,
+    suspend: suspendChildren,
+  });
+  try {
+    return derived(() => {
       if ('value' in render) {
         return render.value?.();
       }
       if ('derive' in render) {
-        return render.derive()?.();
+        return evalDerived(render)?.();
       }
       return render();
-    } finally {
-      setSuspense(parentSuspense);
-    }
-  });
+    });
+  } finally {
+    setSuspense(currentSuspense);
+  }
 }

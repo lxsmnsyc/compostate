@@ -10,6 +10,7 @@ import {
   setAttribute,
 } from '../../dom';
 import { claimHydration, HYDRATION } from '../../hydration';
+import { evalDerived } from '../../reactivity';
 import { Reactive, RefAttributes, VNode } from '../../types';
 import { DOMAttributes } from '../../types/dom';
 import renderChildren from '../render-children';
@@ -75,7 +76,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
         if (typeof rawProperty === 'object') {
           if ('derive' in rawProperty) {
             effect(() => {
-              applyHostProperty(el, key, rawProperty.derive());
+              applyHostProperty(el, key, evalDerived(rawProperty));
             });
           } else {
             effect(() => {

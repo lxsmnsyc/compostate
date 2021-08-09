@@ -17,25 +17,26 @@ import { PROVIDER, setProvider } from './provider';
 import { setSuspense, SUSPENSE } from './suspense';
 import { Derived, ShallowReactive } from './types';
 
+export function evalDerived<T>(value: Derived<T>): T {
+  // Capture currently running context
+  const parentSuspense = SUSPENSE;
+  const parentProvider = PROVIDER;
+  // Repush captured contexts
+  setSuspense(value.suspense);
+  setProvider(value.provider);
+  try {
+    return value.derive();
+  } finally {
+    setProvider(parentProvider);
+    setSuspense(parentSuspense);
+  }
+}
+
 export function derived<T>(value: () => T): Derived<T> {
-  // Capture current contexts
-  const currentSuspense = SUSPENSE;
-  const currentProvider = PROVIDER;
   return {
-    derive: () => {
-      // Capture currently running context
-      const parentSuspense = SUSPENSE;
-      const parentProvider = PROVIDER;
-      // Repush captured contexts
-      setSuspense(currentSuspense);
-      setProvider(currentProvider);
-      try {
-        return capturedBatchCleanup(capturedErrorBoundary(value))();
-      } finally {
-        setProvider(parentProvider);
-        setSuspense(parentSuspense);
-      }
-    },
+    derive: capturedBatchCleanup(capturedErrorBoundary(value)),
+    suspense: SUSPENSE,
+    provider: PROVIDER,
   };
 }
 
@@ -61,7 +62,7 @@ export function mapArray<T, U>(
   if (list == null) {
     derivedList = () => null;
   } else if ('derive' in list) {
-    derivedList = list.derive;
+    derivedList = () => evalDerived(list);
   } else if (Array.isArray(list)) {
     if (isReactive(list)) {
       derivedList = () => track(list);
@@ -75,7 +76,7 @@ export function mapArray<T, U>(
   let derivedMap: () => (v: T, i: Ref<number>) => U;
 
   if ('derive' in mapFn) {
-    derivedMap = mapFn.derive;
+    derivedMap = () => evalDerived(mapFn);
   } else if (typeof mapFn === 'function') {
     derivedMap = () => mapFn;
   } else {

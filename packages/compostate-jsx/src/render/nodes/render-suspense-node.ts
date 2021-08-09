@@ -10,7 +10,7 @@ import {
   Lazy,
 } from '../types';
 import { setSuspense, SUSPENSE } from '../../suspense';
-import { derived } from '../../reactivity';
+import { derived, evalDerived } from '../../reactivity';
 
 export default function renderSuspenseNode(
   props: Reactive<SuspenseProps>,
@@ -72,47 +72,45 @@ export default function renderSuspenseNode(
   let renderFallback: VNode;
 
   if (fallback) {
-    renderFallback = derived(() => {
-      const parentSuspense = SUSPENSE;
-      setSuspense({
-        capture: parentSuspense?.capture,
-        suspend: suspendFallback,
-      });
-      try {
+    setSuspense({
+      capture: currentSuspense?.capture,
+      suspend: suspendFallback,
+    });
+    try {
+      renderFallback = derived(() => {
         if ('value' in fallback) {
           return fallback.value?.();
         }
         if ('derive' in fallback) {
-          return fallback.derive()?.();
+          return evalDerived(fallback)?.();
         }
         return fallback();
-      } finally {
-        setSuspense(parentSuspense);
-      }
-    });
+      });
+    } finally {
+      setSuspense(currentSuspense);
+    }
   }
 
   let renderContent: VNode;
 
   if (render) {
-    renderContent = derived(() => {
-      const parentSuspense = SUSPENSE;
-      setSuspense({
-        capture,
-        suspend: suspendChildren,
-      });
-      try {
+    setSuspense({
+      capture,
+      suspend: suspendChildren,
+    });
+    try {
+      renderContent = derived(() => {
         if ('value' in render) {
           return render.value?.();
         }
         if ('derive' in render) {
-          return render.derive()?.();
+          return evalDerived(render)?.();
         }
         return render();
-      } finally {
-        setSuspense(parentSuspense);
-      }
-    });
+      });
+    } finally {
+      setSuspense(currentSuspense);
+    }
   }
 
   return [
