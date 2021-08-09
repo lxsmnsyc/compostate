@@ -2689,6 +2689,16 @@ component-emitter@^1.2.1:
   resolved "https://registry.yarnpkg.com/component-emitter/-/component-emitter-1.3.0.tgz#16e4070fba8ae29b679f2215853ee181ab2eabc0"
   integrity sha512-Rd3se6QB+sO1TwqZjscQrurpEPIfO0/yYnSin6Q/rD3mOutHvUrCAhJub3r90uNb+SESBuE0QYoB90YdfatsRg==
 
+compostate-element@0.2.1-alpha.19:
+  version "0.2.1-alpha.19"
+  resolved "https://registry.yarnpkg.com/compostate-element/-/compostate-element-0.2.1-alpha.19.tgz#7a5fcfb8fcdc1e9b0b609d17a115766fedabfeda"
+  integrity sha512-zzAgpw3hHll0ZLf0sH6fM4LQlhuHRaz2s10G6NCK98RFU9mvD0z1PVNqhjCk0N82SShL2cQ3dJBScFtfFlgOIQ==
+
+compostate@0.2.1-alpha.19:
+  version "0.2.1-alpha.19"
+  resolved "https://registry.yarnpkg.com/compostate/-/compostate-0.2.1-alpha.19.tgz#849a59b463b3cea22afd12edc1aa927c2a767480"
+  integrity sha512-RMnFdDTR38WfVB/+geHz6xxzAFoG3EGA/DZHFTwBg8+JmAzI0JqCC5OfMm+iLaJugfsL/Fvxj/8pPsgzWfRrrQ==
+
 concat-map@0.0.1:
   version "0.0.1"
   resolved "https://registry.yarnpkg.com/concat-map/-/concat-map-0.0.1.tgz#d8a96bd77fd68df7793a73036a3ba0d5405d477b"
@@ -5824,6 +5834,7 @@ minipass-fetch@^1.3.0, minipass-fetch@^1.3.2:
   resolved "https://registry.yarnpkg.com/minipass-fetch/-/minipass-fetch-1.3.3.tgz#34c7cea038c817a8658461bf35174551dce17a0a"
   integrity sha512-akCrLDWfbdAWkMLBxJEeWTdNsjML+dt5YgOI4gJ53vuO0vrmYQkUPxa6j6V65s9CcePIr2SSWqjT2EcrNseryQ==
   dependencies:
+    encoding "^0.1.12"
     minipass "^3.1.0"
     minipass-sized "^1.0.3"
     minizlib "^2.0.0"
