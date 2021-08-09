@@ -1,10 +1,56 @@
 /* eslint-disable no-param-reassign */
+
+type Task = () => void;
+
+const writes: Task[] = [];
+const reads: Task[] = [];
+
+function runTasks(tasks: Task[]) {
+  let task = tasks.shift();
+  while (task) {
+    task();
+    task = tasks.shift();
+  }
+}
+
+let scheduled = false;
+
+function scheduleFlush() {
+  function flush() {
+    try {
+      runTasks(reads);
+      runTasks(writes);
+    } finally {
+      scheduled = false;
+    }
+    if (reads.length || writes.length) {
+      scheduleFlush();
+    }
+  }
+  if (!scheduled) {
+    scheduled = true;
+    window.requestAnimationFrame(flush);
+  }
+}
+
+function measure(task: Task) {
+  reads.push(task);
+  scheduleFlush();
+}
+
+function mutate(task: Task) {
+  writes.push(task);
+  scheduleFlush();
+}
+
 export function insert(
   parent: Node,
   child: Node,
   marker: Node | null = null,
 ): void {
-  parent.insertBefore(child, marker);
+  mutate(() => {
+    parent.insertBefore(child, marker);
+  });
 }
 
 export function replace(
@@ -12,20 +58,26 @@ export function replace(
   child: Node,
   marker: Node,
 ): void {
-  parent.replaceChild(child, marker);
+  mutate(() => {
+    parent.replaceChild(child, marker);
+  });
 }
 
 export function append(
   parent: Node,
   child: Node,
 ): void {
-  parent.appendChild(child);
+  mutate(() => {
+    parent.appendChild(child);
+  });
 }
 
 export function remove(
   node: Node,
 ): void {
-  node.parentNode?.removeChild(node);
+  mutate(() => {
+    node.parentNode?.removeChild(node);
+  });
 }
 
 export function createText(value: string): Node {
@@ -45,7 +97,7 @@ export function createMarker(): Node {
 function setAttributeSafe(el: Element, attribute: string, value: string | null): void {
   if (value == null) {
     el.removeAttribute(attribute);
-  } else if (value !== el.getAttribute(value)) {
+  } else {
     el.setAttribute(attribute, value);
   }
 }
@@ -54,17 +106,19 @@ export function setAttribute(el: Element, attribute: string, value: string | nul
   const prototype = Object.getPrototypeOf(el);
   const descriptor = Object.getOwnPropertyDescriptor(prototype, attribute);
 
-  if (attribute === 'className') {
-    setAttributeSafe(el, 'class', value);
-  } else if (attribute === 'textContent') {
-    el.textContent = value;
-  } else if (attribute === 'innerHTML') {
-    el.innerHTML = value ?? '';
-  } else if (descriptor && descriptor.set) {
-    (el as Record<string, any>)[attribute] = value;
-  } else {
-    setAttributeSafe(el, attribute, value);
-  }
+  mutate(() => {
+    if (attribute === 'className') {
+      setAttributeSafe(el, 'class', value);
+    } else if (attribute === 'textContent') {
+      el.textContent = value;
+    } else if (attribute === 'innerHTML') {
+      el.innerHTML = value ?? '';
+    } else if (descriptor && descriptor.set) {
+      (el as Record<string, any>)[attribute] = value;
+    } else {
+      setAttributeSafe(el, attribute, value);
+    }
+  });
 }
 
 export function registerEvent<E extends Element>(
@@ -83,14 +137,18 @@ export function registerEvent<E extends Element>(
   );
 
   // Register
-  el.addEventListener(actualEvent, handler, {
-    capture,
+  mutate(() => {
+    el.addEventListener(actualEvent, handler, {
+      capture,
+    });
   });
 
   // Unregister
   return () => {
-    el.removeEventListener(actualEvent, handler, {
-      capture,
+    mutate(() => {
+      el.removeEventListener(actualEvent, handler, {
+        capture,
+      });
     });
   };
 }
