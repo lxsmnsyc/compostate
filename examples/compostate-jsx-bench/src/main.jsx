@@ -7,7 +7,6 @@ import {
   derived,
 } from 'compostate-jsx';
 import {
-  batch,
   ref,
 } from 'compostate';
 
@@ -33,7 +32,9 @@ function buildData(count) {
 
 const Button = ({ id, text, fn }) =>
   <div class='col-sm-6 smallpad'>
-    <button id={ id } class='btn btn-primary btn-block' type='button' onClick={ fn }>{ text }</button>
+    <button id={ id } class='btn btn-primary btn-block' type='button' onClick={fn}>
+      {text}
+    </button>
   </div>
 
 const Main = () => {
@@ -49,11 +50,9 @@ const Main = () => {
     data.value = [...data.value, ...buildData(1000)];
   }
   function update() {
-    batch(() => {
-      for (let i = 0; i < data.value.length; i += 10) {
-        data.value[i].label.value = data.value[i].label.value + ' !!!';
-      }
-    });
+    for (let i = 0; i < data.value.length; i += 10) {
+      data.value[i].label.value = data.value[i].label.value + ' !!!';
+    }
   }
   function swapRows() {
     const newData = data.value.slice();
