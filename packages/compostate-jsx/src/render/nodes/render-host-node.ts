@@ -2,7 +2,6 @@ import {
   batch,
   effect,
   onCleanup,
-  untrack,
   captureError,
 } from 'compostate';
 import {
@@ -25,16 +24,13 @@ function applyHostProperty(
 
     onCleanup(registerEvent(el, key, (evt) => {
       // In case of synchronous calls
-      untrack(() => {
-        // Allow update batching
-        try {
-          batch(() => {
-            (property as unknown as EventListener)(evt);
-          });
-        } catch (error) {
-          errorHandler(error);
-        }
-      });
+      try {
+        batch(() => {
+          (property as unknown as EventListener)(evt);
+        });
+      } catch (error) {
+        errorHandler(error);
+      }
     }));
   } else if (key === 'style') {
     // TODO Style Object parsing

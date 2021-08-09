@@ -1,4 +1,5 @@
-/* eslint-disable no-param-reassign */
+import { untrack } from 'compostate';
+
 export function insert(
   parent: Node,
   child: Node,
@@ -133,16 +134,18 @@ function eventHandler<E extends Event>(e: E) {
     },
   });
 
-  while (node !== null) {
-    const handler = node[key];
-    if (handler && !node.disabled) {
-      handler(e);
-      if (e.cancelBubble) return;
+  untrack(() => {
+    while (node !== null) {
+      const handler = node[key];
+      if (handler && !node.disabled) {
+        handler(e);
+        if (e.cancelBubble) return;
+      }
+      node = node.host
+        && node.host !== node
+        && node.host instanceof Node ? node.host : node.parentNode;
     }
-    node = node.host
-      && node.host !== node
-      && node.host instanceof Node ? node.host : node.parentNode;
-  }
+  });
 }
 
 function addEventListener(
@@ -158,9 +161,10 @@ function addEventListener(
       node[key] = undefined;
     };
   }
-  node.addEventListener(name, handler);
+  const wrappedHandler: typeof handler = (evt) => untrack(() => handler(evt));
+  node.addEventListener(name, wrappedHandler);
   return () => {
-    node.removeEventListener(name, handler);
+    node.removeEventListener(name, wrappedHandler);
   };
 }
 
@@ -191,11 +195,12 @@ export function registerEvent<E extends Element>(
 
   // Register
   if (capture) {
-    el.addEventListener(actualEvent, handler, {
+    const wrappedHandler: typeof handler = (evt) => untrack(() => handler(evt));
+    el.addEventListener(actualEvent, wrappedHandler, {
       capture,
     });
     return () => {
-      el.removeEventListener(actualEvent, handler, {
+      el.removeEventListener(actualEvent, wrappedHandler, {
         capture,
       });
     };
