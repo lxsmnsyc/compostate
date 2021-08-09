@@ -1,5 +1,4 @@
-import batch from './batch';
-import effect from './effect';
+import { batch, effect } from './core';
 import reactive from './reactive';
 
 export interface ResourcePending {
@@ -49,9 +48,7 @@ export default function resource<T>(
         const timeout = setTimeout(() => {
           // Resolution takes too long,
           // fallback to pending state.
-          batch(() => {
-            state.status = 'pending';
-          });
+          state.status = 'pending';
         }, options.timeoutMS);
 
         return () => {

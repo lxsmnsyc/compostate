@@ -30,7 +30,7 @@ import {
   notifyReactiveAtom,
   ReactiveAtom,
   trackReactiveAtom,
-} from './reactive-atom';
+} from '../core';
 
 export default class ReactiveKeys<K> {
   private atoms = new Map<K, ReactiveAtom>();

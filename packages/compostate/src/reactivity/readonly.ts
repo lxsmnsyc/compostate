@@ -25,7 +25,7 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { getTrackableAtom, isTrackable, registerTrackable } from './nodes/track-map';
+import { getTrackableAtom, isTrackable, registerTrackable } from './core';
 import { ReactiveBaseObject } from './types';
 
 const readonlies = new WeakMap();

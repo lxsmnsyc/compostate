@@ -1,5 +1,9 @@
-import { createReactiveAtom, notifyReactiveAtom, trackReactiveAtom } from './reactive-atom';
-import { registerTrackable } from './track-map';
+import {
+  createReactiveAtom,
+  notifyReactiveAtom,
+  registerTrackable,
+  trackReactiveAtom,
+} from '../core';
 
 export default class RefNode<T> {
   private val: T;

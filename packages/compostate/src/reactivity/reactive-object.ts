@@ -25,9 +25,8 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { createReactiveAtom, notifyReactiveAtom } from './nodes/reactive-atom';
+import { createReactiveAtom, notifyReactiveAtom, registerTrackable } from './core';
 import ReactiveKeys from './nodes/reactive-keys';
-import { registerTrackable } from './nodes/track-map';
 import { ReactiveObject } from './types';
 
 class ReactiveObjectHandler<T extends ReactiveObject> {

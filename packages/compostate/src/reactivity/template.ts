@@ -1,5 +1,5 @@
-import computed from './computed';
-import { Ref } from './ref';
+import { computed } from './core';
+import { Ref } from './types';
 
 export default function template(
   strings: TemplateStringsArray,

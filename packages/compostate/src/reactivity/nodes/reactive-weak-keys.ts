@@ -30,7 +30,7 @@ import {
   notifyReactiveAtom,
   ReactiveAtom,
   trackReactiveAtom,
-} from './reactive-atom';
+} from '../core';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export default class ReactiveWeakKeys<K extends object> {

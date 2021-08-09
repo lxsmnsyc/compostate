@@ -1,6 +1,5 @@
-import computed from './computed';
-import { Ref } from './ref';
-import { ReactiveObject } from './types';
+import { computed } from './core';
+import { ReactiveObject, Ref } from './types';
 
 export type Spread<T extends ReactiveObject> = {
   readonly [key in keyof T]: Readonly<Ref<T>>;
