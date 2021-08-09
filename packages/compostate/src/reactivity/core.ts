@@ -315,7 +315,13 @@ export function transition(callback: () => void, timeout?: number): void {
   const parent = TRANSITION;
   TRANSITION = transitions;
   try {
-    callback();
+    // Unbatch first so that the scheduled updates
+    // do not get pushed synchronously
+    unbatch(() => {
+      batch(() => {
+        callback();
+      });
+    });
   } finally {
     TRANSITION = parent;
   }
