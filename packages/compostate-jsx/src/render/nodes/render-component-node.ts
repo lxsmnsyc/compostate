@@ -23,7 +23,7 @@ export default function renderComponentNode<P extends Record<string, any>>(
 
     // Track individual props
     const keys = getKeys(props);
-    for (let i = 0, len = keys.length, key: string; i < len; i += 1) {
+    for (let i = 0, len = keys.length, key: string; i < len; i++) {
       key = keys[i];
       if (key === 'ref') {
         const { ref } = props;

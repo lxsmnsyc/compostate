@@ -10,7 +10,7 @@ import diff from './diff';
 import { evalDerived } from '../reactivity';
 
 function hasReactiveChildren(children: VNode[]): boolean {
-  for (let i = 0, len = children.length, child: VNode; i < len; i += 1) {
+  for (let i = 0, len = children.length, child: VNode; i < len; i++) {
     child = children[i];
 
     if (typeof child === 'object' && child && ('derive' in child || isReactive(child))) {
@@ -24,7 +24,7 @@ function hasReactiveChildren(children: VNode[]): boolean {
 }
 
 function normalizeChildren(children: VNode[], base: Node[] = []): Node[] {
-  for (let i = 0, len = children.length, child: VNode; i < len; i += 1) {
+  for (let i = 0, len = children.length, child: VNode; i < len; i++) {
     child = children[i];
 
     if (child == null || child === true || child === false) {
@@ -67,11 +67,11 @@ export default function renderChildren(
       if (Array.isArray(previous)) {
         if (previous.length === 0) {
           // insert shortcut
-          for (let i = 0, len = normal.length; i < len; i += 1) {
+          for (let i = 0, len = normal.length; i < len; i++) {
             insert(root, normal[i], marker);
           }
         } else if (normal.length === 0) {
-          for (let i = 0, len = normalPrev.length; i < len; i += 1) {
+          for (let i = 0, len = normalPrev.length; i < len; i++) {
             remove(normalPrev[i]);
           }
         } else {
@@ -79,11 +79,11 @@ export default function renderChildren(
         }
       } else if (previous instanceof Node) {
         remove(previous);
-        for (let i = 0, len = normal.length; i < len; i += 1) {
+        for (let i = 0, len = normal.length; i < len; i++) {
           insert(root, normal[i], marker);
         }
       } else {
-        for (let i = 0, len = normal.length; i < len; i += 1) {
+        for (let i = 0, len = normal.length; i < len; i++) {
           insert(root, normal[i], marker);
         }
       }

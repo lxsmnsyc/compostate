@@ -6,10 +6,8 @@ export interface Provider<T> {
 let ID = 0;
 
 export function createProvider<T>(defaultValue: T): Provider<T> {
-  const currentID = ID;
-  ID += 1;
   return {
-    id: `${currentID}`,
+    id: `${ID++}`,
     defaultValue,
   };
 }

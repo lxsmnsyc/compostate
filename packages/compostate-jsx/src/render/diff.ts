@@ -27,8 +27,7 @@ export default function diff(
         : future[futureEnd - futureStart];
       const node = futureEnd < futureLength ? marker : before;
       while (futureStart < futureEnd) {
-        insert(parent, future[futureStart], node);
-        futureStart += 1;
+        insert(parent, future[futureStart++], node);
       }
     } else if (futureEnd === futureStart) {
       // remove head or tail: fast path
@@ -37,16 +36,16 @@ export default function diff(
         if (!map || !map.has(current[currentStart])) {
           remove(current[currentStart]);
         }
-        currentStart += 1;
+        currentStart++;
       }
     } else if (current[currentStart] === future[futureStart]) {
       // same node: fast path
-      currentStart += 1;
-      futureStart += 1;
+      currentStart++;
+      futureStart++;
     } else if (current[currentEnd - 1] === future[futureEnd - 1]) {
       // same tail: fast path
-      futureEnd -= 1;
-      currentEnd -= 1;
+      futureEnd--;
+      currentEnd--;
     } else if (
       current[currentStart] === future[futureEnd - 1]
       && future[futureStart] === current[currentEnd - 1]
@@ -60,13 +59,9 @@ export default function diff(
       // or asymmetric too
       // [1, 2, 3, 4, 5]
       // [1, 2, 3, 5, 6, 4]
-      currentEnd -= 1;
-      const node = current[currentEnd].nextSibling;
-      insert(parent, future[futureStart], current[currentStart]);
-      futureStart += 1;
-      currentStart += 1;
-      futureEnd -= 1;
-      insert(parent, future[futureEnd], node);
+      const node = current[--currentEnd].nextSibling;
+      insert(parent, future[futureStart++], current[currentStart++]);
+      insert(parent, future[--futureEnd], node);
       // mark the future index as identical (yeah, it's dirty, but cheap 👍)
       // The main reason to do this, is that when a[aEnd] will be reached,
       // the loop will likely be on the fast path, as identical to b[bEnd].
@@ -84,8 +79,7 @@ export default function diff(
         map = new Map();
         let i = futureStart;
         while (i < futureEnd) {
-          map.set(future[i], i);
-          i += 1;
+          map.set(future[i], i++);
         }
       }
       // if it's a future node, hence it needs some handling
@@ -97,18 +91,8 @@ export default function diff(
           let i = currentStart;
           // counts the amount of nodes that are the same in the future
           let sequence = 1;
-          while (true) {
-            i += 1;
-            if (
-              !(
-                i < currentStart
-                && i < futureEnd
-                && map.get(current[i]) === (index + sequence)
-              )
-            ) {
-              break;
-            }
-            sequence += 1;
+          while (++i < currentEnd && i < futureEnd && map.get(a[i]) === (index + sequence)) {
+            sequence++;
           }
           // effort decision here: if the sequence is longer than replaces
           // needed to reach such sequence, which would brings again this loop
@@ -123,27 +107,23 @@ export default function diff(
           if (sequence > (index - futureStart)) {
             const node = current[currentStart];
             while (futureStart < index) {
-              insert(parent, future[futureStart], node);
-              futureStart += 1;
+              insert(parent, future[futureStart++], node);
             }
           } else {
-            replace(parent, future[futureStart], current[currentStart]);
-            futureStart += 1;
-            currentStart += 1;
+            replace(parent, future[futureStart++], current[currentStart++]);
             // if the effort wasn't good enough, fallback to a replace,
             // moving both source and target indexes forward, hoping that some
             // similar node will be found later on, to go back to the fast path
           }
         } else {
           // otherwise move the source forward, 'cause there's nothing to do
-          currentStart += 1;
+          currentStart++;
         }
       } else {
         // this node has no meaning in the future list, so it's more than safe
         // to remove it, and check the next live node out instead, meaning
         // that only the live list index should be forwarded
-        remove(current[currentStart]);
-        currentStart += 1;
+        remove(current[currentStart++]);
       }
     }
   }

@@ -38,11 +38,7 @@ let id = 0;
 const USE_COMMENT = false;
 
 export const createMarker = USE_COMMENT
-  ? () => {
-    const newID = id;
-    id += 1;
-    return document.createComment(`${newID}`);
-  }
+  ? () => document.createComment(`${id++}`)
   : () => createText('');
 
 function setAttributeSafe(el: Element, attribute: string, value: string | null): void {
@@ -201,7 +197,7 @@ const objectKeys = Object.keys;
 export function createStyle(obj: Record<string, string>): string {
   const keys = objectKeys(obj);
   let value = '';
-  for (let i = 0, len = keys.length, prop: string; i < len; i += 1) {
+  for (let i = 0, len = keys.length, prop: string; i < len; i++) {
     prop = keys[i];
     value += `${kebabify(prop)}:${obj[prop]};`;
   }

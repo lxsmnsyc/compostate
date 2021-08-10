@@ -14,6 +14,7 @@ module.exports = {
       }
     ],
     "import/no-mutable-exports": "off",
-    "no-param-reassign": "off"
+    "no-param-reassign": "off",
+    "no-plusplus": "off"
   },
 };

@@ -41,7 +41,7 @@ export function derived<T>(value: () => T): Derived<T> {
 }
 
 function dispose(d: Cleanup[]) {
-  for (let i = 0; i < d.length; i += 1) d[i]();
+  for (let i = 0, len = d.length; i < len; i++) d[i]();
 }
 
 // https://github.com/solidjs/solid/blob/main/packages/solid/src/reactive/array.ts#L8
@@ -124,7 +124,7 @@ export function mapArray<T, U>(
       } else if (len === 0) {
         // fast path for new create
         mapped = new Array<U>(newLen);
-        for (j = 0; j < newLen; j += 1) {
+        for (j = 0; j < newLen; j++) {
           items[j] = newItems[j];
           mapped[j] = createRoot(mapper);
         }
@@ -138,14 +138,14 @@ export function mapArray<T, U>(
         for (
           start = 0, end = Math.min(len, newLen);
           start < end && items[start] === newItems[start];
-          start += 1
+          start++
         );
 
         // common suffix
         for (
           end = len - 1, newEnd = newLen - 1;
           end >= start && newEnd >= start && items[end] === newItems[newEnd];
-          end -= 1, newEnd -= 1
+          end--, newEnd--
         ) {
           temp[newEnd] = mapped[end];
           tempdisposers[newEnd] = disposers[end];
@@ -156,7 +156,7 @@ export function mapArray<T, U>(
         // scanning backwards so we encounter them in natural order
         newIndices = new Map<T, number>();
         newIndicesNext = new Array<number>(newEnd + 1);
-        for (j = newEnd; j >= start; j -= 1) {
+        for (j = newEnd; j >= start; j--) {
           item = newItems[j];
           i = newIndices.get(item)!;
           newIndicesNext[j] = i === undefined ? -1 : i;
@@ -165,7 +165,7 @@ export function mapArray<T, U>(
         // 1) step through all old items and see if they can be found
         // in the new set; if so, save them in a temp array and
         // mark them moved; if not, exit them
-        for (i = start; i <= end; i += 1) {
+        for (i = start; i <= end; i++) {
           item = items[i];
           j = newIndices.get(item)!;
           if (j !== undefined && j !== -1) {
@@ -178,7 +178,7 @@ export function mapArray<T, U>(
         }
         // 2) set all the new values, pulling from the temp array if copied,
         // otherwise entering the new value
-        for (j = start; j < newLen; j += 1) {
+        for (j = start; j < newLen; j++) {
           if (j in temp) {
             mapped[j] = temp[j];
             disposers[j] = tempdisposers[j];

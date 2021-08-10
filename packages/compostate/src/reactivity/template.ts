@@ -11,13 +11,12 @@ export default function template(
     for (let i = 0, len = strings.length; i < len; i++) {
       result = `${result}${strings[i]}`;
       if (a < args.length) {
-        const node = args[a];
+        const node = args[a++];
         if (typeof node === 'string') {
           result = `${result}${node}`;
         } else {
           result = `${result}${node.value}`;
         }
-        a++;
       }
     }
     return result;

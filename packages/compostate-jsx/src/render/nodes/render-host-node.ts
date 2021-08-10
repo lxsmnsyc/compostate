@@ -62,7 +62,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
   if (props) {
     const keys = getKeys(props);
 
-    for (let i = 0, len = keys.length, key: string; i < len; i += 1) {
+    for (let i = 0, len = keys.length, key: string; i < len; i++) {
       key = keys[i];
       // Ref handler
       if (key === 'ref') {
