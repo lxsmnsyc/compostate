@@ -2,8 +2,13 @@ import { computed } from './core';
 import { ReactiveObject, Ref } from './types';
 
 export type Spread<T extends ReactiveObject> = {
-  readonly [key in keyof T]: Readonly<Ref<T[key]>>;
+  [key in keyof T]: Readonly<Ref<T[key]>>;
 }
+
+export type KeyType<T extends ReactiveObject> =
+   T extends any[]
+    ? number
+    : keyof T;
 
 export function destructure<T extends ReactiveObject>(
   source: T,
@@ -26,18 +31,11 @@ export function destructure<T extends ReactiveObject>(
 export function spread<T extends ReactiveObject>(
   source: T,
 ): Spread<T> {
-  if (Array.isArray(source)) {
-    const proxy = [] as unknown as Spread<T>;
-    for (let i = 0, len = source.length; i < len; i++) {
-      proxy[i] = computed(() => source[i]);
-    }
-    return proxy;
-  }
-
-  const proxy = {} as Spread<T>;
+  const proxy = (Array.isArray(source) ? [] : {}) as Spread<T>;
 
   Object.keys(source).forEach((key) => {
-    proxy[key] = computed(() => source[key]);
+    const k = key as keyof Spread<T>;
+    proxy[k] = computed(() => source[k]);
   });
 
   return proxy;
