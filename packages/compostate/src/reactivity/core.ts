@@ -325,9 +325,12 @@ export function createTransition(timeout?: number): Transition {
       cancelCallback(task);
     }
     task = requestCallback(() => {
+      const parent = BATCH_UPDATES;
+      BATCH_UPDATES = transitions;
       transitions.forEach((transition) => {
         transition();
       });
+      BATCH_UPDATES = parent;
       transitions.clear();
       isPending = false;
       task = undefined;
