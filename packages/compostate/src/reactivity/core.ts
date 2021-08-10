@@ -50,7 +50,6 @@ let BATCH_UPDATES: Set<LinkedWork> | undefined;
 let BATCH_EFFECTS: EffectNode[] | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
 let TRANSITION: Set<LinkedWork> | undefined;
-let QUEUE: Set<LinkedWork> | undefined;
 
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
@@ -270,16 +269,16 @@ export function trackReactiveAtom(target: ReactiveAtom): void {
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
-  const batchedWork = new Set<LinkedWork>();
-  runLinkedWork(target, batchedWork);
-
-  const parent = QUEUE;
-  QUEUE = batchedWork;
-  const queue = parent ?? BATCH_UPDATES ?? TRANSITION;
-  batchedWork.forEach((work) => {
-    runLinkedWorkAlone(work, queue);
-  });
-  QUEUE = parent;
+  const instance = new Set<LinkedWork>();
+  const parent = BATCH_UPDATES;
+  runLinkedWork(target, parent ?? instance);
+  if (!parent) {
+    BATCH_UPDATES = instance;
+    instance.forEach((work) => {
+      runLinkedWorkAlone(work, TRANSITION);
+    });
+    BATCH_UPDATES = undefined;
+  }
 }
 
 function subscribeReactiveAtom(target: ReactiveAtom, listener: () => void): Cleanup {
@@ -293,24 +292,21 @@ function subscribeReactiveAtom(target: ReactiveAtom, listener: () => void): Clea
 }
 
 export function batch(callback: () => void): void {
-  const batchedWork: Set<ReactiveAtom> = new Set();
+  const instance = new Set<LinkedWork>();
   const parent = BATCH_UPDATES;
-  BATCH_UPDATES = batchedWork;
+  BATCH_UPDATES = parent ?? instance;
   try {
     callback();
   } finally {
     BATCH_UPDATES = parent;
   }
-  const parentQueue = QUEUE;
-  const targetQueue = QUEUE ?? BATCH_UPDATES ?? TRANSITION;
-  QUEUE = batchedWork;
-  batchedWork.forEach((work) => {
-    // Since the batched work is already flattened,
-    // either just run the work without its dependencies
-    // or enqueue them to parent batch updates or transition
-    runLinkedWorkAlone(work, targetQueue);
-  });
-  QUEUE = parentQueue;
+  if (!parent) {
+    BATCH_UPDATES = instance;
+    instance.forEach((work) => {
+      runLinkedWorkAlone(work, TRANSITION);
+    });
+    BATCH_UPDATES = undefined;
+  }
 }
 
 export interface Transition {
