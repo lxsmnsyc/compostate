@@ -25,29 +25,47 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-export { default as batch } from './reactivity/batch';
-export { default as batchEffects } from './reactivity/batch-effects';
-export { default as computed } from './reactivity/computed';
-export { default as debounce } from './reactivity/debounce';
-export { default as effect } from './reactivity/effect';
-export { default as reactive, isReactive } from './reactivity/reactive';
-export { default as readonly, isReadonly } from './reactivity/readonly';
-export { default as ref, Ref } from './reactivity/ref';
 export {
-  createRoot,
-  untrack,
+  createTransition,
+  batch,
   unbatch,
+  createRoot,
+  // captures
+  capturedBatchCleanup,
+  capturedErrorBoundary,
+  // cleanup
+  onCleanup,
+  batchCleanup,
   unbatchCleanup,
+  // error boundary
+  onError,
+  errorBoundary,
+  captureError,
+  // effects
+  effect,
+  batchEffects,
   unbatchEffects,
-} from './reactivity/create-root';
-export { default as track } from './reactivity/track';
+  // computed
+  computed,
+  // subscription
+  untrack,
+  track,
+  watch,
+  // checks
+  isTrackable as isReactive,
+  isTrackable,
+} from './reactivity/core';
+// Extensions
+export { default as debounce } from './reactivity/debounce';
+export { default as reactive } from './reactivity/reactive';
+export { default as readonly } from './reactivity/readonly';
+export { default as ref } from './reactivity/ref';
 export { default as resource } from './reactivity/resource';
 export { default as spread } from './reactivity/spread';
-export { default as watch } from './reactivity/watch';
-export { default as batchCleanup } from './reactivity/batch-cleanup';
-export { default as onCleanup } from './reactivity/on-cleanup';
-export { default as errorBoundary } from './reactivity/error-boundary';
-export { default as onError } from './reactivity/on-error';
-export { default as captureError } from './reactivity/capture-error';
-export * from './reactivity/resource';
-export { Effect, Cleanup } from './reactivity/types';
+export { default as template } from './reactivity/template';
+export {
+  Effect,
+  Cleanup,
+  ErrorCapture,
+  Ref,
+} from './reactivity/types';

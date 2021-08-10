@@ -25,15 +25,14 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import ReactiveAtom from './nodes/reactive-atom';
+import { createReactiveAtom, notifyReactiveAtom, registerTrackable } from './core';
 import ReactiveKeys from './nodes/reactive-keys';
-import { registerTrackable } from './nodes/track-map';
 import { ReactiveObject } from './types';
 
 class ReactiveObjectHandler<T extends ReactiveObject> {
   collection?: ReactiveKeys<string | symbol | number>;
 
-  atom = new ReactiveAtom();
+  atom = createReactiveAtom();
 
   get(target: T, key: string | symbol, receiver: any) {
     if (!this.collection) {
@@ -55,7 +54,7 @@ class ReactiveObjectHandler<T extends ReactiveObject> {
     const deleted = Reflect.deleteProperty(target, key);
     if (deleted) {
       this.collection?.notify(key);
-      this.atom.notify();
+      notifyReactiveAtom(this.atom);
     }
     return deleted;
   }
@@ -67,7 +66,7 @@ class ReactiveObjectHandler<T extends ReactiveObject> {
 
     if (result && !Object.is(current, value)) {
       this.collection?.notify(key);
-      this.atom.notify();
+      notifyReactiveAtom(this.atom);
     }
 
     return result;

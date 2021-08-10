@@ -25,15 +25,14 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import ReactiveAtom from './nodes/reactive-atom';
+import { createReactiveAtom, notifyReactiveAtom, registerTrackable } from './core';
 import ReactiveWeakKeys from './nodes/reactive-weak-keys';
-import { registerTrackable } from './nodes/track-map';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, V> {
   private source: WeakMap<K, V>;
 
-  private atom = new ReactiveAtom();
+  private atom = createReactiveAtom();
 
   private collection?: ReactiveWeakKeys<K>;
 
@@ -47,7 +46,7 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
     const result = this.source.delete(key);
     if (result) {
       this.collection?.notify(key);
-      this.atom.notify();
+      notifyReactiveAtom(this.atom);
     }
     return result;
   }
@@ -69,7 +68,7 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
     if (!Object.is(current, value)) {
       this.source.set(key, value);
       this.collection?.notify(key);
-      this.atom.notify();
+      notifyReactiveAtom(this.atom);
     }
     return this;
   }

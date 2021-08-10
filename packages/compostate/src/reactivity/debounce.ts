@@ -1,7 +1,7 @@
-import computed from './computed';
-import effect from './effect';
+import { computed, effect } from './core';
 import readonly from './readonly';
-import ref, { Ref } from './ref';
+import ref from './ref';
+import { Ref } from './types';
 
 export default function debounce<T>(
   computation: () => T,
