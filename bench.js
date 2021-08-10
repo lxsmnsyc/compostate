@@ -1,12 +1,17 @@
-const { ref, template, effect } = require('./packages/compostate');
+const { spread, reactive, effect, template } = require('./packages/compostate');
 
-const person = ref('Alexis');
-const greeting = ref('Hello');
-const message = template`${greeting}, ${person}!`;
+const state = reactive({
+  name: 'Alexis',
+  greeting: 'Hello',
+});
+
+const { greeting, name } = spread(state);
+
+const message = template`${greeting}, ${name}!`;
 
 effect(() => {
   console.log(message.value);
 });
 
-person.value = 'John Doe';
-greeting.value = 'Bonjour';
+state.name = 'Rizal';
+state.greeting = 'Kamusta';

@@ -2,7 +2,7 @@ import { computed } from './core';
 import { ReactiveObject, Ref } from './types';
 
 export type Spread<T extends ReactiveObject> = {
-  readonly [key in keyof T]: Readonly<Ref<T>>;
+  readonly [key in keyof T]: Readonly<Ref<T[key]>>;
 }
 
 export type KeyType<T extends ReactiveObject> =
