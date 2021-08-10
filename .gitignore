@@ -102,7 +102,5 @@ dist
 
 # TernJS port file
 .tern-port
-bench.js
-
-lib
 .parcel-cache
+lib

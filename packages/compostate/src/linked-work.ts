@@ -1,13 +1,3 @@
-import {
-  LinkedList,
-  LinkedListNode,
-  createLinkedList,
-  createLinkedListNode,
-  insertTail,
-  removeNode,
-  cloneList,
-} from './linked-list';
-
 let ID = 0;
 
 export interface LinkedWork {
@@ -15,10 +5,10 @@ export interface LinkedWork {
   tag: string;
   id: number;
   alive: boolean;
-  dependents?: LinkedList<LinkedWork>;
-  dependentsPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
-  dependencies?: LinkedList<LinkedWork>;
-  dependenciesPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
+  dependents?: LinkedWork[];
+  dependentsPosition?: Record<string, number | undefined>;
+  dependencies?: LinkedWork[];
+  dependenciesPosition?: Record<string, number | undefined>;
 }
 
 const objAssign = Object.assign;
@@ -34,13 +24,13 @@ export function createLinkedWork(tag: string, work?: () => void): LinkedWork {
 export function addLinkedWorkDependent(target: LinkedWork, dependent: LinkedWork): void {
   if (target.alive) {
     if (!target.dependents || !target.dependentsPosition) {
-      target.dependents = createLinkedList();
+      target.dependents = [];
       target.dependentsPosition = {};
     }
     if (!target.dependentsPosition[dependent.id]) {
-      const node = createLinkedListNode(dependent);
-      target.dependentsPosition[dependent.id] = node;
-      insertTail(target.dependents, node);
+      const index = target.dependents.length;
+      target.dependentsPosition[dependent.id] = index;
+      target.dependents[index] = dependent;
     }
   }
 }
@@ -51,7 +41,10 @@ export function removeLinkedWorkDependent(target: LinkedWork, dependent: LinkedW
   }
   const node = target.dependentsPosition[dependent.id];
   if (node) {
-    removeNode(target.dependents, node);
+    const last = target.dependents.pop();
+    if (last) {
+      target.dependents[node] = last;
+    }
     target.dependentsPosition[dependent.id] = undefined;
   }
 }
@@ -59,13 +52,13 @@ export function removeLinkedWorkDependent(target: LinkedWork, dependent: LinkedW
 export function addLinkedWorkDependency(target: LinkedWork, dependency: LinkedWork): void {
   if (target.alive) {
     if (!target.dependencies || !target.dependenciesPosition) {
-      target.dependencies = createLinkedList();
+      target.dependencies = [];
       target.dependenciesPosition = {};
     }
     if (!target.dependenciesPosition[dependency.id]) {
-      const node = createLinkedListNode(dependency);
-      target.dependenciesPosition[dependency.id] = node;
-      insertTail(target.dependencies, node);
+      const index = target.dependencies.length;
+      target.dependenciesPosition[dependency.id] = index;
+      target.dependencies[index] = dependency;
     }
   }
 }
@@ -76,7 +69,10 @@ export function removeLinkedWorkDependency(target: LinkedWork, dependency: Linke
   }
   const node = target.dependenciesPosition[dependency.id];
   if (node) {
-    removeNode(target.dependencies, node);
+    const last = target.dependencies.pop();
+    if (last) {
+      target.dependencies[node] = last;
+    }
     target.dependenciesPosition[dependency.id] = undefined;
   }
 }
@@ -85,10 +81,12 @@ function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
   if (target.alive) {
     queue.delete(target);
     queue.add(target);
-    let node = target.dependents?.head;
-    while (node) {
-      flattenLinkedWork(node.value, queue);
-      node = node.next;
+    const { dependents } = target;
+    if (dependents) {
+      const copy = Array.from(dependents);
+      for (let i = 0, len = copy.length; i < len; i += 1) {
+        flattenLinkedWork(copy[i], queue);
+      }
     }
   }
 }
@@ -110,24 +108,21 @@ export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void
   } else if (target.alive) {
     target();
 
-    if (target.dependents) {
-      const list = cloneList(target.dependents);
-      let node = list.head;
-      while (node) {
-        runLinkedWork(node.value);
-        node = node.next;
+    const { dependents } = target;
+    if (dependents) {
+      const copy = Array.from(dependents);
+      for (let i = 0, len = copy.length; i < len; i += 1) {
+        runLinkedWork(copy[i]);
       }
     }
   }
 }
 
 export function unlinkLinkedWorkDependencies(target: LinkedWork): void {
-  if (target.dependencies) {
-    const list = cloneList(target.dependencies);
-    let node = list.head;
-    while (node) {
-      removeLinkedWorkDependent(node.value, target);
-      node = node.next;
+  const { dependencies } = target;
+  if (dependencies) {
+    for (let i = 0, len = dependencies.length; i < len; i += 1) {
+      removeLinkedWorkDependent(dependencies[i], target);
     }
   }
 }
