@@ -25,13 +25,14 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import {
+ import {
   addLinkedWorkDependency,
   addLinkedWorkDependent,
   createLinkedWork,
   destroyLinkedWork,
   LinkedWork,
   runLinkedWork,
+  runLinkedWorkAlone,
   unlinkLinkedWorkDependencies,
 } from '../linked-work';
 import { cancelCallback, requestCallback, Task } from '../scheduler';
@@ -49,6 +50,7 @@ let BATCH_UPDATES: Set<LinkedWork> | undefined;
 let BATCH_EFFECTS: EffectNode[] | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
 let TRANSITION: Set<LinkedWork> | undefined;
+let QUEUE: Set<LinkedWork> | undefined;
 
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
@@ -245,7 +247,7 @@ export interface ReactiveAtom extends LinkedWork {
 }
 
 export function createReactiveAtom(): ReactiveAtom {
-  const atom: ReactiveAtom = createLinkedWork(() => {
+  const atom: ReactiveAtom = createLinkedWork('atom', () => {
     if (atom.listeners?.size) {
       const { listeners } = atom;
       // inlined
@@ -268,7 +270,15 @@ export function trackReactiveAtom(target: ReactiveAtom): void {
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
-  runLinkedWork(target, BATCH_UPDATES ?? TRANSITION);
+  const batchedWork = new Set<LinkedWork>();
+  runLinkedWork(target, batchedWork);
+
+  const parent = QUEUE;
+  QUEUE = batchedWork;
+  batchedWork.forEach((work) => {
+    runLinkedWorkAlone(work, parent ?? BATCH_UPDATES ?? TRANSITION);
+  });
+  QUEUE = parent;
 }
 
 function subscribeReactiveAtom(target: ReactiveAtom, listener: () => void): Cleanup {
@@ -291,7 +301,10 @@ export function batch(callback: () => void): void {
     BATCH_UPDATES = parent;
   }
   batchedWork.forEach((work) => {
-    work();
+    // Since the batched work is already flattened,
+    // either just run the work without its dependencies
+    // or enqueue them to parent batch updates or transition
+    runLinkedWorkAlone(work, QUEUE ?? BATCH_UPDATES ?? TRANSITION);
   });
 }
 
@@ -402,7 +415,7 @@ function revalidateEffect(
 
 function createEffect(callback: Effect): EffectNode {
   const node = Object.assign(
-    createLinkedWork(() => {
+    createLinkedWork('effect', () => {
       revalidateEffect(node, callback);
     }),
     {
@@ -473,7 +486,7 @@ export function computed<T>(compute: () => T): Ref<T> {
   const currentErrorBoundary = ERROR_BOUNDARY;
   const atom = createReactiveAtom();
 
-  const work = createLinkedWork(() => {
+  const work = createLinkedWork('computed', () => {
     unlinkLinkedWorkDependencies(work);
     const parentTracking = TRACKING;
     const parentErrorBoundary = ERROR_BOUNDARY;
