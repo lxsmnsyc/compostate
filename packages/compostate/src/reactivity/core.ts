@@ -182,19 +182,20 @@ function createErrorBoundary(parent?: ErrorBoundary): ErrorBoundary {
 
 function handleError(instance: ErrorBoundary | undefined, error: Error): void {
   if (instance) {
-    if (instance.calls?.size) {
+    const { calls, parent } = instance;
+    if (calls?.size) {
       try {
         untrack(() => {
-          new Set(instance.calls).forEach((handle) => {
+          new Set(calls).forEach((handle) => {
             handle(error);
           });
         });
       } catch (newError) {
-        handleError(instance.parent, error);
-        handleError(instance.parent, newError);
+        handleError(parent, error);
+        handleError(parent, newError);
       }
     } else {
-      handleError(instance.parent, error);
+      handleError(parent, error);
     }
   } else {
     throw error;
@@ -325,9 +326,12 @@ export function createTransition(timeout?: number): Transition {
       cancelCallback(task);
     }
     task = requestCallback(() => {
+      const parent = BATCH_UPDATES;
+      BATCH_UPDATES = transitions;
       transitions.forEach((transition) => {
         transition();
       });
+      BATCH_UPDATES = parent;
       transitions.clear();
       isPending = false;
       task = undefined;
@@ -371,9 +375,10 @@ function cleanupEffect(node: EffectNode): void {
   if (node.alive) {
     unlinkLinkedWorkDependencies(node);
 
-    if (node.cleanup) {
+    const currentCleanup = node.cleanup;
+    if (currentCleanup) {
       try {
-        node.cleanup();
+        currentCleanup();
       } catch (error) {
         handleError(node.errorBoundary, error);
       }
@@ -406,7 +411,7 @@ function revalidateEffect(
       node.cleanup = batchCleanup(callback);
     });
   } catch (error) {
-    handleError(node.errorBoundary, error);
+    handleError(ERROR_BOUNDARY, error);
   } finally {
     TRACKING = parentTracking;
     BATCH_EFFECTS = parentBatchEffects;
@@ -414,8 +419,10 @@ function revalidateEffect(
   }
 }
 
+const objAssign = Object.assign;
+
 function createEffect(callback: Effect): EffectNode {
-  const node = Object.assign(
+  const node = objAssign(
     createLinkedWork('effect', () => {
       revalidateEffect(node, callback);
     }),
@@ -436,7 +443,7 @@ export function batchEffects(callback: () => void): () => void {
     BATCH_EFFECTS = parent;
   }
   return () => {
-    for (let i = 0; i < batchedEffects.length; i += 1) {
+    for (let i = 0, len = batchedEffects.length; i < len; i += 1) {
       runLinkedWork(batchedEffects[i]);
     }
   };
