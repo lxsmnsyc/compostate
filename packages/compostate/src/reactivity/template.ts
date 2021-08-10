@@ -8,7 +8,7 @@ export default function template(
   return computed(() => {
     let result = '';
     let a = 0;
-    for (let i = 0; i < strings.length; i += 1) {
+    for (let i = 0, len = strings.length; i < len; i += 1) {
       result = `${result}${strings[i]}`;
       if (a < args.length) {
         const node = args[a];
