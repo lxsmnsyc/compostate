@@ -1,5 +1,5 @@
 {
-  "version": "0.2.1-no-vdom.30",
+  "version": "0.2.1-no-vdom.31",
   "types": "dist/types/index.d.ts",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -23,7 +23,7 @@
   "devDependencies": {
     "@types/jest": "^26.0.24",
     "@types/node": "^16.3.1",
-    "compostate": "0.2.1-no-vdom.29",
+    "compostate": "0.2.1-no-vdom.31",
     "eslint": "^7.30.0",
     "eslint-config-lxsmnsyc": "^0.2.3",
     "pridepack": "^0.10.0",
