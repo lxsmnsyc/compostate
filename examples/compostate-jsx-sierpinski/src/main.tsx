@@ -75,9 +75,9 @@ const Triangle = (props: TriangleProps) => {
 
   const slow = computed(() => {
     // compostate-jsx doesn't have interuptions :/
-    // const e = performance.now() + 0.8;
-    // // Artificially long execution time.
-    // while (performance.now() < e) {}
+    const e = performance.now() + 0.8;
+    // Artificially long execution time.
+    while (performance.now() < e) {}
     return props.seconds;
   });
 

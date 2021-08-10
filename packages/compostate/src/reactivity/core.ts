@@ -291,7 +291,7 @@ export function batch(callback: () => void): void {
     BATCH_UPDATES = parent;
   }
   batchedWork.forEach((work) => {
-    runLinkedWork(work);
+    work();
   });
 }
 
@@ -308,11 +308,12 @@ export function createTransition(timeout?: number): Transition {
   function schedule() {
     isPending = true;
     if (task) {
+      console.log('Cancelled!');
       cancelCallback(task);
     }
     task = requestCallback(() => {
       transitions.forEach((transition) => {
-        runLinkedWork(transition);
+        transition();
       });
       transitions.clear();
       isPending = false;
