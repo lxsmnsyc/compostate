@@ -29,6 +29,10 @@ export function remove(
   node.parentNode?.removeChild(node);
 }
 
+export function createFragment(): Node {
+  return document.createDocumentFragment();
+}
+
 export function createText(value: string): Node {
   return document.createTextNode(value);
 }

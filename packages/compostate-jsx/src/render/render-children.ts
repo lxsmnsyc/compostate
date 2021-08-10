@@ -1,6 +1,7 @@
 import { effect, isReactive, onCleanup } from 'compostate';
 import { VNode } from '../types';
 import {
+  createFragment,
   createMarker,
   createText,
   insert,
@@ -67,9 +68,11 @@ export default function renderChildren(
       if (Array.isArray(previous)) {
         if (previous.length === 0) {
           // insert shortcut
+          const fragment = createFragment();
           for (let i = 0, len = normal.length; i < len; i++) {
-            insert(root, normal[i], marker);
+            insert(fragment, normal[i]);
           }
+          insert(root, fragment, marker);
         } else if (normal.length === 0) {
           for (let i = 0, len = normalPrev.length; i < len; i++) {
             remove(normalPrev[i]);
@@ -79,13 +82,17 @@ export default function renderChildren(
         }
       } else if (previous instanceof Node) {
         remove(previous);
+        const fragment = createFragment();
         for (let i = 0, len = normal.length; i < len; i++) {
-          insert(root, normal[i], marker);
+          insert(fragment, normal[i]);
         }
+        insert(root, fragment, marker);
       } else {
+        const fragment = createFragment();
         for (let i = 0, len = normal.length; i < len; i++) {
-          insert(root, normal[i], marker);
+          insert(fragment, normal[i]);
         }
+        insert(root, fragment, marker);
       }
     } else if (hasReactiveChildren(children)) {
       let previousChildren: Node[];
