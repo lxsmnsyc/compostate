@@ -275,8 +275,9 @@ export function notifyReactiveAtom(target: ReactiveAtom): void {
 
   const parent = QUEUE;
   QUEUE = batchedWork;
+  const queue = parent ?? BATCH_UPDATES ?? TRANSITION;
   batchedWork.forEach((work) => {
-    runLinkedWorkAlone(work, parent ?? BATCH_UPDATES ?? TRANSITION);
+    runLinkedWorkAlone(work, queue);
   });
   QUEUE = parent;
 }
@@ -300,12 +301,16 @@ export function batch(callback: () => void): void {
   } finally {
     BATCH_UPDATES = parent;
   }
+  const parentQueue = QUEUE;
+  const targetQueue = QUEUE ?? BATCH_UPDATES ?? TRANSITION;
+  QUEUE = batchedWork;
   batchedWork.forEach((work) => {
     // Since the batched work is already flattened,
     // either just run the work without its dependencies
     // or enqueue them to parent batch updates or transition
-    runLinkedWorkAlone(work, QUEUE ?? BATCH_UPDATES ?? TRANSITION);
+    runLinkedWorkAlone(work, targetQueue);
   });
+  QUEUE = parentQueue;
 }
 
 export interface Transition {
