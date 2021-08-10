@@ -1,80 +1,45 @@
 let ID = 0;
 
 export interface LinkedWork {
-  (): void;
   tag: string;
   id: number;
   alive: boolean;
-  dependents?: LinkedWork[];
-  dependentsPosition?: Record<string, number | undefined>;
-  dependencies?: LinkedWork[];
-  dependenciesPosition?: Record<string, number | undefined>;
+  dependents?: Set<LinkedWork>;
+  dependencies?: Set<LinkedWork>;
 }
 
-const objAssign = Object.assign;
-
-export function createLinkedWork(tag: string, work?: () => void): LinkedWork {
-  return objAssign(work ?? (() => { /* no-op */ }), {
+export function createLinkedWork(tag: string): LinkedWork {
+  return {
     tag,
     id: ID++,
     alive: true,
-  });
+  };
 }
 
 export function addLinkedWorkDependent(target: LinkedWork, dependent: LinkedWork): void {
   if (target.alive) {
-    if (!target.dependents || !target.dependentsPosition) {
-      target.dependents = [];
-      target.dependentsPosition = {};
+    if (!target.dependents) {
+      target.dependents = new Set();
     }
-    if (!target.dependentsPosition[dependent.id]) {
-      const index = target.dependents.length;
-      target.dependentsPosition[dependent.id] = index;
-      target.dependents[index] = dependent;
-    }
+    target.dependents.add(dependent);
   }
 }
 
 export function removeLinkedWorkDependent(target: LinkedWork, dependent: LinkedWork): void {
-  if (!target.dependents || !target.dependentsPosition) {
-    return;
-  }
-  const node = target.dependentsPosition[dependent.id];
-  if (node) {
-    const last = target.dependents.pop();
-    if (last) {
-      target.dependents[node] = last;
-    }
-    target.dependentsPosition[dependent.id] = undefined;
-  }
+  target.dependents?.delete(dependent);
 }
 
 export function addLinkedWorkDependency(target: LinkedWork, dependency: LinkedWork): void {
   if (target.alive) {
-    if (!target.dependencies || !target.dependenciesPosition) {
-      target.dependencies = [];
-      target.dependenciesPosition = {};
+    if (!target.dependencies) {
+      target.dependencies = new Set();
     }
-    if (!target.dependenciesPosition[dependency.id]) {
-      const index = target.dependencies.length;
-      target.dependenciesPosition[dependency.id] = index;
-      target.dependencies[index] = dependency;
-    }
+    target.dependencies.add(dependency);
   }
 }
 
 export function removeLinkedWorkDependency(target: LinkedWork, dependency: LinkedWork): void {
-  if (!target.dependencies || !target.dependenciesPosition) {
-    return;
-  }
-  const node = target.dependenciesPosition[dependency.id];
-  if (node) {
-    const last = target.dependencies.pop();
-    if (last) {
-      target.dependencies[node] = last;
-    }
-    target.dependenciesPosition[dependency.id] = undefined;
-  }
+  target.dependencies?.delete(dependency);
 }
 
 function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
@@ -83,12 +48,17 @@ function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
     queue.add(target);
     const { dependents } = target;
     if (dependents) {
-      const copy = Array.from(dependents);
-      for (let i = 0, len = copy.length; i < len; i += 1) {
-        flattenLinkedWork(copy[i], queue);
-      }
+      new Set(dependents).forEach((dependent) => {
+        flattenLinkedWork(dependent, queue);
+      });
     }
   }
+}
+
+let RUNNER: (target: LinkedWork) => void = () => { /* */ };
+
+export function setRunner(runner: typeof RUNNER): void {
+  RUNNER = runner;
 }
 
 export function runLinkedWorkAlone(target: LinkedWork, queue?: Set<LinkedWork>): void {
@@ -97,7 +67,7 @@ export function runLinkedWorkAlone(target: LinkedWork, queue?: Set<LinkedWork>):
       queue.delete(target);
       queue.add(target);
     } else {
-      target();
+      RUNNER(target);
     }
   }
 }
@@ -106,14 +76,12 @@ export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void
   if (queue) {
     flattenLinkedWork(target, queue);
   } else if (target.alive) {
-    target();
-
+    RUNNER(target);
     const { dependents } = target;
     if (dependents) {
-      const copy = Array.from(dependents);
-      for (let i = 0, len = copy.length; i < len; i += 1) {
-        runLinkedWork(copy[i]);
-      }
+      new Set(dependents).forEach((dependent) => {
+        runLinkedWork(dependent);
+      });
     }
   }
 }
@@ -121,17 +89,13 @@ export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void
 export function unlinkLinkedWorkDependencies(target: LinkedWork): void {
   const { dependencies } = target;
   if (dependencies) {
-    for (let i = 0, len = dependencies.length; i < len; i += 1) {
-      removeLinkedWorkDependent(dependencies[i], target);
-    }
+    new Set(dependencies).forEach((dependency) => {
+      removeLinkedWorkDependent(dependency, target);
+    });
   }
 }
 
 export function destroyLinkedWork(target: LinkedWork): void {
   target.alive = false;
   unlinkLinkedWorkDependencies(target);
-  delete target.dependencies;
-  delete target.dependents;
-  delete target.dependenciesPosition;
-  delete target.dependentsPosition;
 }
