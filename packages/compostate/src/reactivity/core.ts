@@ -25,7 +25,6 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-
 import {
   addLinkedWorkDependency,
   addLinkedWorkDependent,
@@ -243,7 +242,6 @@ export function captureError(): ErrorCapture {
 
 export interface ReactiveAtom extends LinkedWork {
   listeners?: Set<() => void>;
-  pending?: boolean;
 }
 
 export function createReactiveAtom(): ReactiveAtom {
