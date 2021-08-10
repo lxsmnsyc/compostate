@@ -37,11 +37,13 @@ let id = 0;
 
 const USE_COMMENT = false;
 
-export function createMarker(): Node {
-  const newID = id;
-  id += 1;
-  return USE_COMMENT ? document.createComment(`${newID}`) : createText('');
-}
+export const createMarker = USE_COMMENT
+  ? () => {
+    const newID = id;
+    id += 1;
+    return document.createComment(`${newID}`);
+  }
+  : () => createText('');
 
 function setAttributeSafe(el: Element, attribute: string, value: string | null): void {
   if (value == null) {
@@ -165,9 +167,12 @@ const aliases: Record<string, string> = {
   htmlFor: 'for',
 };
 
+const getProto = Object.getPrototypeOf;
+const getDescriptor = Object.getOwnPropertyDescriptor;
+
 export function setAttribute(el: Element, attribute: string, value: string | null): void {
-  const prototype = Object.getPrototypeOf(el);
-  const descriptor = Object.getOwnPropertyDescriptor(prototype, attribute);
+  const prototype = getProto(el);
+  const descriptor = getDescriptor(prototype, attribute);
 
   if (attribute in aliases) {
     setAttributeSafe(el, aliases[attribute], value);
@@ -191,9 +196,16 @@ function kebabify(str: string): string {
     .toLowerCase();
 }
 
+const objectKeys = Object.keys;
+
 export function createStyle(obj: Record<string, string>): string {
-  const lines = Object.keys(obj).map((prop) => `${kebabify(prop)}:${obj[prop]};`);
-  return lines.join('');
+  const keys = objectKeys(obj);
+  let value = '';
+  for (let i = 0, len = keys.length, prop: string; i < len; i += 1) {
+    prop = keys[i];
+    value += `${kebabify(prop)}:${obj[prop]};`;
+  }
+  return value;
 }
 
 // https://github.com/ryansolid/dom-expressions/blob/main/packages/dom-expressions/src/constants.js#L48
@@ -227,19 +239,22 @@ function getDelegatedEventKey(name: string): string {
 
 const $$EVENTS = '_COMPOSTATE_JSX_';
 
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const defProp = Object.defineProperty;
+
 function eventHandler<E extends Event>(e: E) {
   const key = getDelegatedEventKey(e.type);
   let node = (e.composedPath && e.composedPath()[0]) || e.target;
   // reverse Shadow DOM retargetting
   if (e.target !== node) {
-    Object.defineProperty(e, 'target', {
+    defProp(e, 'target', {
       configurable: true,
       value: node,
     });
   }
 
   // simulate currentTarget
-  Object.defineProperty(e, 'currentTarget', {
+  defProp(e, 'currentTarget', {
     configurable: true,
     get() {
       return node;

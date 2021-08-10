@@ -32,13 +32,15 @@ function applyHostProperty(
       }
     }));
   } else if (key === 'style') {
-    el.style.cssText = createStyle(property);
+    el.setAttribute(key, createStyle(property));
   } else if (typeof property === 'boolean') {
     setAttribute(el, key, property ? 'true' : null);
   } else {
     setAttribute(el, key, property as string);
   }
 }
+
+const getKeys = Object.keys;
 
 export default function renderHostNode<P extends DOMAttributes<Element>>(
   constructor: string,
@@ -59,7 +61,10 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
   }
 
   if (props) {
-    Object.keys(props).forEach((key) => {
+    const keys = getKeys(props);
+
+    for (let i = 0, len = keys.length, key: string; i < len; i += 1) {
+      key = keys[i];
       // Ref handler
       if (key === 'ref') {
         const elRef = props.ref;
@@ -85,7 +90,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
           applyHostProperty(el, key, rawProperty);
         }
       }
-    });
+    }
   }
 
   onCleanup(() => {
