@@ -110,6 +110,9 @@ export default function renderChildren(
     }
   } else if (children instanceof Node) {
     insert(root, children, marker);
+    onCleanup(() => {
+      remove(children);
+    });
   } else if (typeof children === 'string' || typeof children === 'number') {
     const node = createText(`${children}`);
     insert(root, node, marker);

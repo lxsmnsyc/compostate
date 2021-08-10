@@ -6,7 +6,6 @@ import {
 import {
   createStyle,
   registerEvent,
-  remove,
   setAttribute,
 } from '../../dom';
 import { claimHydration, HYDRATION } from '../../hydration';
@@ -92,10 +91,6 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
       }
     }
   }
-
-  onCleanup(() => {
-    remove(el);
-  });
 
   return el;
 }
