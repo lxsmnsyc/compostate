@@ -44,5 +44,18 @@
   },
   "dependencies": {
     "csstype": "^3.0.8"
-  }
+  },
+  "repository": {
+    "url": "https://github.com/lxsmnsyc/compostate.git",
+    "type": "git"
+  },
+  "homepage": "https://github.com/lxsmnsyc/compostate/tree/main/packages/compostate-jsx",
+  "bugs": {
+    "url": "https://github.com/lxsmnsyc/compostate/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Alexis Munsayac",
+  "private": false
 }

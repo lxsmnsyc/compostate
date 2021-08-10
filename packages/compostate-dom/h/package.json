@@ -1,0 +1,7 @@
+{
+  "name": "compostate-dom/h",
+  "main": "../lib/h.js",
+  "module": "../dist/h.js",
+  "types": "../types/h.d.ts",
+  "sideEffects": false
+}

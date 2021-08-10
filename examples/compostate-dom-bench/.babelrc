@@ -1,0 +1,5 @@
+{
+  "plugins": [
+    ["babel-plugin-jsx-dom-expressions", { "moduleName": "compostate-dom" }]
+  ]
+}
