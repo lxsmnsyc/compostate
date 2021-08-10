@@ -1,11 +1,11 @@
-const { spread, reactive, effect, template } = require('./packages/compostate');
+const { destructure, reactive, effect, template } = require('./packages/compostate');
 
 const state = reactive({
   name: 'Alexis',
   greeting: 'Hello',
 });
 
-const { greeting, name } = spread(state);
+const { greeting, name } = destructure(state);
 
 const message = template`${greeting}, ${name}!`;
 
