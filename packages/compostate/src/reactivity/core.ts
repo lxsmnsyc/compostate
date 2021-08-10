@@ -33,6 +33,7 @@ import {
   LinkedWork,
   runLinkedWork,
   runLinkedWorkAlone,
+  setRunner,
   unlinkLinkedWorkDependencies,
 } from '../linked-work';
 import { cancelCallback, requestCallback, Task } from '../scheduler';
@@ -47,7 +48,7 @@ import {
 let CLEANUP: Set<Cleanup> | undefined;
 let TRACKING: LinkedWork | undefined;
 let BATCH_UPDATES: Set<LinkedWork> | undefined;
-let BATCH_EFFECTS: EffectNode[] | undefined;
+let BATCH_EFFECTS: EffectWork[] | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
 let TRANSITION: Set<LinkedWork> | undefined;
 
@@ -247,19 +248,21 @@ export interface ReactiveAtom extends LinkedWork {
 }
 
 export function createReactiveAtom(): ReactiveAtom {
-  const atom: ReactiveAtom = createLinkedWork('atom', () => {
-    if (atom.listeners?.size) {
-      const { listeners } = atom;
-      // inlined
-      untrack(() => {
-        listeners.forEach((listener) => {
-          listener();
-        });
-      });
-    }
-  });
+  const atom: ReactiveAtom = createLinkedWork('atom');
 
   return atom;
+}
+
+function revalidateAtom(target: ReactiveAtom): void {
+  const { listeners } = target;
+  if (listeners?.size) {
+    // inlined
+    untrack(() => {
+      listeners.forEach((listener) => {
+        listener();
+      });
+    });
+  }
 }
 
 export function trackReactiveAtom(target: ReactiveAtom): void {
@@ -292,6 +295,13 @@ function subscribeReactiveAtom(target: ReactiveAtom, listener: () => void): Clea
   };
 }
 
+function runWorkWithTransition(work: LinkedWork): void {
+  runLinkedWorkAlone(work, TRANSITION);
+}
+function runWorkWithoutTransition(work: LinkedWork): void {
+  runLinkedWorkAlone(work);
+}
+
 export function batch(callback: () => void): void {
   const instance = new Set<LinkedWork>();
   const parent = BATCH_UPDATES;
@@ -303,9 +313,7 @@ export function batch(callback: () => void): void {
   }
   if (!parent) {
     BATCH_UPDATES = instance;
-    instance.forEach((work) => {
-      runLinkedWorkAlone(work, TRANSITION);
-    });
+    instance.forEach(runWorkWithTransition);
     BATCH_UPDATES = undefined;
   }
 }
@@ -328,9 +336,7 @@ export function createTransition(timeout?: number): Transition {
     task = requestCallback(() => {
       const parent = BATCH_UPDATES;
       BATCH_UPDATES = transitions;
-      transitions.forEach((transition) => {
-        transition();
-      });
+      transitions.forEach(runWorkWithoutTransition);
       BATCH_UPDATES = parent;
       transitions.clear();
       isPending = false;
@@ -351,9 +357,7 @@ export function createTransition(timeout?: number): Transition {
       try {
         // Unbatch first so that the scheduled updates
         // do not get pushed synchronously
-        unbatch(() => {
-          callback();
-        });
+        unbatch(callback);
       } finally {
         TRANSITION = parent;
       }
@@ -366,12 +370,7 @@ export function createTransition(timeout?: number): Transition {
   };
 }
 
-interface EffectNode extends LinkedWork {
-  errorBoundary?: ErrorBoundary;
-  cleanup?: Cleanup;
-}
-
-function cleanupEffect(node: EffectNode): void {
+function cleanupEffect(node: EffectWork): void {
   if (node.alive) {
     unlinkLinkedWorkDependencies(node);
 
@@ -388,7 +387,7 @@ function cleanupEffect(node: EffectNode): void {
   }
 }
 
-function stopEffect(node: EffectNode): void {
+function stopEffect(node: EffectWork): void {
   if (node.alive) {
     cleanupEffect(node);
     destroyLinkedWork(node);
@@ -396,8 +395,7 @@ function stopEffect(node: EffectNode): void {
 }
 
 function revalidateEffect(
-  node: EffectNode,
-  callback: Effect,
+  node: EffectWork,
 ): void {
   const parentTracking = TRACKING;
   const parentErrorBoundary = ERROR_BOUNDARY;
@@ -408,7 +406,7 @@ function revalidateEffect(
   try {
     batch(() => {
       cleanupEffect(node);
-      node.cleanup = batchCleanup(callback);
+      node.cleanup = batchCleanup(node.callback);
     });
   } catch (error) {
     handleError(ERROR_BOUNDARY, error);
@@ -421,12 +419,11 @@ function revalidateEffect(
 
 const objAssign = Object.assign;
 
-function createEffect(callback: Effect): EffectNode {
+function createEffect(callback: Effect): EffectWork {
   const node = objAssign(
-    createLinkedWork('effect', () => {
-      revalidateEffect(node, callback);
-    }),
+    createLinkedWork('effect'),
     {
+      callback,
       errorBoundary: ERROR_BOUNDARY,
     },
   );
@@ -434,7 +431,7 @@ function createEffect(callback: Effect): EffectNode {
 }
 
 export function batchEffects(callback: () => void): () => void {
-  const batchedEffects: EffectNode[] = [];
+  const batchedEffects: EffectWork[] = [];
   const parent = BATCH_EFFECTS;
   BATCH_EFFECTS = batchedEffects;
   try {
@@ -489,29 +486,14 @@ export function getTrackableAtom<T>(
 }
 
 export function computed<T>(compute: () => T): Ref<T> {
-  let val: Ref<T> | undefined;
-
-  const currentErrorBoundary = ERROR_BOUNDARY;
   const atom = createReactiveAtom();
 
-  const work = createLinkedWork('computed', () => {
-    unlinkLinkedWorkDependencies(work);
-    const parentTracking = TRACKING;
-    const parentErrorBoundary = ERROR_BOUNDARY;
-    TRACKING = work;
-    ERROR_BOUNDARY = currentErrorBoundary;
-    try {
-      val = {
-        value: compute(),
-      };
-    } catch (error) {
-      handleError(currentErrorBoundary, error);
-    } finally {
-      ERROR_BOUNDARY = parentErrorBoundary;
-      TRACKING = parentTracking;
-    }
-    notifyReactiveAtom(atom);
-  });
+  const work: ComputedWork = {
+    ...createLinkedWork('computed'),
+    compute,
+    errorBoundary: ERROR_BOUNDARY,
+    atom,
+  };
 
   runLinkedWork(work);
 
@@ -522,8 +504,8 @@ export function computed<T>(compute: () => T): Ref<T> {
   const ref = {
     get value() {
       trackReactiveAtom(atom);
-      if (val) {
-        return val.value;
+      if (work.value) {
+        return work.value.value;
       }
       throw new Error('failed computed');
     },
@@ -532,6 +514,25 @@ export function computed<T>(compute: () => T): Ref<T> {
   registerTrackable(atom, ref);
 
   return ref;
+}
+
+function revalidateComputed(target: ComputedWork): void {
+  unlinkLinkedWorkDependencies(target);
+  const parentTracking = TRACKING;
+  const parentErrorBoundary = ERROR_BOUNDARY;
+  TRACKING = target;
+  ERROR_BOUNDARY = target.errorBoundary;
+  try {
+    target.value = {
+      value: target.compute(),
+    };
+  } catch (error) {
+    handleError(target.errorBoundary, error);
+  } finally {
+    ERROR_BOUNDARY = parentErrorBoundary;
+    TRACKING = parentTracking;
+  }
+  notifyReactiveAtom(target.atom);
 }
 
 export function track<T>(source: T): T {
@@ -555,3 +556,38 @@ export function watch<T>(source: T, listen: () => void, run = false): () => void
   }
   throw new Error('Invalid trackable for `watch`. Received value is not a reactive value.');
 }
+
+interface ComputedWork extends LinkedWork {
+  atom: ReactiveAtom;
+  compute: () => any;
+  value?: Ref<any>;
+  errorBoundary?: ErrorBoundary;
+}
+
+interface EffectWork extends LinkedWork {
+  callback: Effect;
+  errorBoundary?: ErrorBoundary;
+  cleanup?: Cleanup;
+}
+
+function isComputed(target: LinkedWork): target is ComputedWork {
+  return target.tag === 'computed';
+}
+
+function isEffect(target: LinkedWork): target is EffectWork {
+  return target.tag === 'effect';
+}
+
+function isAtom(target: LinkedWork): target is ReactiveAtom {
+  return target.tag === 'atom';
+}
+
+setRunner((target) => {
+  if (isComputed(target)) {
+    revalidateComputed(target);
+  } else if (isEffect(target)) {
+    revalidateEffect(target);
+  } else if (isAtom(target)) {
+    revalidateAtom(target);
+  }
+});
