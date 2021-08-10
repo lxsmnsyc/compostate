@@ -570,24 +570,13 @@ interface EffectWork extends LinkedWork {
   cleanup?: Cleanup;
 }
 
-function isComputed(target: LinkedWork): target is ComputedWork {
-  return target.tag === 'computed';
-}
-
-function isEffect(target: LinkedWork): target is EffectWork {
-  return target.tag === 'effect';
-}
-
-function isAtom(target: LinkedWork): target is ReactiveAtom {
-  return target.tag === 'atom';
-}
+type Path = (work: LinkedWork) => void;
+const paths: Record<string, Path> = {
+  computed: revalidateComputed as Path,
+  effect: revalidateEffect as Path,
+  atom: revalidateAtom,
+};
 
 setRunner((target) => {
-  if (isComputed(target)) {
-    revalidateComputed(target);
-  } else if (isEffect(target)) {
-    revalidateEffect(target);
-  } else if (isAtom(target)) {
-    revalidateAtom(target);
-  }
+  paths[target.tag](target);
 });
