@@ -46,7 +46,7 @@ import {
 // Execution contexts
 let CLEANUP: Set<Cleanup> | undefined;
 let TRACKING: LinkedWork | undefined;
-let BATCH_UPDATES: LinkedWork[] | undefined;
+let BATCH_UPDATES: Set<LinkedWork> | undefined;
 let BATCH_EFFECTS: EffectNode[] | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
 let TRANSITION: Set<LinkedWork> | undefined;
@@ -270,17 +270,7 @@ export function trackReactiveAtom(target: ReactiveAtom): void {
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
-  if (BATCH_UPDATES) {
-    if (!target.pending) {
-      target.pending = true;
-      BATCH_UPDATES.push(target);
-    }
-  } else if (TRANSITION) {
-    TRANSITION.add(target);
-  } else {
-    target.pending = false;
-    runLinkedWork(target);
-  }
+  runLinkedWork(target, BATCH_UPDATES ?? TRANSITION);
 }
 
 function subscribeReactiveAtom(target: ReactiveAtom, listener: () => void): Cleanup {
@@ -294,7 +284,7 @@ function subscribeReactiveAtom(target: ReactiveAtom, listener: () => void): Clea
 }
 
 export function batch(callback: () => void): void {
-  const batchedWork: ReactiveAtom[] = [];
+  const batchedWork: Set<ReactiveAtom> = new Set();
   const parent = BATCH_UPDATES;
   BATCH_UPDATES = batchedWork;
   try {
@@ -302,9 +292,9 @@ export function batch(callback: () => void): void {
   } finally {
     BATCH_UPDATES = parent;
   }
-  for (let i = 0; i < batchedWork.length; i += 1) {
-    notifyReactiveAtom(batchedWork[i]);
-  }
+  batchedWork.forEach((work) => {
+    runLinkedWork(work);
+  });
 }
 
 export interface Transition {
@@ -318,9 +308,7 @@ export function createTransition(timeout?: number): Transition {
   let task: Task | undefined;
 
   function schedule() {
-    if (!isPending) {
-      isPending = true;
-    }
+    isPending = true;
     if (task) {
       cancelCallback(task);
     }

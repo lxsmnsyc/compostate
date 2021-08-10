@@ -83,8 +83,22 @@ export function removeLinkedWorkDependency(target: LinkedWork, dependency: Linke
   }
 }
 
-export function runLinkedWork(target: LinkedWork): void {
+function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
   if (target.alive) {
+    queue.delete(target);
+    queue.add(target);
+    let node = target.dependents?.head;
+    while (node) {
+      flattenLinkedWork(node.value, queue);
+      node = node.next;
+    }
+  }
+}
+
+export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void {
+  if (queue) {
+    flattenLinkedWork(target, queue);
+  } else if (target.alive) {
     target();
 
     if (target.dependents) {
