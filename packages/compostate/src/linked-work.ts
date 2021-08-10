@@ -18,6 +18,7 @@ function getID() {
 
 export interface LinkedWork {
   (): void;
+  tag: string;
   id: number;
   alive: boolean;
   dependents?: LinkedList<LinkedWork>;
@@ -26,8 +27,9 @@ export interface LinkedWork {
   dependenciesPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
 }
 
-export function createLinkedWork(work?: () => void): LinkedWork {
+export function createLinkedWork(tag: string, work?: () => void): LinkedWork {
   return Object.assign(work ?? (() => { /* no-op */ }), {
+    tag,
     id: getID(),
     alive: true,
   });
@@ -91,6 +93,17 @@ function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
     while (node) {
       flattenLinkedWork(node.value, queue);
       node = node.next;
+    }
+  }
+}
+
+export function runLinkedWorkAlone(target: LinkedWork, queue?: Set<LinkedWork>): void {
+  if (target.alive) {
+    if (queue) {
+      queue.delete(target);
+      queue.add(target);
+    } else {
+      target();
     }
   }
 }
