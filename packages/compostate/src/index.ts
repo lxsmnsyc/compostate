@@ -60,7 +60,7 @@ export { default as debounce } from './reactivity/debounce';
 export { default as reactive } from './reactivity/reactive';
 export { default as readonly } from './reactivity/readonly';
 export { default as ref } from './reactivity/ref';
-export { default as resource } from './reactivity/resource';
+export { default as resource, Resource, ResourceOptions } from './reactivity/resource';
 export { default as spread } from './reactivity/spread';
 export { default as template } from './reactivity/template';
 export {

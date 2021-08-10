@@ -15,17 +15,15 @@ export type KeyType<T extends ReactiveObject> =
 
 export default function spread<T extends ReactiveObject>(
   source: T,
-): T {
-  const cache = new Map<string | number | symbol, Ref<T[keyof T]>>();
-
-  const proxy = new Proxy(source, {
-    get(target, key, receiver) {
-      const ref = cache.get(key);
+): Spread<T> {
+  const proxy = new Proxy({} as Spread<T>, {
+    get(target, key) {
+      const ref = Reflect.get(target, key);
       if (ref) {
         return ref;
       }
-      const newRef = computed(() => Reflect.get(target, key, receiver));
-      cache.set(key, newRef);
+      const newRef = computed(() => source[key as keyof T]);
+      Reflect.set(target, key, newRef);
       return newRef;
     },
   });
