@@ -10,12 +10,6 @@ import {
 
 let ID = 0;
 
-function getID() {
-  const id = ID;
-  ID += 1;
-  return id;
-}
-
 export interface LinkedWork {
   (): void;
   tag: string;
@@ -27,10 +21,12 @@ export interface LinkedWork {
   dependenciesPosition?: Record<string, LinkedListNode<LinkedWork> | undefined>;
 }
 
+const objAssign = Object.assign;
+
 export function createLinkedWork(tag: string, work?: () => void): LinkedWork {
-  return Object.assign(work ?? (() => { /* no-op */ }), {
+  return objAssign(work ?? (() => { /* no-op */ }), {
     tag,
-    id: getID(),
+    id: ID++,
     alive: true,
   });
 }

@@ -8,7 +8,7 @@ export default function template(
   return computed(() => {
     let result = '';
     let a = 0;
-    for (let i = 0, len = strings.length; i < len; i += 1) {
+    for (let i = 0, len = strings.length; i < len; i++) {
       result = `${result}${strings[i]}`;
       if (a < args.length) {
         const node = args[a];
@@ -17,7 +17,7 @@ export default function template(
         } else {
           result = `${result}${node.value}`;
         }
-        a += 1;
+        a++;
       }
     }
     return result;

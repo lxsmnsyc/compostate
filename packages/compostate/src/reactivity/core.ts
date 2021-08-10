@@ -443,7 +443,7 @@ export function batchEffects(callback: () => void): () => void {
     BATCH_EFFECTS = parent;
   }
   return () => {
-    for (let i = 0, len = batchedEffects.length; i < len; i += 1) {
+    for (let i = 0, len = batchedEffects.length; i < len; i++) {
       runLinkedWork(batchedEffects[i]);
     }
   };
