@@ -143,12 +143,11 @@ export function requestCallback(fn: () => void, options?: { timeout?: number }):
   if (options && options.timeout) timeout = options.timeout;
 
   const newTask: Task = {
-    id: taskIdCounter,
+    id: taskIdCounter++,
     fn,
     startTime,
     expirationTime: startTime + timeout,
   };
-  taskIdCounter += 1;
 
   enqueue(taskQueue, newTask);
   if (!isCallbackScheduled && !isPerformingWork) {
