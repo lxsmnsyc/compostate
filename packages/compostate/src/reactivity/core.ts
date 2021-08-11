@@ -352,37 +352,9 @@ export function createTransition(timeout?: number): Transition {
   };
 }
 
-interface ProcessWork extends LinkedWork {
-  errorBoundary?: ErrorBoundary;
-}
-
-function runProcess(target: ProcessWork, callback: () => void) {
-  unlinkLinkedWorkPublishers(target);
-  const parentTracking = TRACKING;
-  const parentErrorBoundary = ERROR_BOUNDARY;
-  TRACKING = target;
-  ERROR_BOUNDARY = target.errorBoundary;
-  try {
-    callback();
-  } catch (error) {
-    handleError(target.errorBoundary, error);
-  } finally {
-    ERROR_BOUNDARY = parentErrorBoundary;
-    TRACKING = parentTracking;
-  }
-}
-
 interface ComputationWork<T> extends LinkedWork {
   process: (prev?: T) => T;
   current?: T;
-}
-
-function revalidateComputation<T>(target: ComputationWork<T>): void {
-  runProcess(target, () => {
-    batch(() => {
-      target.current = target.process(target.current);
-    });
-  });
 }
 
 export function computation<T>(callback: (prev?: T) => T): Cleanup {
@@ -421,23 +393,6 @@ function stopEffect(node: EffectWork): void {
     cleanupEffect(node);
     destroyLinkedWork(node);
   }
-}
-
-function revalidateEffect(
-  node: EffectWork,
-): void {
-  runProcess(node, () => {
-    const parentBatchEffects = BATCH_EFFECTS;
-    BATCH_EFFECTS = undefined;
-    try {
-      batch(() => {
-        cleanupEffect(node);
-        node.cleanup = batchCleanup(node.callback);
-      });
-    } finally {
-      BATCH_EFFECTS = parentBatchEffects;
-    }
-  });
 }
 
 function createEffect(callback: Effect): EffectWork {
@@ -509,20 +464,6 @@ interface WatchWork<T> extends LinkedWork {
   errorBoundary?: ErrorBoundary;
 }
 
-function revalidateWatch<T>(target: WatchWork<T>): void {
-  runProcess(target, () => {
-    const hasCurrent = 'current' in target;
-    const next = target.source();
-    const prev = target.current;
-    if ((hasCurrent && !is(next, target.current)) || !hasCurrent) {
-      target.current = next;
-      batch(() => {
-        target.listen(next, prev);
-      });
-    }
-  });
-}
-
 export function watch<T>(
   source: () => T,
   listen: (next: T, prev?: T) => void,
@@ -544,14 +485,6 @@ interface ComputedWork extends LinkedWork {
   compute: () => any;
   value?: Ref<any>;
   errorBoundary?: ErrorBoundary;
-}
-
-function revalidateComputed(target: ComputedWork): void {
-  runProcess(target, () => {
-    target.value = {
-      value: target.compute(),
-    };
-  });
 }
 
 export function computed<T>(compute: () => T): Ref<T> {
@@ -613,8 +546,77 @@ export function ref<T>(value: T): Ref<T> {
   return registerTrackable(instance, new RefNode(value, instance));
 }
 
-setRunner('atom', NO_OP);
-setRunner('effect', revalidateEffect as any);
-setRunner('computed', revalidateComputed as any);
-setRunner('watch', revalidateWatch as any);
-setRunner('computation', revalidateComputation as any);
+interface ProcessWork extends LinkedWork {
+  errorBoundary?: ErrorBoundary;
+}
+
+function runComputationProcess(target: ComputationWork<any>) {
+  batch(() => {
+    target.current = target.process(target.current);
+  });
+}
+
+function runWatchProcess(target: WatchWork<any>) {
+  const hasCurrent = 'current' in target;
+  const next = target.source();
+  const prev = target.current;
+  if ((hasCurrent && !is(next, target.current)) || !hasCurrent) {
+    target.current = next;
+    batch(() => {
+      target.listen(next, prev);
+    });
+  }
+}
+
+function runEffectProcess(target: EffectWork) {
+  const parentBatchEffects = BATCH_EFFECTS;
+  BATCH_EFFECTS = undefined;
+  try {
+    batch(() => {
+      cleanupEffect(target);
+      target.cleanup = batchCleanup(target.callback);
+    });
+  } finally {
+    BATCH_EFFECTS = parentBatchEffects;
+  }
+}
+
+function runComputedProcess(target: ComputedWork) {
+  target.value = {
+    value: target.compute(),
+  };
+}
+
+function runProcess(target: ProcessWork) {
+  unlinkLinkedWorkPublishers(target);
+  const parentTracking = TRACKING;
+  const parentErrorBoundary = ERROR_BOUNDARY;
+  TRACKING = target;
+  ERROR_BOUNDARY = target.errorBoundary;
+  try {
+    switch (target.tag) {
+      case 'computation':
+        runComputationProcess(target as ComputationWork<any>);
+        break;
+      case 'watch':
+        runWatchProcess(target as WatchWork<any>);
+        break;
+      case 'effect':
+        runEffectProcess(target as EffectWork);
+        break;
+      case 'computed':
+        runComputedProcess(target as ComputedWork);
+        break;
+      case 'atom':
+      default:
+        break;
+    }
+  } catch (error) {
+    handleError(target.errorBoundary, error);
+  } finally {
+    ERROR_BOUNDARY = parentErrorBoundary;
+    TRACKING = parentTracking;
+  }
+}
+
+setRunner(runProcess);
