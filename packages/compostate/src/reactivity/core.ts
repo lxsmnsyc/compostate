@@ -487,7 +487,6 @@ export function getTrackableAtom<T>(
 }
 
 interface ComputedWork extends LinkedWork {
-  atom: ReactiveAtom;
   compute: () => any;
   value?: Ref<any>;
   errorBoundary?: ErrorBoundary;
@@ -509,29 +508,25 @@ function revalidateComputed(target: ComputedWork): void {
     ERROR_BOUNDARY = parentErrorBoundary;
     TRACKING = parentTracking;
   }
-  notifyReactiveAtom(target.atom);
+  revalidateAtom(target);
 }
 
 export function computed<T>(compute: () => T): Ref<T> {
-  const atom = createReactiveAtom();
-
   const work: ComputedWork = {
     ...createLinkedWork('computed', revalidateComputed as any),
     compute,
     errorBoundary: ERROR_BOUNDARY,
-    atom,
   };
 
   runLinkedWork(work);
 
   onCleanup(() => {
     destroyLinkedWork(work);
-    destroyLinkedWork(atom);
   });
 
   const ref = {
     get value() {
-      trackReactiveAtom(atom);
+      trackReactiveAtom(work);
       if (work.value) {
         return work.value.value;
       }
@@ -539,7 +534,7 @@ export function computed<T>(compute: () => T): Ref<T> {
     },
   };
 
-  registerTrackable(atom, ref);
+  registerTrackable(work, ref);
 
   return ref;
 }
