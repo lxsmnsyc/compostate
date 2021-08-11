@@ -83,7 +83,6 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
             let cleanup: Cleanup | undefined;
             watch(() => evalDerived(rawProperty), (prop, prev) => {
               cleanup?.();
-              console.log(el, key, prop, prev);
               cleanup = applyHostProperty(el, key, prop);
             });
             onCleanup(() => {
