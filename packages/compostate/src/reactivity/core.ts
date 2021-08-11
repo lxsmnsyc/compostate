@@ -50,7 +50,6 @@ let TRACKING: LinkedWork | undefined;
 let BATCH_UPDATES: Set<LinkedWork> | undefined;
 let BATCH_EFFECTS: EffectWork[] | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
-let TRANSITION: Set<LinkedWork> | undefined;
 
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
@@ -267,11 +266,9 @@ export function notifyReactiveAtom(target: ReactiveAtom): void {
   const parent = BATCH_UPDATES;
   runLinkedWork(target, parent ?? instance);
   if (!parent && instance.size) {
-    BATCH_UPDATES = instance;
     for (const work of instance) {
-      runLinkedWorkAlone(work, TRANSITION);
+      runLinkedWorkAlone(work);
     }
-    BATCH_UPDATES = undefined;
   }
 }
 
@@ -285,11 +282,9 @@ export function batch(callback: () => void): void {
     BATCH_UPDATES = parent;
   }
   if (!parent && instance.size) {
-    BATCH_UPDATES = instance;
     for (const work of instance) {
-      runLinkedWorkAlone(work, TRANSITION);
+      runLinkedWorkAlone(work);
     }
-    BATCH_UPDATES = undefined;
   }
 }
 
@@ -331,14 +326,14 @@ export function createTransition(timeout?: number): Transition {
 
   return {
     start(callback: () => void) {
-      const parent = TRANSITION;
-      TRANSITION = transitions;
+      const parent = BATCH_UPDATES;
+      BATCH_UPDATES = transitions;
       try {
         // Unbatch first so that the scheduled updates
         // do not get pushed synchronously
-        unbatch(callback);
+        callback();
       } finally {
-        TRANSITION = parent;
+        BATCH_UPDATES = parent;
       }
 
       schedule();
