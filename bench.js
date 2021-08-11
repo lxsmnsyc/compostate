@@ -13,4 +13,4 @@ watch(() => e.value, console.log);
 batch(() => {
   a.value = 'C';
   b.value = 'D';
-})
+});
