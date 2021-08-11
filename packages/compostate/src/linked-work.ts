@@ -1,12 +1,18 @@
-let ID = 0;
+export const TAG = 0;
+export const ID = 1;
+export const ALIVE = 2;
+export const SUBSCRIBERS = 3;
+export const PUBLISHERS = 4;
+export const PENDING = 5;
 
-export interface LinkedWork {
-  tag: string;
-  id: number;
-  alive: boolean;
-  dependents?: Set<LinkedWork>;
-  dependencies?: Set<LinkedWork>;
-}
+export type LinkedWork = [
+  string,
+  number,
+  boolean,
+  LinkedWork[] | undefined,
+  LinkedWork[] | undefined,
+  boolean,
+];
 
 const RUNNER: Record<string, (work: LinkedWork) => void> = {};
 
@@ -14,74 +20,66 @@ export function setRunner(tag: string, work: (work: LinkedWork) => void): void {
   RUNNER[tag] = work;
 }
 
+let STATE = 0;
+
 export function createLinkedWork(tag: string): LinkedWork {
-  return {
+  return [
     tag,
-    id: ID++,
-    alive: true,
-  };
+    STATE++,
+    true,
+    undefined,
+    undefined,
+    false,
+  ];
 }
 
-export function addLinkedWorkDependent(target: LinkedWork, dependent: LinkedWork): void {
-  if (target.alive) {
-    if (!target.dependents) {
-      target.dependents = new Set();
+export function linkLinkedWork(publisher: LinkedWork, subscriber: LinkedWork): void {
+  if (publisher[ALIVE] && subscriber[ALIVE]) {
+    if (!publisher[SUBSCRIBERS]) {
+      publisher[SUBSCRIBERS] = [];
     }
-    target.dependents.add(dependent);
+    publisher[SUBSCRIBERS]!.push(subscriber);
+    if (!subscriber[PUBLISHERS]) {
+      subscriber[PUBLISHERS] = [];
+    }
+    subscriber[PUBLISHERS]!.push(publisher);
   }
 }
 
-export function removeLinkedWorkDependent(target: LinkedWork, dependent: LinkedWork): void {
-  target.dependents?.delete(dependent);
-}
-
-export function addLinkedWorkDependency(target: LinkedWork, dependency: LinkedWork): void {
-  if (target.alive) {
-    if (!target.dependencies) {
-      target.dependencies = new Set();
-    }
-    target.dependencies.add(dependency);
-  }
-}
-
-export function removeLinkedWorkDependency(target: LinkedWork, dependency: LinkedWork): void {
-  target.dependencies?.delete(dependency);
-}
-
-function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
-  if (target.alive) {
-    queue.delete(target);
-    queue.add(target);
-    const { dependents } = target;
-    if (dependents?.size) {
-      const copy = new Set(dependents);
-      for (const dependent of copy) {
-        flattenLinkedWork(dependent, queue);
+function flattenLinkedWork(target: LinkedWork, queue: LinkedWork[]): void {
+  if (target[ALIVE] && !target[PENDING]) {
+    target[PENDING] = true;
+    queue.push(target);
+    const subscribers = target[SUBSCRIBERS];
+    if (subscribers) {
+      for (let i = 0, len = subscribers.length; i < len; i++) {
+        flattenLinkedWork(subscribers[i], queue);
       }
     }
   }
 }
 
 export function runLinkedWorkAlone(target: LinkedWork): void {
-  if (target.alive) {
-    RUNNER[target.tag](target);
+  if (target[ALIVE]) {
+    target[PENDING] = false;
+    RUNNER[target[TAG]](target);
   }
 }
 
 function evaluateLinkedWork(target: LinkedWork): void {
-  if (target.alive) {
-    RUNNER[target.tag](target);
-    const { dependents } = target;
-    if (dependents?.size) {
-      const copy = new Set(dependents);
-      for (const dependent of copy) {
-        evaluateLinkedWork(dependent);
+  if (target[ALIVE]) {
+    target[PENDING] = false;
+    RUNNER[target[TAG]](target);
+    const subscribers = target[SUBSCRIBERS];
+    if (subscribers) {
+      for (let i = 0, len = subscribers.length; i < len; i++) {
+        evaluateLinkedWork(subscribers[i]);
       }
     }
   }
 }
 
-export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void {
+export function runLinkedWork(target: LinkedWork, queue?: LinkedWork[]): void {
   if (queue) {
     flattenLinkedWork(target, queue);
   } else {
@@ -89,18 +87,25 @@ export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void
   }
 }
 
-export function unlinkLinkedWorkDependencies(target: LinkedWork): void {
-  const { dependencies } = target;
-  if (dependencies?.size) {
-    const copy = new Set(dependencies);
-    for (const dependency of copy) {
-      removeLinkedWorkDependent(dependency, target);
+export function unlinkLinkedWorkPublishers(target: LinkedWork): void {
+  const publishers = target[PUBLISHERS];
+  if (publishers) {
+    for (let i = 0, len = publishers.length; i < len; i++) {
+      const subscribers = publishers[i][SUBSCRIBERS];
+      if (subscribers) {
+        for (let j = 0, slen = subscribers?.length; j < slen; j++) {
+          if (subscribers[i] === target) {
+            subscribers[i] = subscribers.pop()!;
+            break;
+          }
+        }
+      }
     }
-    dependencies.clear();
+    target[PUBLISHERS] = [];
   }
 }
 
 export function destroyLinkedWork(target: LinkedWork): void {
-  target.alive = false;
-  unlinkLinkedWorkDependencies(target);
+  target[ALIVE] = false;
+  unlinkLinkedWorkPublishers(target);
 }
