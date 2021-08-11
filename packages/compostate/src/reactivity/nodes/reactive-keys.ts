@@ -65,5 +65,7 @@ export function trackReactiveKeys<K>(
 export function notifyAllReactiveKeys<K>(
   keys: ReactiveKeys<K>,
 ): void {
-  keys.forEach(notifyReactiveAtom);
+  if (keys.size) {
+    keys.forEach(notifyReactiveAtom);
+  }
 }

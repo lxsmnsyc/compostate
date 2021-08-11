@@ -53,7 +53,7 @@ function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
     queue.delete(target);
     queue.add(target);
     const { dependents } = target;
-    if (dependents) {
+    if (dependents?.size) {
       new Set(dependents).forEach((dependent) => {
         flattenLinkedWork(dependent, queue);
       });
@@ -72,23 +72,27 @@ export function runLinkedWorkAlone(target: LinkedWork, queue?: Set<LinkedWork>):
   }
 }
 
+function evaluateLinkedWork(target: LinkedWork): void {
+  if (target.alive) {
+    RUNNER[target.tag](target);
+    const { dependents } = target;
+    if (dependents?.size) {
+      new Set(dependents).forEach(evaluateLinkedWork);
+    }
+  }
+}
+
 export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void {
   if (queue) {
     flattenLinkedWork(target, queue);
-  } else if (target.alive) {
-    RUNNER[target.tag](target);
-    const { dependents } = target;
-    if (dependents) {
-      new Set(dependents).forEach((dependent) => {
-        runLinkedWork(dependent);
-      });
-    }
+  } else {
+    evaluateLinkedWork(target);
   }
 }
 
 export function unlinkLinkedWorkDependencies(target: LinkedWork): void {
   const { dependencies } = target;
-  if (dependencies) {
+  if (dependencies?.size) {
     new Set(dependencies).forEach((dependency) => {
       removeLinkedWorkDependent(dependency, target);
     });

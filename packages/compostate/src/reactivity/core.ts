@@ -161,12 +161,14 @@ export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanu
   }
   // Create return cleanup
   return onCleanup(() => {
-    untrack(() => {
-      cleanups.forEach((cleanup) => {
-        cleanup();
+    if (cleanups.size) {
+      untrack(() => {
+        cleanups.forEach((cleanup) => {
+          cleanup();
+        });
+        cleanups.clear();
       });
-      cleanups.clear();
-    });
+    }
   });
 }
 
@@ -285,7 +287,7 @@ export function notifyReactiveAtom(target: ReactiveAtom): void {
   const instance = new Set<LinkedWork>();
   const parent = BATCH_UPDATES;
   runLinkedWork(target, parent ?? instance);
-  if (!parent) {
+  if (!parent && instance.size) {
     BATCH_UPDATES = instance;
     instance.forEach(runWorkWithTransition);
     BATCH_UPDATES = undefined;
@@ -311,7 +313,7 @@ export function batch(callback: () => void): void {
   } finally {
     BATCH_UPDATES = parent;
   }
-  if (!parent) {
+  if (!parent && instance.size) {
     BATCH_UPDATES = instance;
     instance.forEach(runWorkWithTransition);
     BATCH_UPDATES = undefined;
@@ -334,11 +336,13 @@ export function createTransition(timeout?: number): Transition {
       cancelCallback(task);
     }
     task = requestCallback(() => {
-      const parent = BATCH_UPDATES;
-      BATCH_UPDATES = transitions;
-      transitions.forEach(runWorkWithoutTransition);
-      BATCH_UPDATES = parent;
-      transitions.clear();
+      if (transitions.size) {
+        const parent = BATCH_UPDATES;
+        BATCH_UPDATES = transitions;
+        transitions.forEach(runWorkWithoutTransition);
+        BATCH_UPDATES = parent;
+        transitions.clear();
+      }
       isPending = false;
       task = undefined;
     }, { timeout });
