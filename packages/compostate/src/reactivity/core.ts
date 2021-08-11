@@ -501,16 +501,20 @@ function revalidateComputed(target: ComputedWork): void {
   TRACKING = target;
   ERROR_BOUNDARY = target.errorBoundary;
   try {
-    target.value = {
+    const next = {
       value: target.compute(),
     };
+    const current = target.value;
+    if ((current && !Object.is(next.value, current.value)) || !current) {
+      target.value = next;
+      revalidateAtom(target);
+    }
   } catch (error) {
     handleError(target.errorBoundary, error);
   } finally {
     ERROR_BOUNDARY = parentErrorBoundary;
     TRACKING = parentTracking;
   }
-  revalidateAtom(target);
 }
 
 export function computed<T>(compute: () => T): Ref<T> {
