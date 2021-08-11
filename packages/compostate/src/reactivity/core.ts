@@ -25,7 +25,7 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import {
+ import {
   addLinkedWorkDependency,
   addLinkedWorkDependent,
   createLinkedWork,
@@ -140,8 +140,9 @@ export function capturedErrorBoundary<T extends any[], R>(
   };
 }
 
-export function onCleanup(cleanup: Cleanup): void {
+export function onCleanup(cleanup: Cleanup): Cleanup {
   CLEANUP?.add(cleanup);
+  return cleanup;
 }
 
 export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanup {
@@ -158,16 +159,14 @@ export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanu
     CLEANUP = parentCleanup;
   }
   // Create return cleanup
-  const returnCleanup = () => {
+  return onCleanup(() => {
     untrack(() => {
       cleanups.forEach((cleanup) => {
         cleanup();
       });
       cleanups.clear();
     });
-  };
-  onCleanup(returnCleanup);
-  return returnCleanup;
+  });
 }
 
 // ErrorBoundary
@@ -215,10 +214,15 @@ function registerErrorCapture(
   };
 }
 
-export function onError(errorCapture: ErrorCapture): void {
+function NO_OP() {
+  // no-op
+}
+
+export function onError(errorCapture: ErrorCapture): Cleanup {
   if (ERROR_BOUNDARY) {
-    onCleanup(registerErrorCapture(ERROR_BOUNDARY, errorCapture));
+    return onCleanup(registerErrorCapture(ERROR_BOUNDARY, errorCapture));
   }
+  return NO_OP;
 }
 
 export function errorBoundary<T>(callback: () => T): T {
@@ -257,7 +261,7 @@ function revalidateAtom(target: ReactiveAtom): void {
   const { listeners } = target;
   if (listeners?.size) {
     // inlined
-    untrack(() => {
+    createRoot(() => {
       listeners.forEach((listener) => {
         listener();
       });
@@ -456,13 +460,9 @@ export function effect(callback: Effect): Cleanup {
     runLinkedWork(instance);
   }
 
-  const cleanup = () => {
+  return onCleanup(() => {
     stopEffect(instance);
-  };
-
-  onCleanup(cleanup);
-
-  return cleanup;
+  });
 }
 
 const TRACK_MAP = new WeakMap<any, ReactiveAtom>();
@@ -555,13 +555,10 @@ export function track<T>(source: T): T {
 export function watch<T>(source: T, listen: () => void, run = false): () => void {
   const atom = getTrackableAtom(source);
   if (atom) {
-    const wrappedListener = () => createRoot(listen);
     if (run) {
-      wrappedListener();
+      createRoot(listen);
     }
-    const cleanup = subscribeReactiveAtom(atom, wrappedListener);
-    onCleanup(cleanup);
-    return cleanup;
+    return onCleanup(subscribeReactiveAtom(atom, listen));
   }
   throw new Error('Invalid trackable for `watch`. Received value is not a reactive value.');
 }
