@@ -62,14 +62,9 @@ function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
   }
 }
 
-export function runLinkedWorkAlone(target: LinkedWork, queue?: Set<LinkedWork>): void {
+export function runLinkedWorkAlone(target: LinkedWork): void {
   if (target.alive) {
-    if (queue) {
-      queue.delete(target);
-      queue.add(target);
-    } else {
-      RUNNER[target.tag](target);
-    }
+    RUNNER[target.tag](target);
   }
 }
 
