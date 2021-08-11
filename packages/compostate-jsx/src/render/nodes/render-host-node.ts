@@ -77,8 +77,13 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
         const rawProperty = props[key as keyof typeof props];
         if (typeof rawProperty === 'object') {
           if ('derive' in rawProperty) {
+            let prev: any;
             effect(() => {
-              applyHostProperty(el, key, evalDerived(rawProperty));
+              const current = evalDerived(rawProperty);
+              if (!Object.is(current, prev)) {
+                prev = current;
+                applyHostProperty(el, key, current);
+              }
             });
           } else {
             effect(() => {
