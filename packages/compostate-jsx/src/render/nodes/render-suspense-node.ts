@@ -1,8 +1,8 @@
 import {
-  effect,
   reactive,
   Resource,
   track,
+  watch,
 } from 'compostate';
 import { SuspenseProps } from '../../special';
 import { Reactive, VNode } from '../../types';
@@ -55,8 +55,9 @@ export default function renderSuspenseNode(
 
   // Track the resources and remove all
   // failed an successful resource
-  effect(() => {
-    const copy = new Set(track(resources));
+
+  watch(() => track(resources), (value) => {
+    const copy = new Set(value);
     if (copy.size) {
       for (const resource of copy) {
         if (resource.status === 'success') {

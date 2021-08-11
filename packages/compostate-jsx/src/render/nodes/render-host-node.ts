@@ -1,7 +1,8 @@
 import {
-  effect,
   onCleanup,
   captureError,
+  watch,
+  Cleanup,
 } from 'compostate';
 import {
   createStyle,
@@ -18,25 +19,27 @@ function applyHostProperty(
   el: HTMLElement,
   key: string,
   property: any,
-): void {
+): Cleanup | undefined {
   if (key.startsWith('on')) {
     const errorHandler = captureError();
 
-    onCleanup(registerEvent(el, key, (evt) => {
+    return registerEvent(el, key, (evt) => {
       // In case of synchronous calls
       try {
         (property as unknown as EventListener)(evt);
       } catch (error) {
         errorHandler(error);
       }
-    }));
-  } else if (key === 'style') {
+    });
+  }
+  if (key === 'style') {
     el.setAttribute(key, createStyle(property));
   } else if (typeof property === 'boolean') {
     setAttribute(el, key, property ? 'true' : null);
   } else {
     setAttribute(el, key, property as string);
   }
+  return undefined;
 }
 
 const getKeys = Object.keys;
@@ -77,21 +80,30 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
         const rawProperty = props[key as keyof typeof props];
         if (typeof rawProperty === 'object') {
           if ('derive' in rawProperty) {
-            let prev: any;
-            effect(() => {
-              const current = evalDerived(rawProperty);
-              if (!Object.is(current, prev)) {
-                prev = current;
-                applyHostProperty(el, key, current);
-              }
+            let cleanup: Cleanup | undefined;
+            watch(() => evalDerived(rawProperty), (prop, prev) => {
+              cleanup?.();
+              console.log(el, key, prop, prev);
+              cleanup = applyHostProperty(el, key, prop);
+            });
+            onCleanup(() => {
+              cleanup?.();
             });
           } else {
-            effect(() => {
-              applyHostProperty(el, key, rawProperty.value);
+            let cleanup: Cleanup | undefined;
+            watch(() => rawProperty.value, (prop) => {
+              cleanup?.();
+              cleanup = applyHostProperty(el, key, prop);
+            });
+            onCleanup(() => {
+              cleanup?.();
             });
           }
         } else {
-          applyHostProperty(el, key, rawProperty);
+          const cleanup = applyHostProperty(el, key, rawProperty);
+          if (cleanup) {
+            onCleanup(cleanup);
+          }
         }
       }
     }
