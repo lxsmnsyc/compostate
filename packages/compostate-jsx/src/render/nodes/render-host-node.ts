@@ -81,7 +81,7 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
         if (typeof rawProperty === 'object') {
           if ('derive' in rawProperty) {
             let cleanup: Cleanup | undefined;
-            watch(() => evalDerived(rawProperty), (prop, prev) => {
+            watch(() => evalDerived(rawProperty), (prop) => {
               cleanup?.();
               cleanup = applyHostProperty(el, key, prop);
             });
