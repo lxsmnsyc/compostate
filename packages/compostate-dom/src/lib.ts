@@ -24,7 +24,7 @@ export function root<T>(fn: (dispose: () => void) => T) {
     let result;
     let currentCleanup: Cleanup | undefined;
     const dispose = () => {
-      currentCleanup?.();
+      currentCleanup && currentCleanup();
     }
     currentCleanup = batchCleanup(() => {
       result = fn(dispose);
