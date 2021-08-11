@@ -1,6 +1,5 @@
-import { computed, effect } from './core';
+import { computed, effect, ref } from './core';
 import readonly from './readonly';
-import ref from './ref';
 import { Ref } from './types';
 
 export default function debounce<T>(
