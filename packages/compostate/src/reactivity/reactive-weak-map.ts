@@ -25,8 +25,17 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { createReactiveAtom, notifyReactiveAtom, registerTrackable } from './core';
-import ReactiveWeakKeys from './nodes/reactive-weak-keys';
+import {
+  createReactiveAtom,
+  notifyReactiveAtom,
+  registerTrackable,
+} from './core';
+import {
+  createReactiveWeakKeys,
+  notifyReactiveWeakKeys,
+  ReactiveWeakKeys,
+  trackReactiveWeakKeys,
+} from './nodes/reactive-weak-keys';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, V> {
@@ -45,7 +54,9 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
   delete(key: K): boolean {
     const result = this.source.delete(key);
     if (result) {
-      this.collection?.notify(key);
+      if (this.collection) {
+        notifyReactiveWeakKeys(this.collection, key);
+      }
       notifyReactiveAtom(this.atom);
     }
     return result;
@@ -57,9 +68,9 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
 
   get(key: K): V | undefined {
     if (!this.collection) {
-      this.collection = new ReactiveWeakKeys();
+      this.collection = createReactiveWeakKeys();
     }
-    this.collection.track(key);
+    trackReactiveWeakKeys(this.collection, key);
     return this.source.get(key);
   }
 
@@ -67,7 +78,9 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
     const current = this.source.get(key);
     if (!Object.is(current, value)) {
       this.source.set(key, value);
-      this.collection?.notify(key);
+      if (this.collection) {
+        notifyReactiveWeakKeys(this.collection, key);
+      }
       notifyReactiveAtom(this.atom);
     }
     return this;
@@ -75,9 +88,9 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
 
   has(key: K): boolean {
     if (!this.collection) {
-      this.collection = new ReactiveWeakKeys();
+      this.collection = createReactiveWeakKeys();
     }
-    this.collection.track(key);
+    trackReactiveWeakKeys(this.collection, key);
     return this.source.has(key);
   }
 }
