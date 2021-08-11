@@ -101,6 +101,7 @@ export function unlinkLinkedWorkDependencies(target: LinkedWork): void {
     for (const dependency of copy) {
       removeLinkedWorkDependent(dependency, target);
     }
+    dependencies.clear();
   }
 }
 
