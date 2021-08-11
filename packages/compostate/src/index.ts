@@ -41,6 +41,8 @@ export {
   onError,
   errorBoundary,
   captureError,
+  // computation
+  computation,
   // effects
   effect,
   batchEffects,
