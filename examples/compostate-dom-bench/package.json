@@ -1,5 +1,5 @@
 {
-  "version": "0.2.1-no-vdom.45",
+  "version": "0.2.1-no-vdom.46",
   "name": "compostate-dom-bench",
   "license": "MIT",
   "scripts": {
@@ -7,8 +7,8 @@
     "build": "parcel build ./index.html"
   },
   "dependencies": {
-    "compostate": "0.2.1-no-vdom.44",
-    "compostate-dom": "0.2.1-no-vdom.45"
+    "compostate": "0.2.1-no-vdom.46",
+    "compostate-dom": "0.2.1-no-vdom.46"
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",
