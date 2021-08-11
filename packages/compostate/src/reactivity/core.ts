@@ -423,12 +423,13 @@ function revalidateEffect(
   }
 }
 
+const objAssign = Object.assign;
+
 function createEffect(callback: Effect): EffectWork {
-  const node = {
-    ...createLinkedWork('effect'),
+  const node = objAssign(createLinkedWork('effect'), {
     callback,
     errorBoundary: ERROR_BOUNDARY,
-  };
+  });
   return node;
 }
 
@@ -509,11 +510,10 @@ function revalidateComputed(target: ComputedWork): void {
 }
 
 export function computed<T>(compute: () => T): Ref<T> {
-  const work: ComputedWork = {
-    ...createLinkedWork('computed'),
+  const work: ComputedWork = objAssign(createLinkedWork('computed'), {
     compute,
     errorBoundary: ERROR_BOUNDARY,
-  };
+  });
 
   runLinkedWork(work);
 
