@@ -33,10 +33,10 @@ export function spread<T extends ReactiveObject>(
 ): Spread<T> {
   const proxy = (Array.isArray(source) ? [] : {}) as Spread<T>;
 
-  Object.keys(source).forEach((key) => {
+  for (const key of Object.keys(source)) {
     const k = key as keyof Spread<T>;
     proxy[k] = computed(() => source[k]);
-  });
+  }
 
   return proxy;
 }
