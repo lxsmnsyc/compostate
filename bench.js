@@ -1,4 +1,4 @@
-const { ref, effect, batch, computed, watch } = require('./packages/compostate');
+const { ref, computation, batch, computed, watch } = require('./packages/compostate');
 
 const a = ref('A');
 const b = ref('B');

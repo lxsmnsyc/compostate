@@ -43,7 +43,7 @@ import {
   Ref,
 } from './types';
 
-const { is } = Object;
+const { is, assign } = Object;
 
 // Execution contexts
 let CLEANUP: Cleanup[] | undefined;
@@ -352,15 +352,58 @@ export function createTransition(timeout?: number): Transition {
   };
 }
 
-interface EffectWork extends LinkedWork {
-  callback: Effect;
+interface ProcessWork extends LinkedWork {
   errorBoundary?: ErrorBoundary;
+}
+
+function runProcess(target: ProcessWork, callback: () => void) {
+  unlinkLinkedWorkPublishers(target);
+  const parentTracking = TRACKING;
+  const parentErrorBoundary = ERROR_BOUNDARY;
+  TRACKING = target;
+  ERROR_BOUNDARY = target.errorBoundary;
+  try {
+    callback();
+  } catch (error) {
+    handleError(target.errorBoundary, error);
+  } finally {
+    ERROR_BOUNDARY = parentErrorBoundary;
+    TRACKING = parentTracking;
+  }
+}
+
+interface ComputationWork<T> extends LinkedWork {
+  process: (prev?: T) => T;
+  current?: T;
+}
+
+function revalidateComputation<T>(target: ComputationWork<T>): void {
+  runProcess(target, () => {
+    batch(() => {
+      target.current = target.process(target.current);
+    });
+  });
+}
+
+export function computation<T>(callback: (prev?: T) => T): Cleanup {
+  const work: ComputationWork<T> = assign(createLinkedWork('computation'), {
+    process: callback,
+    errorBoundary: ERROR_BOUNDARY,
+  });
+
+  runLinkedWork(work);
+
+  return onCleanup(() => {
+    destroyLinkedWork(work);
+  });
+}
+
+interface EffectWork extends ProcessWork {
+  callback: Effect;
   cleanup?: Cleanup;
 }
 
 function cleanupEffect(node: EffectWork): void {
-  unlinkLinkedWorkPublishers(node);
-
   const currentCleanup = node.cleanup;
   if (currentCleanup) {
     try {
@@ -383,30 +426,22 @@ function stopEffect(node: EffectWork): void {
 function revalidateEffect(
   node: EffectWork,
 ): void {
-  const parentTracking = TRACKING;
-  const parentErrorBoundary = ERROR_BOUNDARY;
-  const parentBatchEffects = BATCH_EFFECTS;
-  ERROR_BOUNDARY = node.errorBoundary;
-  BATCH_EFFECTS = undefined;
-  TRACKING = node;
-  try {
-    batch(() => {
-      cleanupEffect(node);
-      node.cleanup = batchCleanup(node.callback);
-    });
-  } catch (error) {
-    handleError(node.errorBoundary, error);
-  } finally {
-    TRACKING = parentTracking;
-    BATCH_EFFECTS = parentBatchEffects;
-    ERROR_BOUNDARY = parentErrorBoundary;
-  }
+  runProcess(node, () => {
+    const parentBatchEffects = BATCH_EFFECTS;
+    BATCH_EFFECTS = undefined;
+    try {
+      batch(() => {
+        cleanupEffect(node);
+        node.cleanup = batchCleanup(node.callback);
+      });
+    } finally {
+      BATCH_EFFECTS = parentBatchEffects;
+    }
+  });
 }
 
-const objAssign = Object.assign;
-
 function createEffect(callback: Effect): EffectWork {
-  const node = objAssign(createLinkedWork('effect'), {
+  const node = assign(createLinkedWork('effect'), {
     callback,
     errorBoundary: ERROR_BOUNDARY,
   });
@@ -475,12 +510,7 @@ interface WatchWork<T> extends LinkedWork {
 }
 
 function revalidateWatch<T>(target: WatchWork<T>): void {
-  unlinkLinkedWorkPublishers(target);
-  const parentTracking = TRACKING;
-  const parentErrorBoundary = ERROR_BOUNDARY;
-  TRACKING = target;
-  ERROR_BOUNDARY = target.errorBoundary;
-  try {
+  runProcess(target, () => {
     const hasCurrent = 'current' in target;
     const next = target.source();
     const prev = target.current;
@@ -490,19 +520,14 @@ function revalidateWatch<T>(target: WatchWork<T>): void {
         target.listen(next, prev);
       });
     }
-  } catch (error) {
-    handleError(target.errorBoundary, error);
-  } finally {
-    ERROR_BOUNDARY = parentErrorBoundary;
-    TRACKING = parentTracking;
-  }
+  });
 }
 
 export function watch<T>(
   source: () => T,
   listen: (next: T, prev?: T) => void,
 ): () => void {
-  const work: WatchWork<T> = objAssign(createLinkedWork('watch'), {
+  const work: WatchWork<T> = assign(createLinkedWork('watch'), {
     source,
     listen,
     errorBoundary: ERROR_BOUNDARY,
@@ -522,29 +547,15 @@ interface ComputedWork extends LinkedWork {
 }
 
 function revalidateComputed(target: ComputedWork): void {
-  unlinkLinkedWorkPublishers(target);
-  const parentTracking = TRACKING;
-  const parentErrorBoundary = ERROR_BOUNDARY;
-  TRACKING = target;
-  ERROR_BOUNDARY = target.errorBoundary;
-  try {
-    const next = {
+  runProcess(target, () => {
+    target.value = {
       value: target.compute(),
     };
-    const current = target.value;
-    if ((current && !is(next.value, current.value)) || !current) {
-      target.value = next;
-    }
-  } catch (error) {
-    handleError(target.errorBoundary, error);
-  } finally {
-    ERROR_BOUNDARY = parentErrorBoundary;
-    TRACKING = parentTracking;
-  }
+  });
 }
 
 export function computed<T>(compute: () => T): Ref<T> {
-  const work: ComputedWork = objAssign(createLinkedWork('computed'), {
+  const work: ComputedWork = assign(createLinkedWork('computed'), {
     compute,
     errorBoundary: ERROR_BOUNDARY,
   });
@@ -606,3 +617,4 @@ setRunner('atom', NO_OP);
 setRunner('effect', revalidateEffect as any);
 setRunner('computed', revalidateComputed as any);
 setRunner('watch', revalidateWatch as any);
+setRunner('computation', revalidateComputation as any);
