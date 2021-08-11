@@ -25,7 +25,7 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
- import {
+import {
   addLinkedWorkDependency,
   addLinkedWorkDependent,
   createLinkedWork,
@@ -33,6 +33,7 @@
   LinkedWork,
   runLinkedWork,
   runLinkedWorkAlone,
+  setRunner,
   unlinkLinkedWorkDependencies,
 } from '../linked-work';
 import { cancelCallback, requestCallback, Task } from '../scheduler';
@@ -270,7 +271,7 @@ function revalidateAtom(target: ReactiveAtom): void {
 }
 
 export function createReactiveAtom(): ReactiveAtom {
-  return createLinkedWork('atom', revalidateAtom);
+  return createLinkedWork('atom');
 }
 
 export function trackReactiveAtom(target: ReactiveAtom): void {
@@ -422,16 +423,12 @@ function revalidateEffect(
   }
 }
 
-const objAssign = Object.assign;
-
 function createEffect(callback: Effect): EffectWork {
-  const node = objAssign(
-    createLinkedWork('effect', revalidateEffect as any),
-    {
-      callback,
-      errorBoundary: ERROR_BOUNDARY,
-    },
-  );
+  const node = {
+    ...createLinkedWork('effect'),
+    callback,
+    errorBoundary: ERROR_BOUNDARY,
+  };
   return node;
 }
 
@@ -513,7 +510,7 @@ function revalidateComputed(target: ComputedWork): void {
 
 export function computed<T>(compute: () => T): Ref<T> {
   const work: ComputedWork = {
-    ...createLinkedWork('computed', revalidateComputed as any),
+    ...createLinkedWork('computed'),
     compute,
     errorBoundary: ERROR_BOUNDARY,
   };
@@ -557,3 +554,7 @@ export function watch<T>(source: T, listen: () => void, run = false): () => void
   }
   throw new Error('Invalid trackable for `watch`. Received value is not a reactive value.');
 }
+
+setRunner('atom', revalidateAtom);
+setRunner('effect', revalidateEffect as any);
+setRunner('computed', revalidateComputed as any);
