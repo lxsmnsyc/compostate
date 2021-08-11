@@ -1,20 +1,16 @@
 import {
   untrack,
-  effect as cEffect,
   createRoot,
   batchCleanup,
   Ref,
   ref,
   computed,
   Cleanup,
+  effect as cEffect,
+  onCleanup,
 } from "compostate";
 import type { JSX } from "./jsx";
 
-type ContextOwner = {
-  disposables: any[];
-  owner: ContextOwner | null;
-  context?: any;
-};
 export interface Context {
   id: symbol;
   Provider: (props: any) => any;
@@ -23,48 +19,26 @@ export interface Context {
 
 export const untracked = untrack;
 
-let globalContext: ContextOwner | null = null;
-
 export function root<T>(fn: (dispose: () => void) => T) {
-  let d: any[], ret: T;
-  globalContext = {
-    disposables: (d = []),
-    owner: globalContext
-  };
-  ret = untrack(() =>
-    fn(() => {
-      let k, len: number;
-      for (k = 0, len = d.length; k < len; k++) d[k]();
-      d = [];
-    })
-  );
-  globalContext = globalContext.owner;
-  return ret;
+  return createRoot(() => {
+    let result;
+    let currentCleanup: Cleanup | undefined;
+    const dispose = () => {
+      currentCleanup?.();
+    }
+    currentCleanup = batchCleanup(() => {
+      result = fn(dispose);
+    });
+    return result;
+  });
 }
 
-export function cleanup(fn: () => void) {
-  let ref;
-  (ref = globalContext) != null && ref.disposables.push(fn);
-}
+export const cleanup = onCleanup
 
 export function effect<T>(fn: (prev?: T) => T, current?: T) {
-  const context = {
-      disposables: [] as (() => void)[],
-      owner: globalContext
-    },
-    cleanupFn = (final: boolean) => {
-      const d = context.disposables;
-      context.disposables = [];
-      for (let k = 0, len = d.length; k < len; k++) d[k]();
-      final && c();
-    },
-    c = cEffect(() => {
-      cleanupFn(false);
-      globalContext = context;
-      current = fn(current);
-      globalContext = globalContext.owner;
-    });
-  cleanup(() => cleanupFn(true));
+  cEffect(() => {
+    current = fn(current);
+  })
 }
 
 // only updates when boolean expression changes

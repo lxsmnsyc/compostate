@@ -1,4 +1,4 @@
-import { untrack, Ref } from "compostate";
+import { untrack, Ref, onCleanup } from "compostate";
 import type { JSX } from "./jsx";
 export interface Context {
     id: symbol;
@@ -6,8 +6,8 @@ export interface Context {
     defaultValue: unknown;
 }
 export declare const untracked: typeof untrack;
-export declare function root<T>(fn: (dispose: () => void) => T): T;
-export declare function cleanup(fn: () => void): void;
+export declare function root<T>(fn: (dispose: () => void) => T): undefined;
+export declare const cleanup: typeof onCleanup;
 export declare function effect<T>(fn: (prev?: T) => T, current?: T): void;
 export declare function memo<T>(fn: () => T, equal?: boolean): () => T;
 export declare function createSelector<T, U extends T>(source: () => T, fn?: (a: U, b: T) => boolean): (key: U) => boolean;
