@@ -6,10 +6,10 @@ export interface LinkedWork {
   subscribers?: Set<LinkedWork>
 }
 
-const RUNNER: Record<string, (work: LinkedWork) => void> = {};
+let RUNNER: (work: LinkedWork) => void;
 
-export function setRunner(tag: string, work: (work: LinkedWork) => void): void {
-  RUNNER[tag] = work;
+export function setRunner(work: (work: LinkedWork) => void): void {
+  RUNNER = work;
 }
 
 let STATE = 0;
@@ -51,13 +51,13 @@ function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
 
 export function runLinkedWorkAlone(target: LinkedWork): void {
   if (target.alive) {
-    RUNNER[target.tag](target);
+    RUNNER(target);
   }
 }
 
 function evaluateLinkedWork(target: LinkedWork): void {
   if (target.alive) {
-    RUNNER[target.tag](target);
+    RUNNER(target);
     const { subscribers } = target;
     if (subscribers?.size) {
       const copy = new Set(subscribers);
