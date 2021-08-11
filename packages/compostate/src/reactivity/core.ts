@@ -249,22 +249,7 @@ export function captureError(): ErrorCapture {
 /**
  * Linked Work
  */
-
-export interface ReactiveAtom extends LinkedWork {
-  listeners?: Set<() => void>;
-}
-
-function revalidateAtom(target: ReactiveAtom): void {
-  const { listeners } = target;
-  if (listeners?.size) {
-    // inlined
-    createRoot(() => {
-      for (const listener of listeners) {
-        listener();
-      }
-    });
-  }
-}
+export type ReactiveAtom = LinkedWork;
 
 export function createReactiveAtom(): ReactiveAtom {
   return createLinkedWork('atom');
@@ -288,16 +273,6 @@ export function notifyReactiveAtom(target: ReactiveAtom): void {
     }
     BATCH_UPDATES = undefined;
   }
-}
-
-function subscribeReactiveAtom(target: ReactiveAtom, listener: () => void): Cleanup {
-  if (!target.listeners) {
-    target.listeners = new Set();
-  }
-  target.listeners.add(listener);
-  return () => {
-    target.listeners?.delete(listener);
-  };
 }
 
 export function batch(callback: () => void): void {
@@ -488,6 +463,54 @@ export function getTrackableAtom<T>(
   return TRACK_MAP.get(trackable);
 }
 
+interface WatchWork<T> extends LinkedWork {
+  source: () => T,
+  listen: (next: T, prev?: T) => void,
+  current?: T;
+  errorBoundary?: ErrorBoundary;
+}
+
+function revalidateWatch<T>(target: WatchWork<T>): void {
+  unlinkLinkedWorkDependencies(target);
+  const parentTracking = TRACKING;
+  const parentErrorBoundary = ERROR_BOUNDARY;
+  TRACKING = target;
+  ERROR_BOUNDARY = target.errorBoundary;
+  try {
+    const { current } = target;
+    const next = target.source();
+    if ((current && !Object.is(next, current)) || !current) {
+      target.current = next;
+      batch(() => {
+        target.listen(next, current);
+      });
+    }
+  } catch (error) {
+    handleError(target.errorBoundary, error);
+  } finally {
+    ERROR_BOUNDARY = parentErrorBoundary;
+    TRACKING = parentTracking;
+  }
+}
+
+export function watch<T>(
+  source: () => T,
+  listen: (next: T, prev?: T) => void,
+): () => void {
+  const work: WatchWork<T> = objAssign(createLinkedWork('watch'), {
+    current: undefined,
+    source,
+    listen,
+    errorBoundary: ERROR_BOUNDARY,
+  });
+
+  runLinkedWork(work);
+
+  return onCleanup(() => {
+    destroyLinkedWork(work);
+  });
+}
+
 interface ComputedWork extends LinkedWork {
   compute: () => any;
   value?: Ref<any>;
@@ -507,7 +530,6 @@ function revalidateComputed(target: ComputedWork): void {
     const current = target.value;
     if ((current && !Object.is(next.value, current.value)) || !current) {
       target.value = next;
-      revalidateAtom(target);
     }
   } catch (error) {
     handleError(target.errorBoundary, error);
@@ -552,17 +574,7 @@ export function track<T>(source: T): T {
   return source;
 }
 
-export function watch<T>(source: T, listen: () => void, run = false): () => void {
-  const atom = getTrackableAtom(source);
-  if (atom) {
-    if (run) {
-      createRoot(listen);
-    }
-    return onCleanup(subscribeReactiveAtom(atom, listen));
-  }
-  throw new Error('Invalid trackable for `watch`. Received value is not a reactive value.');
-}
-
-setRunner('atom', revalidateAtom);
+setRunner('atom', NO_OP);
 setRunner('effect', revalidateEffect as any);
 setRunner('computed', revalidateComputed as any);
+setRunner('watch', revalidateWatch as any);
