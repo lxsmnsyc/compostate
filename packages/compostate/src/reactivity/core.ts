@@ -477,12 +477,13 @@ function revalidateWatch<T>(target: WatchWork<T>): void {
   TRACKING = target;
   ERROR_BOUNDARY = target.errorBoundary;
   try {
-    const { current } = target;
+    const hasCurrent = 'current' in target;
     const next = target.source();
-    if ((current && !Object.is(next, current)) || !current) {
+    const prev = target.current;
+    if ((hasCurrent && !Object.is(next, target.current)) || !hasCurrent) {
       target.current = next;
       batch(() => {
-        target.listen(next, current);
+        target.listen(next, prev);
       });
     }
   } catch (error) {
@@ -498,7 +499,6 @@ export function watch<T>(
   listen: (next: T, prev?: T) => void,
 ): () => void {
   const work: WatchWork<T> = objAssign(createLinkedWork('watch'), {
-    current: undefined,
     source,
     listen,
     errorBoundary: ERROR_BOUNDARY,
