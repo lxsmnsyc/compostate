@@ -4,6 +4,8 @@ import renderComponentNode from './nodes/render-component-node';
 import renderHostNode from './nodes/render-host-node';
 import renderSpecialNode from './nodes/render-special-node';
 
+const objAssign = Object.assign;
+
 export default function renderCore<P>(
   type: VReactiveConstructor,
   props: P,
@@ -26,23 +28,23 @@ export default function renderCore<P>(
   if (typeof type === 'function') {
     return renderComponentNode(
       type,
-      {
-        ...fauxProps,
+      // eslint-disable-next-line prefer-object-spread
+      objAssign({}, fauxProps, {
         children: [
           ...(fauxProps.children ?? []),
           ...children,
         ],
-      } as any,
+      }),
     );
   }
   return renderHostNode(
     type,
-    {
-      ...fauxProps,
+    // eslint-disable-next-line prefer-object-spread
+    objAssign({}, fauxProps, {
       children: [
         ...(fauxProps.children ?? []),
         ...children,
       ],
-    } as any,
+    }),
   );
 }
