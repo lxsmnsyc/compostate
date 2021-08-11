@@ -26,7 +26,12 @@
  * @copyright Alexis Munsayac 2021
  */
 import { createReactiveAtom, notifyReactiveAtom, registerTrackable } from './core';
-import ReactiveKeys from './nodes/reactive-keys';
+import {
+  createReactiveKeys,
+  notifyReactiveKeys,
+  ReactiveKeys,
+  trackReactiveKeys,
+} from './nodes/reactive-keys';
 import { ReactiveObject } from './types';
 
 class ReactiveObjectHandler<T extends ReactiveObject> {
@@ -36,24 +41,26 @@ class ReactiveObjectHandler<T extends ReactiveObject> {
 
   get(target: T, key: string | symbol, receiver: any) {
     if (!this.collection) {
-      this.collection = new ReactiveKeys();
+      this.collection = createReactiveKeys();
     }
-    this.collection.track(key);
+    trackReactiveKeys(this.collection, key);
     return Reflect.get(target, key, receiver);
   }
 
   has(target: T, key: string | symbol) {
     if (!this.collection) {
-      this.collection = new ReactiveKeys();
+      this.collection = createReactiveKeys();
     }
-    this.collection.track(key);
+    trackReactiveKeys(this.collection, key);
     return Reflect.has(target, key);
   }
 
   deleteProperty(target: T, key: string | symbol) {
     const deleted = Reflect.deleteProperty(target, key);
     if (deleted) {
-      this.collection?.notify(key);
+      if (this.collection) {
+        notifyReactiveKeys(this.collection, key);
+      }
       notifyReactiveAtom(this.atom);
     }
     return deleted;
@@ -65,7 +72,9 @@ class ReactiveObjectHandler<T extends ReactiveObject> {
     const result = Reflect.set(target, key, value, receiver);
 
     if (result && !Object.is(current, value)) {
-      this.collection?.notify(key);
+      if (this.collection) {
+        notifyReactiveKeys(this.collection, key);
+      }
       notifyReactiveAtom(this.atom);
     }
 

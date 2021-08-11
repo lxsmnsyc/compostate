@@ -32,30 +32,38 @@ import {
   trackReactiveAtom,
 } from '../core';
 
-export default class ReactiveKeys<K> {
-  private atoms = new Map<K, ReactiveAtom>();
+export type ReactiveKeys<K> = Map<K, ReactiveAtom>;
 
-  private getAtom(key: K): ReactiveAtom {
-    const current = this.atoms.get(key);
-    if (current) {
-      return current;
-    }
-    const atom = createReactiveAtom();
-    this.atoms.set(key, atom);
-    return atom;
-  }
+export function createReactiveKeys<K>(): ReactiveKeys<K> {
+  return new Map();
+}
 
-  notify(key: K): void {
-    notifyReactiveAtom(this.getAtom(key));
+function getAtom<K>(atoms: ReactiveKeys<K>, key: K): ReactiveAtom {
+  const current = atoms.get(key);
+  if (current) {
+    return current;
   }
+  const atom = createReactiveAtom();
+  atoms.set(key, atom);
+  return atom;
+}
 
-  track(key: K): void {
-    trackReactiveAtom(this.getAtom(key));
-  }
+export function notifyReactiveKeys<K>(
+  keys: ReactiveKeys<K>,
+  key: K,
+): void {
+  notifyReactiveAtom(getAtom(keys, key));
+}
 
-  notifyAll(): void {
-    this.atoms.forEach((atom) => {
-      notifyReactiveAtom(atom);
-    });
-  }
+export function trackReactiveKeys<K>(
+  keys: ReactiveKeys<K>,
+  key: K,
+): void {
+  trackReactiveAtom(getAtom(keys, key));
+}
+
+export function notifyAllReactiveKeys<K>(
+  keys: ReactiveKeys<K>,
+): void {
+  keys.forEach(notifyReactiveAtom);
 }

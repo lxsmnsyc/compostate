@@ -25,8 +25,18 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { createReactiveAtom, notifyReactiveAtom, registerTrackable } from './core';
-import ReactiveKeys from './nodes/reactive-keys';
+import {
+  createReactiveAtom,
+  notifyReactiveAtom,
+  registerTrackable,
+} from './core';
+import {
+  createReactiveKeys,
+  notifyAllReactiveKeys,
+  notifyReactiveKeys,
+  ReactiveKeys,
+  trackReactiveKeys,
+} from './nodes/reactive-keys';
 
 export default class ReactiveSet<V> implements Set<V> {
   private collection?: ReactiveKeys<V>;
@@ -43,14 +53,18 @@ export default class ReactiveSet<V> implements Set<V> {
 
   clear(): void {
     this.source.clear();
-    this.collection?.notifyAll();
+    if (this.collection) {
+      notifyAllReactiveKeys(this.collection);
+    }
     notifyReactiveAtom(this.atom);
   }
 
   delete(value: V): boolean {
     const result = this.source.delete(value);
     if (result) {
-      this.collection?.notify(value);
+      if (this.collection) {
+        notifyReactiveKeys(this.collection, value);
+      }
       notifyReactiveAtom(this.atom);
     }
     return result;
@@ -91,7 +105,9 @@ export default class ReactiveSet<V> implements Set<V> {
     const shouldNotify = !this.source.has(value);
     this.source.add(value);
     if (shouldNotify) {
-      this.collection?.notify(value);
+      if (this.collection) {
+        notifyReactiveKeys(this.collection, value);
+      }
       notifyReactiveAtom(this.atom);
     }
     return this;
@@ -99,9 +115,9 @@ export default class ReactiveSet<V> implements Set<V> {
 
   has(value: V): boolean {
     if (!this.collection) {
-      this.collection = new ReactiveKeys();
+      this.collection = createReactiveKeys();
     }
-    this.collection.track(value);
+    trackReactiveKeys(this.collection, value);
     return this.source.has(value);
   }
 }

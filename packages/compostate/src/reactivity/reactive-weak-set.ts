@@ -25,10 +25,18 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { createReactiveAtom, notifyReactiveAtom, registerTrackable } from './core';
-import ReactiveWeakKeys from './nodes/reactive-weak-keys';
+import {
+  createReactiveAtom,
+  notifyReactiveAtom,
+  registerTrackable,
+} from './core';
+import {
+  createReactiveWeakKeys,
+  notifyReactiveWeakKeys,
+  ReactiveWeakKeys,
+  trackReactiveWeakKeys,
+} from './nodes/reactive-weak-keys';
 
-// eslint-disable-next-line @typescript-eslint/ban-types
 export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
   private atom = createReactiveAtom();
 
@@ -45,7 +53,9 @@ export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
   delete(value: V): boolean {
     const result = this.source.delete(value);
     if (result) {
-      this.collection?.notify(value);
+      if (this.collection) {
+        notifyReactiveWeakKeys(this.collection, value);
+      }
       notifyReactiveAtom(this.atom);
     }
     return result;
@@ -59,7 +69,9 @@ export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
     const shouldNotify = !this.source.has(value);
     this.source.add(value);
     if (shouldNotify) {
-      this.collection?.notify(value);
+      if (this.collection) {
+        notifyReactiveWeakKeys(this.collection, value);
+      }
       notifyReactiveAtom(this.atom);
     }
     return this;
@@ -67,9 +79,9 @@ export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
 
   has(value: V): boolean {
     if (!this.collection) {
-      this.collection = new ReactiveWeakKeys();
+      this.collection = createReactiveWeakKeys();
     }
-    this.collection.track(value);
+    trackReactiveWeakKeys(this.collection, value);
     return this.source.has(value);
   }
 }
