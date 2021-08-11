@@ -251,6 +251,10 @@ export function captureError(): ErrorCapture {
  */
 export type ReactiveAtom = LinkedWork;
 
+export function createReactiveAtom(): ReactiveAtom {
+  return createLinkedWork('atom');
+}
+
 export function trackReactiveAtom(target: ReactiveAtom): void {
   if (TRACKING) {
     addLinkedWorkDependent(target, TRACKING);
@@ -492,7 +496,6 @@ function revalidateWatch<T>(target: WatchWork<T>): void {
 export function watch<T>(
   source: () => T,
   listen: (next: T, prev?: T) => void,
-  run = false,
 ): () => void {
   const work: WatchWork<T> = objAssign(createLinkedWork('watch'), {
     current: undefined,
@@ -501,9 +504,7 @@ export function watch<T>(
     errorBoundary: ERROR_BOUNDARY,
   });
 
-  if (run) {
-    runLinkedWork(work);
-  }
+  runLinkedWork(work);
 
   return onCleanup(() => {
     destroyLinkedWork(work);

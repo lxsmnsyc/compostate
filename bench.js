@@ -1,4 +1,4 @@
-const { ref, effect, batch, computed } = require('./packages/compostate');
+const { ref, effect, batch, computed, watch } = require('./packages/compostate');
 
 const a = ref('A');
 const b = ref('B');
@@ -8,9 +8,7 @@ const d = computed(() => b.value + a.value);
 
 const e = computed(() => `${c.value} ${d.value}`);
 
-effect(() => {
-  console.log(e.value);
-});
+watch(() => e.value, console.log);
 
 batch(() => {
   a.value = 'C';
