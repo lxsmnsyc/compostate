@@ -1,5 +1,5 @@
 {
-  "version": "0.2.1-no-vdom.42",
+  "version": "0.2.1-no-vdom.43",
   "name": "compostate-jsx-sierpinski",
   "license": "MIT",
   "scripts": {
@@ -8,8 +8,8 @@
     "serve": "vite preview"
   },
   "dependencies": {
-    "compostate": "0.2.1-no-vdom.42",
-    "compostate-jsx": "0.2.1-no-vdom.42",
+    "compostate": "0.2.1-no-vdom.43",
+    "compostate-jsx": "0.2.1-no-vdom.43",
     "lit-html": "^1.4.1"
   },
   "devDependencies": {
