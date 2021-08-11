@@ -26,7 +26,6 @@
  * @copyright Alexis Munsayac 2021
  */
 import {
-  ALIVE,
   createLinkedWork,
   destroyLinkedWork,
   LinkedWork,
@@ -49,7 +48,7 @@ const { is } = Object;
 // Execution contexts
 let CLEANUP: Cleanup[] | undefined;
 let TRACKING: LinkedWork | undefined;
-let BATCH_UPDATES: LinkedWork[] | undefined;
+let BATCH_UPDATES: Set<LinkedWork> | undefined;
 let BATCH_EFFECTS: EffectWork[] | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
 
@@ -268,18 +267,20 @@ export function trackReactiveAtom(target: ReactiveAtom): void {
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
-  const instance: LinkedWork[] = [];
+  const instance = new Set<LinkedWork>();
   const parent = BATCH_UPDATES;
   runLinkedWork(target, parent ?? instance);
   if (!parent) {
-    for (let i = 0, len = instance.length; i < len; i++) {
-      runLinkedWorkAlone(instance[i]);
+    BATCH_UPDATES = instance;
+    for (const work of instance) {
+      runLinkedWorkAlone(work);
     }
+    BATCH_UPDATES = undefined;
   }
 }
 
 export function batch(callback: () => void): void {
-  const instance: LinkedWork[] = [];
+  const instance = new Set<LinkedWork>();
   const parent = BATCH_UPDATES;
   BATCH_UPDATES = parent ?? instance;
   try {
@@ -288,9 +289,11 @@ export function batch(callback: () => void): void {
     BATCH_UPDATES = parent;
   }
   if (!parent) {
-    for (let i = 0, len = instance.length; i < len; i++) {
-      runLinkedWorkAlone(instance[i]);
+    BATCH_UPDATES = instance;
+    for (const work of instance) {
+      runLinkedWorkAlone(work);
     }
+    BATCH_UPDATES = undefined;
   }
 }
 
@@ -300,7 +303,7 @@ export interface Transition {
 }
 
 export function createTransition(timeout?: number): Transition {
-  const transitions: LinkedWork[] = [];
+  const transitions = new Set<LinkedWork>();
   let isPending = false;
   let task: Task | undefined;
 
@@ -310,14 +313,13 @@ export function createTransition(timeout?: number): Transition {
       cancelCallback(task);
     }
     task = requestCallback(() => {
-      const len = transitions.length;
-      if (transitions.length) {
-        batch(() => {
-          for (let i = 0; i < len; i++) {
-            runLinkedWorkAlone(transitions[i]);
-          }
-        });
-        transitions.length = 0;
+      if (transitions.size) {
+        BATCH_UPDATES = transitions;
+        for (const work of transitions) {
+          runLinkedWorkAlone(work);
+        }
+        BATCH_UPDATES = undefined;
+        transitions.clear();
       }
       isPending = false;
       task = undefined;
@@ -357,24 +359,22 @@ interface EffectWork extends LinkedWork {
 }
 
 function cleanupEffect(node: EffectWork): void {
-  if (node[ALIVE]) {
-    unlinkLinkedWorkPublishers(node);
+  unlinkLinkedWorkPublishers(node);
 
-    const currentCleanup = node.cleanup;
-    if (currentCleanup) {
-      try {
-        currentCleanup();
-      } catch (error) {
-        handleError(node.errorBoundary, error);
-      }
-
-      node.cleanup = undefined;
+  const currentCleanup = node.cleanup;
+  if (currentCleanup) {
+    try {
+      currentCleanup();
+    } catch (error) {
+      handleError(node.errorBoundary, error);
     }
+
+    node.cleanup = undefined;
   }
 }
 
 function stopEffect(node: EffectWork): void {
-  if (node[ALIVE]) {
+  if (node.alive) {
     cleanupEffect(node);
     destroyLinkedWork(node);
   }

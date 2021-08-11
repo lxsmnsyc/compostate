@@ -1,18 +1,10 @@
-export const TAG = 0;
-export const ID = 1;
-export const ALIVE = 2;
-export const SUBSCRIBERS = 3;
-export const PUBLISHERS = 4;
-export const PENDING = 5;
-
-export type LinkedWork = [
-  string,
-  number,
-  boolean,
-  LinkedWork[] | undefined,
-  LinkedWork[] | undefined,
-  boolean,
-];
+export interface LinkedWork {
+  tag: string;
+  id: number;
+  alive: boolean;
+  publishers?: Set<LinkedWork>;
+  subscribers?: Set<LinkedWork>
+}
 
 const RUNNER: Record<string, (work: LinkedWork) => void> = {};
 
@@ -23,63 +15,60 @@ export function setRunner(tag: string, work: (work: LinkedWork) => void): void {
 let STATE = 0;
 
 export function createLinkedWork(tag: string): LinkedWork {
-  return [
+  return {
     tag,
-    STATE++,
-    true,
-    undefined,
-    undefined,
-    false,
-  ];
+    id: STATE++,
+    alive: true,
+  };
 }
 
 export function linkLinkedWork(publisher: LinkedWork, subscriber: LinkedWork): void {
-  if (publisher[ALIVE] && subscriber[ALIVE]) {
-    if (!publisher[SUBSCRIBERS]) {
-      publisher[SUBSCRIBERS] = [];
+  if (publisher.alive && subscriber.alive) {
+    if (!publisher.subscribers) {
+      publisher.subscribers = new Set();
     }
-    publisher[SUBSCRIBERS]!.push(subscriber);
-    if (!subscriber[PUBLISHERS]) {
-      subscriber[PUBLISHERS] = [];
+    publisher.subscribers.add(subscriber);
+    if (!subscriber.publishers) {
+      subscriber.publishers = new Set();
     }
-    subscriber[PUBLISHERS]!.push(publisher);
+    subscriber.publishers.add(publisher);
   }
 }
 
-function flattenLinkedWork(target: LinkedWork, queue: LinkedWork[]): void {
-  if (target[ALIVE] && !target[PENDING]) {
-    target[PENDING] = true;
-    queue.push(target);
-    const subscribers = target[SUBSCRIBERS];
-    if (subscribers) {
-      for (let i = 0, len = subscribers.length; i < len; i++) {
-        flattenLinkedWork(subscribers[i], queue);
+function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
+  if (target.alive) {
+    queue.delete(target);
+    queue.add(target);
+    const { subscribers } = target;
+    if (subscribers?.size) {
+      const copy = new Set(subscribers);
+      for (const subscriber of copy) {
+        flattenLinkedWork(subscriber, queue);
       }
     }
   }
 }
 
 export function runLinkedWorkAlone(target: LinkedWork): void {
-  if (target[ALIVE]) {
-    target[PENDING] = false;
-    RUNNER[target[TAG]](target);
+  if (target.alive) {
+    RUNNER[target.tag](target);
   }
 }
 
 function evaluateLinkedWork(target: LinkedWork): void {
-  if (target[ALIVE]) {
-    target[PENDING] = false;
-    RUNNER[target[TAG]](target);
-    const subscribers = target[SUBSCRIBERS];
-    if (subscribers) {
-      for (let i = 0, len = subscribers.length; i < len; i++) {
-        evaluateLinkedWork(subscribers[i]);
+  if (target.alive) {
+    RUNNER[target.tag](target);
+    const { subscribers } = target;
+    if (subscribers?.size) {
+      const copy = new Set(subscribers);
+      for (const subscriber of copy) {
+        evaluateLinkedWork(subscriber);
       }
     }
   }
 }
 
-export function runLinkedWork(target: LinkedWork, queue?: LinkedWork[]): void {
+export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void {
   if (queue) {
     flattenLinkedWork(target, queue);
   } else {
@@ -88,24 +77,17 @@ export function runLinkedWork(target: LinkedWork, queue?: LinkedWork[]): void {
 }
 
 export function unlinkLinkedWorkPublishers(target: LinkedWork): void {
-  const publishers = target[PUBLISHERS];
+  const { publishers } = target;
   if (publishers) {
-    for (let i = 0, len = publishers.length; i < len; i++) {
-      const subscribers = publishers[i][SUBSCRIBERS];
-      if (subscribers) {
-        for (let j = 0, slen = subscribers?.length; j < slen; j++) {
-          if (subscribers[i] === target) {
-            subscribers[i] = subscribers.pop()!;
-            break;
-          }
-        }
-      }
+    const copy = new Set(publishers);
+    for (const publisher of copy) {
+      publisher.subscribers?.delete(target);
     }
-    target[PUBLISHERS] = [];
+    publishers.clear();
   }
 }
 
 export function destroyLinkedWork(target: LinkedWork): void {
-  target[ALIVE] = false;
+  target.alive = false;
   unlinkLinkedWorkPublishers(target);
 }
