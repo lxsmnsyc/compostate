@@ -1,5 +1,5 @@
 {
-  "version": "0.2.1-no-vdom.33",
+  "version": "0.2.1-no-vdom.34",
   "name": "compostate-jsx-vite",
   "license": "MIT",
   "scripts": {
@@ -8,8 +8,8 @@
     "serve": "vite preview"
   },
   "dependencies": {
-    "compostate": "0.2.1-no-vdom.33",
-    "compostate-jsx": "0.2.1-no-vdom.33",
+    "compostate": "0.2.1-no-vdom.34",
+    "compostate-jsx": "0.2.1-no-vdom.34",
     "lit-html": "^1.4.1"
   },
   "devDependencies": {
