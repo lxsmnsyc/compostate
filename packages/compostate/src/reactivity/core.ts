@@ -163,9 +163,9 @@ export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanu
   return onCleanup(() => {
     if (cleanups.size) {
       untrack(() => {
-        cleanups.forEach((cleanup) => {
+        for (const cleanup of cleanups) {
           cleanup();
-        });
+        }
         cleanups.clear();
       });
     }
@@ -188,9 +188,10 @@ function handleError(instance: ErrorBoundary | undefined, error: Error): void {
     if (calls?.size) {
       try {
         untrack(() => {
-          new Set(calls).forEach((handle) => {
+          const copy = new Set(calls);
+          for (const handle of copy) {
             handle(error);
-          });
+          }
         });
       } catch (newError) {
         handleError(parent, error);
@@ -245,13 +246,6 @@ export function captureError(): ErrorCapture {
   };
 }
 
-function runWorkWithTransition(work: LinkedWork): void {
-  runLinkedWorkAlone(work, TRANSITION);
-}
-function runWorkWithoutTransition(work: LinkedWork): void {
-  runLinkedWorkAlone(work);
-}
-
 /**
  * Linked Work
  */
@@ -265,9 +259,9 @@ function revalidateAtom(target: ReactiveAtom): void {
   if (listeners?.size) {
     // inlined
     createRoot(() => {
-      listeners.forEach((listener) => {
+      for (const listener of listeners) {
         listener();
-      });
+      }
     });
   }
 }
@@ -289,7 +283,9 @@ export function notifyReactiveAtom(target: ReactiveAtom): void {
   runLinkedWork(target, parent ?? instance);
   if (!parent && instance.size) {
     BATCH_UPDATES = instance;
-    instance.forEach(runWorkWithTransition);
+    for (const work of instance) {
+      runLinkedWorkAlone(work, TRANSITION);
+    }
     BATCH_UPDATES = undefined;
   }
 }
@@ -315,7 +311,9 @@ export function batch(callback: () => void): void {
   }
   if (!parent && instance.size) {
     BATCH_UPDATES = instance;
-    instance.forEach(runWorkWithTransition);
+    for (const work of instance) {
+      runLinkedWorkAlone(work, TRANSITION);
+    }
     BATCH_UPDATES = undefined;
   }
 }
@@ -339,7 +337,9 @@ export function createTransition(timeout?: number): Transition {
       if (transitions.size) {
         const parent = BATCH_UPDATES;
         BATCH_UPDATES = transitions;
-        transitions.forEach(runWorkWithoutTransition);
+        for (const work of transitions) {
+          runLinkedWorkAlone(work);
+        }
         BATCH_UPDATES = parent;
         transitions.clear();
       }

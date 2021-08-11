@@ -18,6 +18,7 @@ module.exports = {
     "import/no-mutable-exports": "off",
     "no-param-reassign": "off",
     "no-plusplus": "off",
-    "@typescript-eslint/ban-types": "off"
+    "@typescript-eslint/ban-types": "off",
+    "no-restricted-syntax": "off"
   }
 };
