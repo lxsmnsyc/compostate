@@ -1,17 +1,18 @@
-const { destructure, reactive, effect, template } = require('./packages/compostate');
+const { ref, effect, batch, computed } = require('./packages/compostate');
 
-const state = reactive({
-  name: 'Alexis',
-  greeting: 'Hello',
-});
+const a = ref('A');
+const b = ref('B');
 
-const { greeting, name } = destructure(state);
+const c = computed(() => a.value + b.value);
+const d = computed(() => b.value + a.value);
 
-const message = template`${greeting}, ${name}!`;
+const e = computed(() => `${c.value} ${d.value}`);
 
 effect(() => {
-  console.log(message.value);
+  console.log(e.value);
 });
 
-state.name = 'Rizal';
-state.greeting = 'Kamusta';
+batch(() => {
+  a.value = 'C';
+  b.value = 'D';
+})
