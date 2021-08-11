@@ -1,6 +1,7 @@
 let ID = 0;
 
 export interface LinkedWork {
+  work: (target: LinkedWork) => void;
   tag: string;
   id: number;
   alive: boolean;
@@ -8,8 +9,9 @@ export interface LinkedWork {
   dependencies?: Set<LinkedWork>;
 }
 
-export function createLinkedWork(tag: string): LinkedWork {
+export function createLinkedWork(tag: string, work: LinkedWork['work']): LinkedWork {
   return {
+    work,
     tag,
     id: ID++,
     alive: true,
@@ -55,19 +57,13 @@ function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
   }
 }
 
-let RUNNER: (target: LinkedWork) => void = () => { /* */ };
-
-export function setRunner(runner: typeof RUNNER): void {
-  RUNNER = runner;
-}
-
 export function runLinkedWorkAlone(target: LinkedWork, queue?: Set<LinkedWork>): void {
   if (target.alive) {
     if (queue) {
       queue.delete(target);
       queue.add(target);
     } else {
-      RUNNER(target);
+      target.work(target);
     }
   }
 }
@@ -76,7 +72,7 @@ export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void
   if (queue) {
     flattenLinkedWork(target, queue);
   } else if (target.alive) {
-    RUNNER(target);
+    target.work(target);
     const { dependents } = target;
     if (dependents) {
       new Set(dependents).forEach((dependent) => {
