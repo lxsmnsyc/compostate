@@ -419,7 +419,7 @@ function revalidateEffect(
       node.cleanup = batchCleanup(node.callback);
     });
   } catch (error) {
-    handleError(ERROR_BOUNDARY, error);
+    handleError(node.errorBoundary, error);
   } finally {
     TRACKING = parentTracking;
     BATCH_EFFECTS = parentBatchEffects;
