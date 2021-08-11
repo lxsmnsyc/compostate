@@ -56,16 +56,19 @@ export default function renderSuspenseNode(
   // Track the resources and remove all
   // failed an successful resource
   effect(() => {
-    new Set(track(resources)).forEach((resource) => {
-      if (resource.status === 'success') {
-        resources.delete(resource);
-      } else if (resource.status === 'failure') {
-        resources.delete(resource);
+    const copy = new Set(track(resources));
+    if (copy.size) {
+      for (const resource of copy) {
+        if (resource.status === 'success') {
+          resources.delete(resource);
+        } else if (resource.status === 'failure') {
+          resources.delete(resource);
 
-        // Forward the error to the error boundary.
-        throw resource.value;
+          // Forward the error to the error boundary.
+          throw resource.value;
+        }
       }
-    });
+    }
   });
 
   const { fallback, render } = props;
