@@ -171,9 +171,6 @@ const getProto = Object.getPrototypeOf;
 const getDescriptor = Object.getOwnPropertyDescriptor;
 
 export function setAttribute(el: Element, attribute: string, value: string | null): void {
-  const prototype = getProto(el);
-  const descriptor = getDescriptor(prototype, attribute);
-
   if (attribute in aliases) {
     setAttributeSafe(el, aliases[attribute], value);
   } else if (domAttributes.has(attribute)) {
@@ -182,10 +179,14 @@ export function setAttribute(el: Element, attribute: string, value: string | nul
     el.textContent = value;
   } else if (attribute === 'innerHTML') {
     el.innerHTML = value ?? '';
-  } else if (descriptor && descriptor.set) {
-    (el as Record<string, any>)[attribute] = value;
   } else {
-    setAttributeSafe(el, attribute, value);
+    const prototype = getProto(el);
+    const descriptor = getDescriptor(prototype, attribute);
+    if (descriptor && descriptor.set) {
+      (el as Record<string, any>)[attribute] = value;
+    } else {
+      setAttributeSafe(el, attribute, value);
+    }
   }
 }
 
