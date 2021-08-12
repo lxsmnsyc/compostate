@@ -545,6 +545,8 @@ export function watch<T>(
     errorBoundary: ERROR_BOUNDARY,
   });
 
+  runLinkedWork(work);
+
   return onCleanup(() => {
     work.source = undefined;
     work.listen = undefined;
