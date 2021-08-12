@@ -1,4 +1,4 @@
-import { derived, evalDerived } from '../reactivity';
+import { derived, evalDerived, isDerived } from '../reactivity';
 import { VNode, VReactiveConstructor, VSpecialConstructor } from '../types';
 import renderComponentNode from './nodes/render-component-node';
 import renderHostNode from './nodes/render-host-node';
@@ -11,12 +11,6 @@ export default function renderCore<P>(
   props: P,
   children: VNode[],
 ): VNode {
-  if (typeof type === 'object') {
-    if ('derive' in type) {
-      return derived(() => renderCore(evalDerived(type), props, children));
-    }
-    return derived(() => renderCore(type.value, props, children));
-  }
   const fauxProps = props ?? {};
   if (typeof type === 'number') {
     return renderSpecialNode({
@@ -37,14 +31,20 @@ export default function renderCore<P>(
       }),
     );
   }
-  return renderHostNode(
-    type,
-    // eslint-disable-next-line prefer-object-spread
-    objAssign({}, fauxProps, {
-      children: [
-        ...(fauxProps.children ?? []),
-        ...children,
-      ],
-    }),
-  );
+  if (typeof type === 'string') {
+    return renderHostNode(
+      type,
+      // eslint-disable-next-line prefer-object-spread
+      objAssign({}, fauxProps, {
+        children: [
+          ...(fauxProps.children ?? []),
+          ...children,
+        ],
+      }),
+    );
+  }
+  if (isDerived(type)) {
+    return derived(() => renderCore(evalDerived(type), props, children));
+  }
+  return derived(() => renderCore(type.value, props, children));
 }

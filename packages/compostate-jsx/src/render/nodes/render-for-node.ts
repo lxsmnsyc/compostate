@@ -4,7 +4,7 @@ import {
   Ref,
   map,
 } from 'compostate';
-import { derived, evalDerived } from '../../reactivity';
+import { derived, evalDerived, isDerived } from '../../reactivity';
 import { ForProps } from '../../special';
 import { Reactive, VNode } from '../../types';
 
@@ -15,7 +15,7 @@ export default function renderForNode<T>(
 
   let derivedList: () => T[];
 
-  if ('derive' in list) {
+  if (isDerived(list)) {
     derivedList = () => evalDerived(list);
   } else if (Array.isArray(list)) {
     if (isReactive(list)) {
@@ -29,7 +29,7 @@ export default function renderForNode<T>(
 
   let derivedMap: () => (v: T, i: Ref<number>) => VNode;
 
-  if ('derive' in mapFn) {
+  if (isDerived(mapFn)) {
     derivedMap = () => evalDerived(mapFn);
   } else if (typeof mapFn === 'function') {
     derivedMap = () => mapFn;

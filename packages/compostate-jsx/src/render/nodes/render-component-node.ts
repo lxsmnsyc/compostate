@@ -1,7 +1,9 @@
 import {
+  isReactive,
+  track,
   untrack,
 } from 'compostate';
-import { evalDerived } from '../../reactivity';
+import { evalDerived, isDerived } from '../../reactivity';
 import {
   Reactive,
   VComponent,
@@ -35,18 +37,15 @@ export default function renderComponentNode<P extends Record<string, any>>(
       });
     } else {
       const property = props[key];
-      if (typeof property === 'object') {
-        if ('value' in property) {
-          defProp(proxyProps, key, {
-            get: () => property.value,
-          });
-        } else if ('derive' in property) {
-          defProp(proxyProps, key, {
-            get: () => evalDerived(property),
-          });
-        } else {
-          proxyProps[key] = property;
-        }
+      const isObject = typeof property === 'object';
+      if (isObject && isDerived(property)) {
+        defProp(proxyProps, key, {
+          get: () => evalDerived(property),
+        });
+      } else if (isObject && 'value' in property) {
+        defProp(proxyProps, key, {
+          get: () => property.value,
+        });
       } else {
         proxyProps[key] = property;
       }

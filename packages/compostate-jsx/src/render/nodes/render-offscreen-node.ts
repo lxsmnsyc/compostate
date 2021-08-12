@@ -1,7 +1,12 @@
-import { derived, evalDerived } from '../../reactivity';
+import {
+  Derived,
+  derived,
+  evalDerived,
+  isDerived,
+} from '../../reactivity';
 import { OffscreenProps } from '../../special';
 import { setSuspense, SUSPENSE } from '../../suspense';
-import { Derived, Reactive, VNode } from '../../types';
+import { Reactive, VNode } from '../../types';
 import {
   Lazy,
 } from '../types';
@@ -17,16 +22,14 @@ export default function renderOffscreenNode(
 
   let normalizedMount: () => boolean;
 
-  if (typeof mount === 'boolean') {
-    normalizedMount = () => mount;
-  } else if (typeof mount === 'object') {
-    if ('derive' in mount) {
-      normalizedMount = () => !!evalDerived(mount);
-    } else {
-      normalizedMount = () => !!mount.value;
-    }
-  } else {
+  if (mount === true || mount === false) {
+    normalizedMount = () => mount as boolean;
+  } else if (isDerived(mount)) {
+    normalizedMount = () => !!evalDerived(mount);
+  } else if (mount == null) {
     normalizedMount = () => false;
+  } else {
+    normalizedMount = () => !!mount.value;
   }
 
   let suspendChildren: Lazy<boolean>;
@@ -36,12 +39,12 @@ export default function renderOffscreenNode(
 
   if (typeof suspended === 'function') {
     suspendChildren = () => !suspended() && !normalizedMount();
-  } else if (typeof suspended === 'object') {
-    suspendChildren = () => !!suspended.value && !normalizedMount();
-  } else if (suspended) {
+  } else if (suspended === true) {
     suspendChildren = true;
-  } else {
+  } else if (!suspended) {
     suspendChildren = () => !normalizedMount();
+  } else {
+    suspendChildren = () => !!suspended.value && !normalizedMount();
   }
 
   setSuspense({
@@ -49,12 +52,12 @@ export default function renderOffscreenNode(
     suspend: suspendChildren,
   });
   let result: Derived<VNode>;
-  if ('value' in render) {
-    result = derived(() => render.value?.());
-  } else if ('derive' in render) {
-    result = derived(() => evalDerived<OffscreenProps['render']>(render)?.());
-  } else {
+  if (isDerived(render)) {
+    result = derived(() => evalDerived(render)?.());
+  } else if (typeof render === 'function') {
     result = derived(render);
+  } else {
+    result = derived(() => render.value?.());
   }
   setSuspense(currentSuspense);
   return result;

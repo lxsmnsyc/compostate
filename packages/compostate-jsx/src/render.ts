@@ -15,6 +15,7 @@ import {
   VNode,
   WithChildren,
 } from './types';
+import { evalDerived, isDerived } from './reactivity';
 
 export function render(root: HTMLElement, element: () => VNode): () => void {
   let previous: VNode;
@@ -73,8 +74,8 @@ export function renderToString(element: VNode): string {
   if ('value' in element) {
     return renderToString(element.value);
   }
-  if ('derive' in element) {
-    return renderToString(element.derive());
+  if (isDerived(element)) {
+    return renderToString(evalDerived(element));
   }
   const { type, props } = element;
   const constructor = untrack(() => unwrapRef(type));

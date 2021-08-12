@@ -8,17 +8,17 @@ import {
   remove,
 } from '../dom';
 import diff from './diff';
-import { evalDerived } from '../reactivity';
+import { evalDerived, isDerived } from '../reactivity';
 
 function hasReactiveChildren(children: VNode[]): boolean {
   for (let i = 0, len = children.length, child: VNode; i < len; i++) {
     child = children[i];
 
-    if (typeof child === 'object' && child && ('derive' in child || isReactive(child))) {
-      return true;
-    }
     if (Array.isArray(child)) {
       return hasReactiveChildren(child);
+    }
+    if (child && typeof child === 'object' && (isDerived(child) || isReactive(child))) {
+      return true;
     }
   }
   return false;
@@ -36,7 +36,7 @@ function normalizeChildren(children: VNode[], base: Node[] = []): Node[] {
       normalizeChildren(child, base);
     } else if (typeof child === 'string' || typeof child === 'number') {
       base.push(createText(`${child}`));
-    } else if ('derive' in child) {
+    } else if (isDerived(child)) {
       const item = evalDerived(child);
       normalizeChildren(
         Array.isArray(item) ? item : [item],
@@ -126,9 +126,9 @@ export default function renderChildren(
     onCleanup(() => {
       remove(node);
     });
-  } else if (children == null || typeof children === 'boolean') {
+  } else if (children == null || children === true || children === false) {
     // skip
-  } else if ('derive' in children) {
+  } else if (isDerived(children)) {
     let previousChildren: VNode;
     const childMarker = createMarker();
     insert(root, childMarker, marker);

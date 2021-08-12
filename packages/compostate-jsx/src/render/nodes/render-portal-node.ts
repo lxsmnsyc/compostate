@@ -1,5 +1,5 @@
 import { effect } from 'compostate';
-import { derived, evalDerived } from '../../reactivity';
+import { derived, evalDerived, isDerived } from '../../reactivity';
 import { PortalProps } from '../../special';
 import { Reactive, ShallowReactive, VNode } from '../../types';
 import renderChildren from '../render-children';
@@ -10,7 +10,7 @@ function runPortalNodeRender(
 ): void {
   if (render == null) {
     // no-op
-  } else if ('derive' in render) {
+  } else if (isDerived(render)) {
     effect(() => {
       const internalRender = evalDerived(render);
       renderChildren(
@@ -52,7 +52,7 @@ export default function renderPortalNode(
     return undefined;
   }
   const el = props.target;
-  if ('derive' in el) {
+  if (isDerived(el)) {
     effect(() => {
       runPortalNodeRender(
         evalDerived(el),

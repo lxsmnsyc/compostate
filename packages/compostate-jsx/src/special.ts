@@ -27,9 +27,14 @@ export interface OffscreenProps {
   render?: () => VNode;
 }
 
+interface Mapper<T> {
+  (item: T): VNode;
+  (item: T, index: Ref<number>): VNode;
+}
+
 export interface ForProps<T> {
   in: T[];
-  each: (item: T, index: Ref<number>) => VNode;
+  each: Mapper<T>;
 }
 
 export const Fragment: VFragment = 1;

@@ -2,8 +2,17 @@ import {
   captured,
 } from 'compostate';
 
-import { setSuspense, SUSPENSE } from './suspense';
-import { Derived } from './types';
+import { setSuspense, SUSPENSE, SuspenseData } from './suspense';
+
+const DERIVED = Symbol('COMPOSTATE_DERIVED');
+
+export type Derived<T> = {
+  suspense?: SuspenseData;
+} & Record<typeof DERIVED, () => T>;
+
+export function isDerived<T>(value: any): value is Derived<T> {
+  return DERIVED in value;
+}
 
 export function evalDerived<T>(value: Derived<T>): T {
   // Capture currently running context
@@ -11,7 +20,7 @@ export function evalDerived<T>(value: Derived<T>): T {
   // Repush captured contexts
   setSuspense(value.suspense);
   try {
-    return value.derive();
+    return value[DERIVED]();
   } finally {
     setSuspense(parentSuspense);
   }
@@ -19,7 +28,7 @@ export function evalDerived<T>(value: Derived<T>): T {
 
 export function derived<T>(value: () => T): Derived<T> {
   return {
-    derive: captured(value),
+    [DERIVED]: captured(value),
     suspense: SUSPENSE,
   };
 }

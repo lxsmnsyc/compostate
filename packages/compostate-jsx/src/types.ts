@@ -1,10 +1,5 @@
 import { Ref } from 'compostate';
-import { SuspenseData } from './suspense';
-
-export interface Derived<T> {
-  suspense?: SuspenseData;
-  derive: () => T;
-}
+import { Derived } from './reactivity';
 
 export type VText = string | number;
 export type VNull = boolean | null | undefined;

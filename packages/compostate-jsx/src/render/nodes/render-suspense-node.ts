@@ -10,7 +10,7 @@ import {
   Lazy,
 } from '../types';
 import { setSuspense, SUSPENSE } from '../../suspense';
-import { derived, evalDerived } from '../../reactivity';
+import { derived, evalDerived, isDerived } from '../../reactivity';
 
 export default function renderSuspenseNode(
   props: Reactive<SuspenseProps>,
@@ -42,15 +42,15 @@ export default function renderSuspenseNode(
   if (typeof suspended === 'function') {
     suspendFallback = () => !suspended() && suspend();
     suspendChildren = () => !suspended() && !suspend();
-  } else if (typeof suspended === 'object') {
-    suspendFallback = () => !!suspended.value && suspend();
-    suspendChildren = () => !!suspended.value && !suspend();
-  } else if (suspended) {
+  } else if (suspended === true) {
     suspendFallback = true;
     suspendChildren = true;
-  } else {
+  } else if (!suspended) {
     suspendFallback = suspend;
     suspendChildren = () => !suspend();
+  } else {
+    suspendFallback = () => !!suspended.value && suspend();
+    suspendChildren = () => !!suspended.value && !suspend();
   }
 
   // Track the resources and remove all
@@ -80,12 +80,12 @@ export default function renderSuspenseNode(
       capture: currentSuspense?.capture,
       suspend: suspendFallback,
     });
-    if ('value' in fallback) {
-      renderFallback = derived(() => fallback.value?.());
-    } else if ('derive' in fallback) {
-      renderFallback = derived(() => evalDerived<SuspenseProps['fallback']>(fallback)?.());
-    } else {
+    if (isDerived(fallback)) {
+      renderFallback = derived(() => evalDerived(fallback)?.());
+    } else if (typeof fallback === 'function') {
       renderFallback = derived(fallback);
+    } else {
+      renderFallback = derived(() => fallback.value?.());
     }
     setSuspense(currentSuspense);
   }
@@ -97,12 +97,12 @@ export default function renderSuspenseNode(
       capture,
       suspend: suspendChildren,
     });
-    if ('value' in render) {
-      renderContent = derived(() => render.value?.());
-    } else if ('derive' in render) {
-      renderContent = derived(() => evalDerived<SuspenseProps['render']>(render)?.());
-    } else {
+    if (isDerived(render)) {
+      renderContent = derived(() => evalDerived(render)?.());
+    } else if (typeof render === 'function') {
       renderContent = derived(render);
+    } else {
+      renderContent = derived(() => render.value?.());
     }
     setSuspense(currentSuspense);
   }
