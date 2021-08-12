@@ -53,5 +53,8 @@
     "access": "public"
   },
   "author": "Alexis Munsayac",
-  "private": false
+  "private": false,
+  "dependencies": {
+    "devalue": "^2.0.1"
+  }
 }

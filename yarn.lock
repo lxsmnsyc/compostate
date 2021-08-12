@@ -3932,11 +3932,6 @@ component-emitter@^1.2.1:
   resolved "https://registry.yarnpkg.com/component-emitter/-/component-emitter-1.3.0.tgz#16e4070fba8ae29b679f2215853ee181ab2eabc0"
   integrity sha512-Rd3se6QB+sO1TwqZjscQrurpEPIfO0/yYnSin6Q/rD3mOutHvUrCAhJub3r90uNb+SESBuE0QYoB90YdfatsRg==
 
-compostate-dom@0.2.1-no-vdom.53:
-  version "0.2.1-no-vdom.53"
-  resolved "https://registry.yarnpkg.com/compostate-dom/-/compostate-dom-0.2.1-no-vdom.53.tgz#a7b85aec0de6c77c122f84ac8fd813bebf17ec90"
-  integrity sha512-LzXqA4Z0sRt2Ga9bggz7sDDff+rhE32Wxh+Zq9R25AHupIQJvJshOAaNMOmWgD86kzbEoHfWo8u2P+UT1/MpXA==
-
 compostate-element@0.2.1-alpha.19:
   version "0.2.1-alpha.19"
   resolved "https://registry.yarnpkg.com/compostate-element/-/compostate-element-0.2.1-alpha.19.tgz#7a5fcfb8fcdc1e9b0b609d17a115766fedabfeda"
@@ -4613,6 +4608,11 @@ detect-newline@^3.0.0:
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/detect-newline/-/detect-newline-3.1.0.tgz#576f5dfc63ae1a192ff192d8ad3af6308991b651"
   integrity sha512-TLz+x/vEXm/Y7P7wn1EJFNLxYpUD4TgMosxY6fAVJUnJMbupHBOncxyWUG9OpTaH9EBD7uFI5LfEgmMOc54DsA==
+
+devalue@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/devalue/-/devalue-2.0.1.tgz#5d368f9adc0928e47b77eea53ca60d2f346f9762"
+  integrity sha512-I2TiqT5iWBEyB8GRfTDP0hiLZ0YeDJZ+upDxjBfOC2lebO5LezQMv7QvIUTzdb64jQyAKLf1AHADtGN+jw6v8Q==
 
 dezalgo@^1.0.0:
   version "1.0.3"

@@ -17,6 +17,7 @@ module.exports = {
     "no-plusplus": "off",
     "no-restricted-syntax": "off",
     "no-continue": "off",
-    "@typescript-eslint/no-unsafe-assignment": "off"
+    "@typescript-eslint/no-unsafe-assignment": "off",
+    "prefer-object-spread": "off"
   },
 };

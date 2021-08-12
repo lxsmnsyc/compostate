@@ -5,5 +5,14 @@ export {
   createComponent,
 } from './lib';
 
-export const sharedConfig = {};
+interface SharedConfigContext {
+  id: string;
+  count: number;
+}
+
+interface SharedConfig {
+  context: SharedConfigContext;
+}
+
+export const sharedConfig: Partial<SharedConfig> = {};
 export const getOwner = null;
