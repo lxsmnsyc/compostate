@@ -20,3 +20,7 @@ export * from './types';
 export {
   derived,
 } from './reactivity';
+export {
+  withContext,
+  lazy,
+} from './hocs';
