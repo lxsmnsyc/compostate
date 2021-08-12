@@ -1,5 +1,4 @@
 import {
-  errorBoundary,
   untrack,
 } from 'compostate';
 import { evalDerived } from '../../reactivity';
@@ -17,44 +16,42 @@ export default function renderComponentNode<P extends Record<string, any>>(
   constructor: VComponent<P>,
   props: Reactive<P>,
 ): VNode {
-  return errorBoundary(() => {
-    // Create a reactive object form for the props
-    const proxyProps: { [key: string]: any } = {};
+  // Create a reactive object form for the props
+  const proxyProps: { [key: string]: any } = {};
 
-    // Track individual props
-    const keys = getKeys(props);
-    for (let i = 0, len = keys.length, key: string; i < len; i++) {
-      key = keys[i];
-      if (key === 'ref') {
-        const { ref } = props;
-        defProp(proxyProps, 'ref', {
-          get: () => ref,
-        });
-      } else if (key === 'children') {
-        const { children } = props;
-        defProp(proxyProps, 'ref', {
-          get: () => children,
-        });
-      } else {
-        const property = props[key];
-        if (typeof property === 'object') {
-          if ('value' in property) {
-            defProp(proxyProps, key, {
-              get: () => property.value,
-            });
-          } else if ('derive' in property) {
-            defProp(proxyProps, key, {
-              get: () => evalDerived(property),
-            });
-          } else {
-            proxyProps[key] = property;
-          }
+  // Track individual props
+  const keys = getKeys(props);
+  for (let i = 0, len = keys.length, key: string; i < len; i++) {
+    key = keys[i];
+    if (key === 'ref') {
+      const { ref } = props;
+      defProp(proxyProps, 'ref', {
+        get: () => ref,
+      });
+    } else if (key === 'children') {
+      const { children } = props;
+      defProp(proxyProps, 'ref', {
+        get: () => children,
+      });
+    } else {
+      const property = props[key];
+      if (typeof property === 'object') {
+        if ('value' in property) {
+          defProp(proxyProps, key, {
+            get: () => property.value,
+          });
+        } else if ('derive' in property) {
+          defProp(proxyProps, key, {
+            get: () => evalDerived(property),
+          });
         } else {
           proxyProps[key] = property;
         }
+      } else {
+        proxyProps[key] = property;
       }
     }
+  }
 
-    return untrack(() => constructor(proxyProps as P));
-  });
+  return untrack(() => constructor(proxyProps as P));
 }

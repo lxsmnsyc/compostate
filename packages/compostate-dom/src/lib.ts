@@ -7,6 +7,7 @@ import {
   effect as cEffect,
   resource,
   contextual,
+  errorBoundary,
 } from "compostate";
 import type { JSX } from "./jsx";
 
@@ -55,8 +56,12 @@ export function createComponent<T>(Comp: Component<T>, props: T): JSX.Element {
   return untrack(() => Comp(props));
 }
 
-export function withContext<P>(comp: Component<P>): Component<P> {
-  return (props) => contextual(() => comp(props));
+export function withErrorBoundary<P>(Comp: Component<P>): Component<P> {
+  return (props) => errorBoundary(() => Comp(props));
+}
+
+export function withContext<P>(Comp: Component<P>): Component<P> {
+  return (props) => contextual(() => Comp(props));
 }
 
 export function lazy<P>(mod: () => Promise<Component<P>>): Component<P> {

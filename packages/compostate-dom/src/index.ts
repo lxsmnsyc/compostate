@@ -1,4 +1,4 @@
-export { root, lazy, withContext } from "./lib";
+export { root, lazy, withContext, withErrorBoundary } from "./lib";
 export type { Component, ComponentProps } from "./lib";
 export * from "./client";
 
