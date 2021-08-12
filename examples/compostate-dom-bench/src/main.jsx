@@ -1,9 +1,9 @@
 import {
   render,
-  map,
 } from 'compostate-dom';
 import {
   ref,
+  map,
 } from 'compostate';
 
 import './style.css';
@@ -26,12 +26,13 @@ function buildData(count) {
   return data;
 }
 
-const Button = ({ id, text, fn }) =>
+const Button = ({ id, text, fn }) => (
   <div class='col-sm-6 smallpad'>
     <button id={id} class='btn btn-primary btn-block' type='button' onClick={fn}>
       {text}
     </button>
   </div>
+);
 
 const Main = () => {
   const data = ref([]);
@@ -69,20 +70,26 @@ const Main = () => {
 
   return (
     <div class='container'>
-      <div class='jumbotron'><div class='row'>
-        <div class='col-md-6'><h1>compostate-jsx</h1></div>
-        <div class='col-md-6'><div class='row'>
-          <Button id='run' text='Create 1,000 rows' fn={ run } />
-          <Button id='runlots' text='Create 10,000 rows' fn={ runLots } />
-          <Button id='add' text='Append 1,000 rows' fn={ add } />
-          <Button id='update' text='Update every 10th row' fn={ update } />
-          <Button id='clear' text='Clear' fn={ clear } />
-          <Button id='swaprows' text='Swap Rows' fn={ swapRows } />
-        </div></div>
-      </div></div>
+      <div class='jumbotron'>
+        <div class='row'>
+          <div class='col-md-6'>
+            <h1>compostate-dom</h1>
+          </div>
+          <div class='col-md-6'>
+            <div class='row'>
+              <Button id='run' text='Create 1,000 rows' fn={run} />
+              <Button id='runlots' text='Create 10,000 rows' fn={runLots} />
+              <Button id='add' text='Append 1,000 rows' fn={add} />
+              <Button id='update' text='Update every 10th row' fn={update} />
+              <Button id='clear' text='Clear' fn={clear} />
+              <Button id='swaprows' text='Swap Rows' fn={swapRows} />
+            </div>
+          </div>
+        </div>
+      </div>
       <table class='table table-hover table-striped test-data'>
         <tbody>
-          {map(() => data.value, (row) => {
+          {map(() => data.value, () => (row) => {
             const rowId = row.id;
             const onSelect = () => {
               selected.value = rowId;
