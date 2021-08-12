@@ -4,10 +4,11 @@ import {
   batchCleanup,
   Ref,
   ref,
-  computed,
   Cleanup,
   effect as cEffect,
   onCleanup,
+  resource,
+  contextual,
 } from "compostate";
 import type { JSX } from "./jsx";
 
@@ -95,16 +96,23 @@ export function createComponent<T>(Comp: Component<T>, props: T): JSX.Element {
   return untrack(() => Comp(props));
 }
 
-// dynamic import to support code splitting
-export function lazy<T extends Function>(fn: () => Promise<{ default: T }>) {
-  return (props: object) => {
-    let Comp: any;
-    const result = ref({});
-    fn().then(component => (result.value = component.default));
-    const rendered = computed(() => (Comp = result.value) && untrack(() => Comp(props)));
-    return () => rendered.value;
+export function withContext<P>(comp: Component<P>): Component<P> {
+  return (props) => contextual(() => comp(props));
+}
+
+export function lazy<P>(mod: () => Promise<Component<P>>): Component<P> {
+  return (props) => {
+    const data = resource(mod);
+
+    return () => {
+      if (data.status === 'success') {
+        return data.value(props);
+      }
+      return undefined;
+    };
   };
 }
+
 
 export function splitProps<T extends object, K1 extends keyof T>(
   props: T,
