@@ -538,34 +538,20 @@ export function watch<T>(
   });
 }
 
-interface ComputedWork<T> extends ProcessWork {
-  compute?: () => T;
-  value?: Ref<T>;
-  errorBoundary?: ErrorBoundary;
-}
-
 export function computed<T>(compute: () => T): Ref<T> {
-  const work: ComputedWork<T> = assign(createLinkedWork('computed'), {
-    compute,
-    errorBoundary: ERROR_BOUNDARY,
+  const atom = createReactiveAtom();
+
+  let value: T;
+
+  watch(compute, (current) => {
+    value = current;
+    notifyReactiveAtom(atom);
   });
 
-  runLinkedWork(work);
-
-  onCleanup(() => {
-    work.value = undefined;
-    work.errorBoundary = undefined;
-    work.compute = undefined;
-    destroyLinkedWork(work);
-  });
-
-  return registerTrackable(work, {
+  return registerTrackable(atom, {
     get value(): T {
-      trackReactiveAtom(work);
-      if (work.value) {
-        return work.value.value;
-      }
-      throw new Error('failed computed');
+      trackReactiveAtom(atom);
+      return value;
     },
   });
 }
@@ -653,15 +639,6 @@ function runEffectProcess(target: EffectWork) {
   }
 }
 
-function runComputedProcess<T>(target: ComputedWork<T>) {
-  // The only reason this is unbatched is
-  // because unlike effect, watch and computation
-  // computed needs to be pure.
-  if (target.compute) {
-    target.value = { value: target.compute() };
-  }
-}
-
 function runProcess(target: ProcessWork) {
   unlinkLinkedWorkPublishers(target);
   const parentTracking = TRACKING;
@@ -676,9 +653,6 @@ function runProcess(target: ProcessWork) {
         break;
       case 'effect':
         runEffectProcess(target as EffectWork);
-        break;
-      case 'computed':
-        runComputedProcess(target as ComputedWork<any>);
         break;
       case 'atom':
       default:
