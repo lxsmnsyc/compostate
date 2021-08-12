@@ -12,12 +12,6 @@ import {
 } from "compostate";
 import type { JSX } from "./jsx";
 
-export interface Context {
-  id: symbol;
-  Provider: (props: any) => any;
-  defaultValue: unknown;
-}
-
 export const untracked = untrack;
 
 export function root<T>(fn: (dispose: () => void) => T) {
