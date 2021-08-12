@@ -9,7 +9,7 @@ import {
   errorBoundary,
   computation,
 } from 'compostate';
-import type { JSX } from './jsx';
+import { JSX } from './jsx';
 
 export function root<T>(fn: (dispose: () => void) => T): T {
   return createRoot(() => {

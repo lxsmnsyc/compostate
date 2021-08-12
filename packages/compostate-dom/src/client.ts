@@ -31,6 +31,56 @@ export { Assets as HydrationScript };
 
 const $$EVENTS = '_$DX_DELEGATE';
 
+type MountableElement = Element | Document | ShadowRoot | DocumentFragment | Node;
+declare function render(code: () => JSX.Element, element: MountableElement): () => void;
+declare function template(html: string, count: number, isSVG?: boolean): Element;
+declare function insert<T>(
+  parent: MountableElement,
+  accessor: (() => T) | T,
+  marker?: Node | null,
+  init?: JSX.Element
+): JSX.Element;
+declare function delegateEvents(eventNames: string[], d?: Document): void;
+declare function clearDelegatedEvents(d?: Document): void;
+declare function spread<T>(
+  node: Element,
+  accessor: (() => T) | T,
+  isSVG?: boolean,
+  skipChildren?: boolean
+): void;
+declare function assign(node: Element, props: any, isSVG?: boolean, skipChildren?: boolean): void;
+declare function setAttribute(node: Element, name: string, value: string): void;
+declare function setAttributeNS(node: Element, namespace: string, name: string, value: string): void;
+declare function addEventListener(
+  node: Element,
+  name: string,
+  handler: () => void,
+  delegate: boolean,
+): void;
+declare function classList(
+  node: Element,
+  value: { [k: string]: boolean },
+  prev?: { [k: string]: boolean }
+): void;
+declare function style(
+  node: Element,
+  value: { [k: string]: string },
+  prev?: { [k: string]: string }
+): void;
+declare function getOwner(): unknown;
+declare function mergeProps(target: unknown, ...sources: unknown[]): unknown;
+declare function dynamicProperty(props: unknown, key: string): unknown;
+
+declare function hydrate(fn: () => JSX.Element, node: MountableElement): () => void;
+declare function gatherHydratable(node: Element): void;
+declare function getHydrationKey(): string;
+declare function getNextElement(el?: HTMLTemplateElement): Element;
+declare function getNextMatch(start: Node, elementName: string): Element;
+declare function getNextMarker(start: Node): [Node, Array<Node>];
+declare function Assets(props: { children?: JSX.Element }): JSX.Element;
+declare function HydrationScript(): JSX.Element;
+declare function NoHydration(props: { children?: JSX.Element }): JSX.Element;
+
 export function render(code, element, init) {
   return createRoot(() => batchCleanup(() => {
     insert(element, code(), element.firstChild ? null : undefined, init);

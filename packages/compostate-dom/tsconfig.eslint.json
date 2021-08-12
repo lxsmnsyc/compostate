@@ -16,6 +16,7 @@
     "moduleResolution": "node",
     "jsx": "react",
     "esModuleInterop": true,
-    "target": "ES2017"
+    "target": "ES2017",
+    "allowJs": true
   }
 }
