@@ -401,6 +401,7 @@ export function createTransition(timeout?: number): Transition {
 }
 
 interface ComputationWork<T> extends ProcessWork {
+  cleanup?: Cleanup;
   process?: (prev?: T) => T;
   current?: T;
 }
@@ -420,6 +421,10 @@ export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup 
   runLinkedWork(work);
 
   return onCleanup(() => {
+    if (work.cleanup) {
+      batch(work.cleanup);
+    }
+    work.cleanup = undefined;
     work.process = undefined;
     work.errorBoundary = undefined;
     destroyLinkedWork(work);
@@ -429,31 +434,6 @@ export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup 
 interface EffectWork extends ProcessWork {
   callback?: Effect;
   cleanup?: Cleanup;
-}
-
-function cleanupEffect(node: EffectWork): void {
-  const currentCleanup = node.cleanup;
-  if (currentCleanup) {
-    try {
-      currentCleanup();
-    } catch (error) {
-      handleError(node.errorBoundary, error);
-    }
-
-    node.cleanup = undefined;
-  }
-}
-
-function stopEffect(node: EffectWork): void {
-  if (node.alive) {
-    batch(() => {
-      cleanupEffect(node);
-    });
-    node.callback = undefined;
-    node.cleanup = undefined;
-    node.errorBoundary = undefined;
-    destroyLinkedWork(node);
-  }
 }
 
 function createEffect(callback: Effect): EffectWork {
@@ -496,7 +476,13 @@ export function effect(callback: Effect): Cleanup {
   }
 
   return onCleanup(() => {
-    stopEffect(instance);
+    if (instance.cleanup) {
+      batch(instance.cleanup);
+    }
+    instance.callback = undefined;
+    instance.cleanup = undefined;
+    instance.errorBoundary = undefined;
+    destroyLinkedWork(instance);
   });
 }
 
@@ -622,9 +608,20 @@ interface ProcessWork extends LinkedWork {
 function runComputationProcess(target: ComputationWork<any>) {
   const { process } = target;
   if (process) {
-    batch(() => {
-      target.current = process(target.current);
-    });
+    const parent = ERROR_BOUNDARY;
+    ERROR_BOUNDARY = target.errorBoundary;
+    try {
+      batch(() => {
+        target.cleanup?.();
+        target.cleanup = batchCleanup(() => {
+          target.current = process(target.current);
+        });
+      });
+    } catch (error) {
+      handleError(target.errorBoundary, error);
+    } finally {
+      ERROR_BOUNDARY = parent;
+    }
   }
 }
 
@@ -652,7 +649,7 @@ function runEffectProcess(target: EffectWork) {
     const { callback } = target;
     if (callback) {
       batch(() => {
-        cleanupEffect(target);
+        target.cleanup?.();
         target.cleanup = batchCleanup(callback);
       });
     }
