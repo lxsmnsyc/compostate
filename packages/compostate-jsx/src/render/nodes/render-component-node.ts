@@ -1,7 +1,8 @@
 import {
+  contextual,
   errorBoundary,
+  untrack,
 } from 'compostate';
-import { PROVIDER, setProvider } from '../../provider';
 import { evalDerived } from '../../reactivity';
 import {
   Reactive,
@@ -55,17 +56,8 @@ export default function renderComponentNode<P extends Record<string, any>>(
       }
     }
 
-    // Create a provider boundary
-    const parentProvider = PROVIDER;
-
-    setProvider({
-      data: {},
-      parent: parentProvider,
-    });
-    try {
-      return constructor(proxyProps as P);
-    } finally {
-      setProvider(parentProvider);
-    }
+    return contextual(() => (
+      untrack(() => constructor(proxyProps as P)) 
+    ));
   });
 }

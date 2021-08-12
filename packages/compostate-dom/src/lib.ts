@@ -167,48 +167,6 @@ export function splitProps<T>(props: T, ...keys: [(keyof T)[]]) {
   return keys.map(split).concat(split(Object.keys(descriptors) as (keyof T)[]));
 }
 
-// context api
-// export function createContext(defaultValue?: unknown): Context {
-//   const id = Symbol("context");
-//   return { id, Provider: createProvider(id), defaultValue };
-// }
-
-// export function useContext(context: Context) {
-//   return lookup(globalContext, context.id) || context.defaultValue;
-// }
-
-// function lookup(owner: ContextOwner | null, key: symbol | string): any {
-//   return (
-//     owner && ((owner.context && owner.context[key]) || (owner.owner && lookup(owner.owner, key)))
-//   );
-// }
-
-// function resolveChildren(children: any): any {
-//   if (typeof children === "function") {
-//     const c = computed(children);
-//     return () => c.value;
-//   }
-//   if (Array.isArray(children)) {
-//     const results: any[] = [];
-//     for (let i = 0; i < children.length; i++) {
-//       let result = resolveChildren(children[i]);
-//       Array.isArray(result) ? results.push.apply(results, result) : results.push(result);
-//     }
-//     return results;
-//   }
-//   return children;
-// }
-
-// function createProvider(id: symbol) {
-//   return function provider(props: { value: unknown; children: any }) {
-//     let rendered = ref();
-//     effect(() => {
-//       rendered.value = untrack(() => resolveChildren(props.children));
-//     });
-//     return () => rendered.value;
-//   };
-// }
-
 function dispose(d: Cleanup[]) {
   for (let i = 0, len = d.length; i < len; i++) d[i]();
 }

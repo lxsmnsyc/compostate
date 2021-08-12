@@ -1,9 +1,4 @@
 export {
-  createProvider,
-  provide,
-  inject,
-} from './provider';
-export {
   c,
 } from './core';
 export {

@@ -13,21 +13,17 @@ import {
   isReactive,
 } from 'compostate';
 
-import { PROVIDER, setProvider } from './provider';
 import { setSuspense, SUSPENSE } from './suspense';
 import { Derived, ShallowReactive } from './types';
 
 export function evalDerived<T>(value: Derived<T>): T {
   // Capture currently running context
   const parentSuspense = SUSPENSE;
-  const parentProvider = PROVIDER;
   // Repush captured contexts
   setSuspense(value.suspense);
-  setProvider(value.provider);
   try {
     return value.derive();
   } finally {
-    setProvider(parentProvider);
     setSuspense(parentSuspense);
   }
 }
@@ -36,7 +32,6 @@ export function derived<T>(value: () => T): Derived<T> {
   return {
     derive: capturedBatchCleanup(capturedErrorBoundary(value)),
     suspense: SUSPENSE,
-    provider: PROVIDER,
   };
 }
 
