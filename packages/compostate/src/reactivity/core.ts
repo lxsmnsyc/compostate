@@ -577,7 +577,9 @@ function runWatchProcess(target: WatchWork<any>) {
 
 function runEffectProcess(target: EffectWork) {
   const parentBatchEffects = BATCH_EFFECTS;
+  const parentErrorBoundary = ERROR_BOUNDARY;
   BATCH_EFFECTS = undefined;
+  ERROR_BOUNDARY = target.errorBoundary;
   try {
     batch(() => {
       cleanupEffect(target);
@@ -585,6 +587,7 @@ function runEffectProcess(target: EffectWork) {
     });
   } finally {
     BATCH_EFFECTS = parentBatchEffects;
+    ERROR_BOUNDARY = parentErrorBoundary;
   }
 }
 
@@ -597,9 +600,7 @@ function runComputedProcess(target: ComputedWork) {
 function runProcess(target: ProcessWork) {
   unlinkLinkedWorkPublishers(target);
   const parentTracking = TRACKING;
-  const parentErrorBoundary = ERROR_BOUNDARY;
   TRACKING = target;
-  ERROR_BOUNDARY = target.errorBoundary;
   try {
     switch (target.tag) {
       case 'computation':
@@ -621,7 +622,6 @@ function runProcess(target: ProcessWork) {
   } catch (error) {
     handleError(target.errorBoundary, error);
   } finally {
-    ERROR_BOUNDARY = parentErrorBoundary;
     TRACKING = parentTracking;
   }
 }
