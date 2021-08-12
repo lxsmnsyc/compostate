@@ -4,6 +4,7 @@ import {
 import {
   ref,
   map,
+  selector,
 } from 'compostate';
 
 import './style.css';
@@ -67,6 +68,10 @@ const Main = () => {
     const idx = data.value.findIndex(d => d.id === id);
     data.value = [...data.value.slice(0, idx), ...data.value.slice(idx + 1)];
   }
+  function select(id) {
+    selected.value = id;
+  }
+  const isSelected = selector(() => selected.value);
 
   return (
     <div class='container'>
@@ -91,20 +96,14 @@ const Main = () => {
         <tbody>
           {map(() => data.value, () => (row) => {
             const rowId = row.id;
-            const onSelect = () => {
-              selected.value = rowId;
-            }
-            const onRemove = () => {
-              remove(rowId);
-            }
             return (
-              <tr class={selected.value === rowId ? 'danger' : ''}>
+              <tr class={isSelected(rowId) ? 'danger' : ''}>
                 <td class='col-md-1' textContent={rowId} />
                 <td class='col-md-4'>
-                  <a onClick={onSelect} textContent={row.label.value} />
+                  <a onClick={[select, rowId]} textContent={row.label.value} />
                 </td>
                 <td class='col-md-1'>
-                  <a onClick={onRemove}>
+                  <a onClick={[remove, rowId]}>
                     <span class='glyphicon glyphicon-remove' aria-hidden="true" />
                   </a>
                 </td>

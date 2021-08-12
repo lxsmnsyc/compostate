@@ -8,6 +8,7 @@ import {
 } from 'compostate-jsx';
 import {
   ref,
+  selector,
 } from 'compostate';
 
 import './style.css';
@@ -30,12 +31,13 @@ function buildData(count) {
   return data;
 }
 
-const Button = ({ id, text, fn }) =>
+const Button = ({ id, text, fn }) => (
   <div class='col-sm-6 smallpad'>
     <button id={ id } class='btn btn-primary btn-block' type='button' onClick={fn}>
       {text}
     </button>
   </div>
+);
 
 const Main = () => {
   const data = ref([]);
@@ -70,6 +72,7 @@ const Main = () => {
     const idx = data.value.findIndex(d => d.id === id);
     data.value = [...data.value.slice(0, idx), ...data.value.slice(idx + 1)];
   }
+  const isSelected = selector(() => selected.value);
 
   return (
     <div class='container'>
@@ -96,13 +99,13 @@ const Main = () => {
               const onRemove = () => {
                 remove(rowId);
               }
-              const isSelected = derived(() => (
-                selected.value === rowId
+              const selectedDerived = derived(() => (
+                isSelected(rowId)
                   ? 'danger'
                   : ''
               ));
               return (
-                <tr class={isSelected}>
+                <tr class={selectedDerived}>
                   <td class='col-md-1' textContent={rowId} />
                   <td class='col-md-4'>
                     <a onClick={onSelect} textContent={row.label} />
