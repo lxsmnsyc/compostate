@@ -8,35 +8,37 @@ import {
   resource,
   contextual,
   errorBoundary,
-} from "compostate";
-import type { JSX } from "./jsx";
+} from 'compostate';
+import type { JSX } from './jsx';
 
-export function root<T>(fn: (dispose: () => void) => T) {
+export function root<T>(fn: (dispose: () => void) => T): T {
   return createRoot(() => {
-    let result;
+    let result: T | undefined;
     let currentCleanup: Cleanup | undefined;
     const dispose = () => {
-      currentCleanup && currentCleanup();
-    }
+      currentCleanup?.();
+    };
     currentCleanup = batchCleanup(() => {
       result = fn(dispose);
     });
-    return result;
+    return result as T;
   });
 }
 
-export function effect<T>(fn: (prev?: T) => T, current?: T) {
+export function effect<T>(fn: (prev?: T) => T, current?: T): void {
   cEffect(() => {
     current = fn(current);
-  })
+  });
 }
 
 // only updates when boolean expression changes
 export function memo<T>(fn: () => T, equal?: boolean): () => T {
   const o = ref(untrack(fn));
-  effect(prev => {
+  effect((prev) => {
     const res = fn();
-    (!equal || prev !== res) && (o.value = res);
+    if (!equal || Object.is(prev, res)) {
+      o.value = res;
+    }
     return res;
   });
   return () => o.value;
