@@ -1,5 +1,4 @@
 import {
-  contextual,
   errorBoundary,
   untrack,
 } from 'compostate';
@@ -56,8 +55,6 @@ export default function renderComponentNode<P extends Record<string, any>>(
       }
     }
 
-    return contextual(() => (
-      untrack(() => constructor(proxyProps as P)) 
-    ));
+    return untrack(() => constructor(proxyProps as P));
   });
 }
