@@ -51,6 +51,7 @@ let TRACKING: LinkedWork | undefined;
 let BATCH_UPDATES: Set<LinkedWork> | undefined;
 let BATCH_EFFECTS: EffectWork[] | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
+let CONTEXT: ContextTree | undefined;
 
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
@@ -168,11 +169,15 @@ export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanu
     alive = false;
     const len = cleanups.length;
     if (cleanups.length) {
-      untrack(() => {
+      const parent = TRACKING;
+      TRACKING = undefined;
+      try {
         for (let i = 0; i < len; i++) {
           cleanups[i]();
         }
-      });
+      } finally {
+        TRACKING = parent;
+      }
     }
   });
 }
@@ -191,16 +196,18 @@ function handleError(instance: ErrorBoundary | undefined, error: Error): void {
   if (instance) {
     const { calls, parent } = instance;
     if (calls?.size) {
+      const parentTracking = TRACKING;
+      TRACKING = undefined;
       try {
-        untrack(() => {
-          const copy = new Set(calls);
-          for (const handle of copy) {
-            handle(error);
-          }
-        });
+        const copy = new Set(calls);
+        for (const handle of copy) {
+          handle(error);
+        }
       } catch (newError) {
         handleError(parent, error);
         handleError(parent, newError);
+      } finally {
+        TRACKING = parentTracking;
       }
     } else {
       handleError(parent, error);
@@ -330,6 +337,8 @@ export function createTransition(timeout?: number): Transition {
     if (task) {
       cancelCallback(task);
     }
+    transitions.clear();
+    isPending = false;
   });
 
   return {
@@ -352,8 +361,8 @@ export function createTransition(timeout?: number): Transition {
   };
 }
 
-interface ComputationWork<T> extends LinkedWork {
-  process: (prev?: T) => T;
+interface ComputationWork<T> extends ProcessWork {
+  process?: (prev?: T) => T;
   current?: T;
 }
 
@@ -366,12 +375,14 @@ export function computation<T>(callback: (prev?: T) => T): Cleanup {
   runLinkedWork(work);
 
   return onCleanup(() => {
+    work.process = undefined;
+    work.errorBoundary = undefined;
     destroyLinkedWork(work);
   });
 }
 
 interface EffectWork extends ProcessWork {
-  callback: Effect;
+  callback?: Effect;
   cleanup?: Cleanup;
 }
 
@@ -390,7 +401,12 @@ function cleanupEffect(node: EffectWork): void {
 
 function stopEffect(node: EffectWork): void {
   if (node.alive) {
-    cleanupEffect(node);
+    batch(() => {
+      cleanupEffect(node);
+    });
+    node.callback = undefined;
+    node.cleanup = undefined;
+    node.errorBoundary = undefined;
     destroyLinkedWork(node);
   }
 }
@@ -457,11 +473,10 @@ export function getTrackableAtom<T>(
   return (trackable as unknown as Trackable)[TRACKABLE];
 }
 
-interface WatchWork<T> extends LinkedWork {
-  source: () => T,
-  listen: (next: T, prev?: T) => void,
+interface WatchWork<T> extends ProcessWork {
+  source?: () => T,
+  listen?: (next: T, prev?: T) => void,
   current?: T;
-  errorBoundary?: ErrorBoundary;
 }
 
 export function watch<T>(
@@ -477,18 +492,22 @@ export function watch<T>(
   runLinkedWork(work);
 
   return onCleanup(() => {
+    work.source = undefined;
+    work.listen = undefined;
+    work.current = undefined;
+    work.errorBoundary = undefined;
     destroyLinkedWork(work);
   });
 }
 
-interface ComputedWork extends LinkedWork {
-  compute: () => any;
-  value?: Ref<any>;
+interface ComputedWork<T> extends ProcessWork {
+  compute?: () => T;
+  value?: Ref<T>;
   errorBoundary?: ErrorBoundary;
 }
 
 export function computed<T>(compute: () => T): Ref<T> {
-  const work: ComputedWork = assign(createLinkedWork('computed'), {
+  const work: ComputedWork<T> = assign(createLinkedWork('computed'), {
     compute,
     errorBoundary: ERROR_BOUNDARY,
   });
@@ -496,11 +515,14 @@ export function computed<T>(compute: () => T): Ref<T> {
   runLinkedWork(work);
 
   onCleanup(() => {
+    work.value = undefined;
+    work.errorBoundary = undefined;
+    work.compute = undefined;
     destroyLinkedWork(work);
   });
 
   return registerTrackable(work, {
-    get value() {
+    get value(): T {
       trackReactiveAtom(work);
       if (work.value) {
         return work.value.value;
@@ -551,48 +573,61 @@ interface ProcessWork extends LinkedWork {
 }
 
 function runComputationProcess(target: ComputationWork<any>) {
-  batch(() => {
-    target.current = target.process(target.current);
-  });
+  const { process } = target;
+  if (process) {
+    batch(() => {
+      target.current = process(target.current);
+    });
+  }
 }
 
 function runWatchProcess(target: WatchWork<any>) {
-  const hasCurrent = 'current' in target;
-  const next = target.source();
-  const prev = target.current;
-  if ((hasCurrent && !is(next, target.current)) || !hasCurrent) {
-    target.current = next;
-    batch(() => {
-      target.listen(next, prev);
-    });
+  const { source, listen } = target;
+  if (source && listen) {
+    const hasCurrent = 'current' in target;
+    const next = source();
+    const prev = target.current;
+    if ((hasCurrent && !is(next, prev)) || !hasCurrent) {
+      target.current = next;
+      batch(() => {
+        listen(next, prev);
+      });
+    }
   }
 }
 
 function runEffectProcess(target: EffectWork) {
   const parentBatchEffects = BATCH_EFFECTS;
+  const parentErrorBoundary = ERROR_BOUNDARY;
   BATCH_EFFECTS = undefined;
+  ERROR_BOUNDARY = target.errorBoundary;
   try {
-    batch(() => {
-      cleanupEffect(target);
-      target.cleanup = batchCleanup(target.callback);
-    });
+    const { callback } = target;
+    if (callback) {
+      batch(() => {
+        cleanupEffect(target);
+        target.cleanup = batchCleanup(callback);
+      });
+    }
   } finally {
     BATCH_EFFECTS = parentBatchEffects;
+    ERROR_BOUNDARY = parentErrorBoundary;
   }
 }
 
-function runComputedProcess(target: ComputedWork) {
-  target.value = {
-    value: target.compute(),
-  };
+function runComputedProcess<T>(target: ComputedWork<T>) {
+  // The only reason this is unbatched is
+  // because unlike effect, watch and computation
+  // computed needs to be pure.
+  if (target.compute) {
+    target.value = { value: target.compute() };
+  }
 }
 
 function runProcess(target: ProcessWork) {
   unlinkLinkedWorkPublishers(target);
   const parentTracking = TRACKING;
-  const parentErrorBoundary = ERROR_BOUNDARY;
   TRACKING = target;
-  ERROR_BOUNDARY = target.errorBoundary;
   try {
     switch (target.tag) {
       case 'computation':
@@ -605,7 +640,7 @@ function runProcess(target: ProcessWork) {
         runEffectProcess(target as EffectWork);
         break;
       case 'computed':
-        runComputedProcess(target as ComputedWork);
+        runComputedProcess(target as ComputedWork<any>);
         break;
       case 'atom':
       default:
@@ -614,9 +649,65 @@ function runProcess(target: ProcessWork) {
   } catch (error) {
     handleError(target.errorBoundary, error);
   } finally {
-    ERROR_BOUNDARY = parentErrorBoundary;
     TRACKING = parentTracking;
   }
 }
 
 setRunner(runProcess);
+
+interface ContextTree {
+  parent?: ContextTree;
+  data: Record<string, Ref<any> | undefined>;
+}
+
+export function contextual<T>(callback: () => T): T {
+  const parent = CONTEXT;
+  CONTEXT = {
+    parent,
+    data: {},
+  };
+  try {
+    return callback();
+  } finally {
+    CONTEXT = parent;
+  }
+}
+
+export interface Context<T> {
+  id: number;
+  defaultValue: T;
+}
+
+let CONTEXT_ID = 0;
+
+export function createContext<T>(defaultValue: T): Context<T> {
+  return {
+    id: CONTEXT_ID++,
+    defaultValue,
+  };
+}
+
+export function provide<T>(context: Context<T>, value: T): void {
+  const parent = CONTEXT;
+  if (parent) {
+    parent.data[context.id] = { value };
+
+    // If provide is called in a linked work,
+    // make sure to delete the written data.
+    onCleanup(() => {
+      parent.data[context.id] = undefined;
+    });
+  }
+}
+
+export function inject<T>(context: Context<T>): T {
+  let current = CONTEXT;
+  while (current) {
+    const currentData = current.data[context.id];
+    if (currentData) {
+      return currentData.value;
+    }
+    current = CONTEXT?.parent;
+  }
+  return context.defaultValue;
+}
