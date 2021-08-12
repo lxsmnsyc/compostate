@@ -168,11 +168,15 @@ export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanu
     alive = false;
     const len = cleanups.length;
     if (cleanups.length) {
-      untrack(() => {
+      const parent = TRACKING;
+      TRACKING = undefined;
+      try {
         for (let i = 0; i < len; i++) {
           cleanups[i]();
         }
-      });
+      } finally {
+        TRACKING = parent;
+      }
     }
   });
 }
@@ -191,16 +195,18 @@ function handleError(instance: ErrorBoundary | undefined, error: Error): void {
   if (instance) {
     const { calls, parent } = instance;
     if (calls?.size) {
+      const parentTracking = TRACKING;
+      TRACKING = undefined;
       try {
-        untrack(() => {
-          const copy = new Set(calls);
-          for (const handle of copy) {
-            handle(error);
-          }
-        });
+        const copy = new Set(calls);
+        for (const handle of copy) {
+          handle(error);
+        }
       } catch (newError) {
         handleError(parent, error);
         handleError(parent, newError);
+      } finally {
+        TRACKING = parentTracking;
       }
     } else {
       handleError(parent, error);
