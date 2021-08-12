@@ -1,11 +1,11 @@
-export default function reconcileArrays(parentNode, a, b) {
-  let bLength = b.length,
-    aEnd = a.length,
-    bEnd = bLength,
-    aStart = 0,
-    bStart = 0,
-    after = a[aEnd - 1].nextSibling,
-    map = null;
+export default function reconcileArrays(parentNode: Node, a: Node[], b: Node[]): void {
+  const bLength = b.length;
+  let aEnd = a.length;
+  let bEnd = bLength;
+  let aStart = 0;
+  let bStart = 0;
+  const after = a[aEnd - 1].nextSibling;
+  let map = null;
 
   while (aStart < aEnd || bStart < bEnd) {
     // common prefix
@@ -21,12 +21,14 @@ export default function reconcileArrays(parentNode, a, b) {
     }
     // append
     if (aEnd === aStart) {
-      const node =
-        bEnd < bLength
-          ? bStart
-            ? b[bStart - 1].nextSibling
-            : b[bEnd - bStart]
-          : after;
+      let node: Node | null;
+      if (bEnd < bLength) {
+        node = bStart
+          ? b[bStart - 1].nextSibling
+          : b[bEnd - bStart];
+      } else {
+        node = after;
+      }
 
       while (bStart < bEnd) parentNode.insertBefore(b[bStart++], node);
     // remove
@@ -45,7 +47,7 @@ export default function reconcileArrays(parentNode, a, b) {
     // fallback to map
     } else {
       if (!map) {
-        map = new Map();
+        map = new Map<Node, number>();
         let i = bStart;
 
         while (i < bEnd) map.set(b[i], i++);
@@ -54,12 +56,13 @@ export default function reconcileArrays(parentNode, a, b) {
       const index = map.get(a[aStart]);
       if (index != null) {
         if (bStart < index && index < bEnd) {
-          let i = aStart,
-            sequence = 1,
-            t;
+          let i = aStart;
+          let sequence = 1;
+          let t;
 
           while (++i < aEnd && i < bEnd) {
-            if ((t = map.get(a[i])) == null || t !== index + sequence) break;
+            t = map.get(a[i]);
+            if (t == null || t !== index + sequence) break;
             sequence++;
           }
 

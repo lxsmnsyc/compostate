@@ -13,6 +13,10 @@ module.exports = {
         "devDependencies": ["**/*.test.tsx"]
       }
     ],
-    "no-param-reassign": "off"
+    "no-param-reassign": "off",
+    "no-plusplus": "off",
+    "no-restricted-syntax": "off",
+    "no-continue": "off",
+    "@typescript-eslint/no-unsafe-assignment": "off"
   },
 };

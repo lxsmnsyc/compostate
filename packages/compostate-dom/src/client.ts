@@ -1,10 +1,8 @@
 import {
   batchCleanup,
   createRoot,
-  effect as cEffect,
 } from 'compostate';
 import {
-  root,
   effect,
 } from './lib';
 import {
@@ -27,28 +25,66 @@ export {
   DelegatedEvents,
 } from './constants';
 
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const {
+  defineProperty,
+  keys,
+  getOwnPropertyDescriptors,
+  defineProperties,
+} = Object;
+
 const $$EVENTS = '_$DX_DELEGATE';
 
-export {
-  effect, memo, getOwner, createComponent, Assets as HydrationScript,
-};
+type DefaultEventHandler = <T extends Event>(e: T) => void;
+type DataEventHandler = <R, T extends Event>(d: R, e: T) => void;
 
-export function template(
-  html: string,
-  check: number,
-  isSVG?: boolean,
-): Element {
-  const t = document.createElement('template');
-  t.innerHTML = html;
-  if (check && t.innerHTML.split('<').length - 1 !== check) {
-    throw new Error(`The browser resolved template HTML does not match JSX input:\n${t.innerHTML}\n\n${html}. Is your HTML properly formed?`);
+type SpecialEvent = `$$${string}`
+type SpecialEventData = `${SpecialEvent}Data`;
+type SpecialEventTarget = Record<SpecialEvent | SpecialEventData, DefaultEventHandler>;
+
+function eventHandler<T extends Event>(e: T) {
+  const key: SpecialEvent = `$$${e.type}`;
+  let node: SpecialEventTarget & EventTarget = (e.composedPath && e.composedPath()[0]) || e.target;
+  // reverse Shadow DOM retargetting
+  if (e.target !== node) {
+    defineProperty(e, 'target', {
+      configurable: true,
+      value: node,
+    });
   }
-  let node = t.content.firstChild;
-  if (isSVG) return node.firstChild;
-  return node;
+
+  // simulate currentTarget
+  defineProperty(e, 'currentTarget', {
+    configurable: true,
+    get() {
+      return node;
+    },
+  });
+
+  while (node !== null) {
+    const handler = node[key] as DefaultEventHandler;
+    if (handler && !node.disabled) {
+      const data = node[`${key}Data`];
+      if (data != null) {
+        handler(data, e);
+      } else {
+        handler(e);
+      }
+      if (e.cancelBubble) return;
+    }
+    node = node.host
+      && node.host !== node
+      && node.host instanceof Node ? node.host : node.parentNode;
+  }
+}
+interface DocumentWithDelegate extends Document {
+  _$DX_DELEGATE?: Set<string>;
 }
 
-export function delegateEvents(eventNames, document = window.document) {
+export function delegateEvents(
+  eventNames: string[],
+  document: DocumentWithDelegate = window.document,
+): void {
   const e = document[$$EVENTS] || (document[$$EVENTS] = new Set());
   for (let i = 0, l = eventNames.length; i < l; i++) {
     const name = eventNames[i];
@@ -59,66 +95,122 @@ export function delegateEvents(eventNames, document = window.document) {
   }
 }
 
-export function clearDelegatedEvents(document = window.document) {
-  if (document[$$EVENTS]) {
-    for (const name of document[$$EVENTS].keys()) document.removeEventListener(name, eventHandler);
+export function clearDelegatedEvents(
+  document: DocumentWithDelegate = window.document,
+): void {
+  const events = document[$$EVENTS];
+  if (events) {
+    for (const name of events) {
+      document.removeEventListener(name, eventHandler);
+    }
     delete document[$$EVENTS];
   }
 }
 
-export function setAttribute(node, name, value) {
-  if (value == null) node.removeAttribute(name);
-  else node.setAttribute(name, value);
+export function setAttribute(node: Element, name: string, value: string): void {
+  if (value == null) {
+    node.removeAttribute(name);
+  } else {
+    node.setAttribute(name, value);
+  }
 }
 
-export function setAttributeNS(node, namespace, name, value) {
-  if (value == null) node.removeAttributeNS(namespace, name);
-  else node.setAttributeNS(namespace, name, value);
+export function setAttributeNS(
+  node: Element,
+  namespace: string,
+  name: string,
+  value: string,
+): void {
+  if (value == null) {
+    node.removeAttributeNS(namespace, name);
+  } else {
+    node.setAttributeNS(namespace, name, value);
+  }
 }
 
-export function addEventListener(node, name, handler, delegate) {
+export function addEventListener(
+  node: Element,
+  name: string,
+  handler: DefaultEventHandler | [DataEventHandler, any],
+  delegate: boolean,
+): void {
   if (delegate) {
     if (Array.isArray(handler)) {
-      node[`$$${name}`] = handler[0];
-      node[`$$${name}Data`] = handler[1];
-    } else node[`$$${name}`] = handler;
+      const [listener, data] = handler;
+      node[`$$${name}`] = listener;
+      node[`$$${name}Data`] = data;
+    } else {
+      node[`$$${name}`] = handler;
+    }
   } else if (Array.isArray(handler)) {
     node.addEventListener(name, (e) => handler[0](handler[1], e));
   } else node.addEventListener(name, handler);
 }
 
-export function classList(node, value, prev = {}) {
-  const classKeys = Object.keys(value);
-  const prevKeys = Object.keys(prev);
+function toggleClassKey(
+  node: Element,
+  key: string,
+  value: boolean,
+): void {
+  const classNames = key.trim().split(/\s+/);
+  const list = node.classList;
+  for (let i = 0, nameLen = classNames.length; i < nameLen; i++) {
+    list.toggle(classNames[i], value);
+  }
+}
+
+export function classList(
+  node: Element,
+  value: { [k: string]: boolean },
+  prev: { [k: string]: boolean } = {},
+): { [k: string]: boolean } {
+  const classKeys = keys(value);
+  const prevKeys = keys(prev);
   let i; let
     len;
   for (i = 0, len = prevKeys.length; i < len; i++) {
     const key = prevKeys[i];
-    if (!key || key === 'undefined' || key in value) continue;
+    if (!key || key === 'undefined' || key in value) {
+      continue;
+    }
     toggleClassKey(node, key, false);
     delete prev[key];
   }
   for (i = 0, len = classKeys.length; i < len; i++) {
     const key = classKeys[i];
     const classValue = !!value[key];
-    if (!key || key === 'undefined' || prev[key] === classValue) continue;
+    if (!key || key === 'undefined' || prev[key] === classValue) {
+      continue;
+    }
     toggleClassKey(node, key, classValue);
     prev[key] = classValue;
   }
   return prev;
 }
-
-export function style(node, value, prev = {}) {
+export function style(
+  node: HTMLElement,
+  value: { [k: string]: string } | string,
+  prev: { [k: string]: string } | string = {},
+): { [k: string]: string } | string {
   const nodeStyle = node.style;
-  if (typeof value === 'string') return (nodeStyle.cssText = value);
-  typeof prev === 'string' && (prev = {});
-  let v; let
-    s;
-  for (s in prev) {
-    value[s] == null && nodeStyle.removeProperty(s);
+  if (typeof value === 'string') {
+    nodeStyle.cssText = value;
+    return value;
+  }
+  if (typeof prev === 'string') {
+    prev = {};
+  }
+  const prevKeys = keys(prev);
+  for (let i = 0, len = prevKeys.length, s: string; i < len; i++) {
+    s = prevKeys[i];
+    if (value[s] == null) {
+      nodeStyle.removeProperty(s);
+    }
     delete prev[s];
   }
-  for (s in value) {
+  const newKeys = keys(value);
+  for (let i = 0, len = newKeys.length, s: string, v: string; i < len; i++) {
+    s = newKeys[i];
     v = value[s];
     if (v !== prev[s]) {
       nodeStyle.setProperty(s, v);
@@ -126,6 +218,11 @@ export function style(node, value, prev = {}) {
     }
   }
   return prev;
+}
+
+// Internal Functions
+function toPropertyName(name: string): string {
+  return name.toLowerCase().replace(/-([a-z])/g, (_, w) => w.toUpperCase());
 }
 
 export function spread(node, accessor, isSVG, skipChildren) {
@@ -137,15 +234,18 @@ export function spread(node, accessor, isSVG, skipChildren) {
 export function mergeProps(...sources) {
   const target = {};
   for (let i = 0; i < sources.length; i++) {
-    const descriptors = Object.getOwnPropertyDescriptors(sources[i]);
-    Object.defineProperties(target, descriptors);
+    const descriptors = getOwnPropertyDescriptors(sources[i]);
+    defineProperties(target, descriptors);
   }
   return target;
 }
 
-export function dynamicProperty(props, key) {
+export function dynamicProperty(
+  props: unknown,
+  key: string,
+): unknown {
   const src = props[key];
-  Object.defineProperty(props, key, {
+  defineProperty(props, key, {
     get() {
       return src();
     },
@@ -154,7 +254,12 @@ export function dynamicProperty(props, key) {
   return props;
 }
 
-export function insert(parent, accessor, marker, initial) {
+export function insert<T>(
+  parent: MountableElement,
+  accessor: (() => T) | T,
+  marker?: Node | null,
+  initial?: JSX.Element,
+): JSX.Element {
   if (marker !== undefined && !initial) initial = [];
   if (typeof accessor !== 'function') return insertExpression(parent, accessor, initial, marker);
   effect((current) => insertExpression(parent, accessor(), current, marker), initial);
@@ -202,7 +307,7 @@ export function assign(node, props, isSVG, skipChildren, prevProps = {}) {
 }
 
 // Hydrate
-export function hydrate(code, element) {
+export function hydrate(code: () => JSX.Element, element: MountableElement): () => void {
   sharedConfig.resources = globalThis._$HYDRATION.resources;
   sharedConfig.completed = globalThis._$HYDRATION.completed;
   sharedConfig.events = globalThis._$HYDRATION.events;
@@ -218,7 +323,7 @@ export function hydrate(code, element) {
   return dispose;
 }
 
-export function gatherHydratable(element) {
+export function gatherHydratable(element: Element): void {
   const templates = element.querySelectorAll('*[data-hk]');
   for (let i = 0; i < templates.length; i++) {
     const node = templates[i];
@@ -226,7 +331,7 @@ export function gatherHydratable(element) {
   }
 }
 
-export function getNextElement(template) {
+export function getNextElement(template: HTMLTemplateElement): Node {
   let node; let
     key;
   if (!sharedConfig.context || !(node = sharedConfig.registry.get((key = getHydrationKey())))) {
@@ -242,7 +347,7 @@ export function getNextMatch(el, nodeName) {
   return el;
 }
 
-export function getNextMarker(start) {
+export function getNextMarker(start: Node): [Node, Array<Node>] {
   let end = start;
   let count = 0;
   const current = [];
@@ -279,52 +384,58 @@ export function runHydrationEvents() {
   }
 }
 
-// Internal Functions
-function toPropertyName(name) {
-  return name.toLowerCase().replace(/-([a-z])/g, (_, w) => w.toUpperCase());
-}
-
-function toggleClassKey(node, key, value) {
-  const classNames = key.trim().split(/\s+/);
-  for (let i = 0, nameLen = classNames.length; i < nameLen; i++) node.classList.toggle(classNames[i], value);
-}
-
-function eventHandler(e) {
-  const key = `$$${e.type}`;
-  let node = (e.composedPath && e.composedPath()[0]) || e.target;
-  // reverse Shadow DOM retargetting
-  if (e.target !== node) {
-    Object.defineProperty(e, 'target', {
-      configurable: true,
-      value: node,
-    });
+function appendNodes(
+  parent: Node,
+  array: Node[],
+  marker: Node | null,
+) {
+  for (let i = 0, len = array.length; i < len; i++) {
+    parent.insertBefore(array[i], marker);
   }
+}
 
-  // simulate currentTarget
-  Object.defineProperty(e, 'currentTarget', {
-    configurable: true,
-    get() {
-      return node;
-    },
-  });
-
-  while (node !== null) {
-    const handler = node[key];
-    if (handler && !node.disabled) {
-      const data = node[`${key}Data`];
-      data !== undefined ? handler(data, e) : handler(e);
-      if (e.cancelBubble) return;
+function cleanChildren(parent, current, marker, replacement) {
+  if (marker === undefined) return (parent.textContent = '');
+  const node = replacement || document.createTextNode('');
+  if (current.length) {
+    let inserted = false;
+    for (let i = current.length - 1; i >= 0; i--) {
+      const el = current[i];
+      if (node !== el) {
+        const isParent = el.parentNode === parent;
+        if (!inserted && !i) isParent ? parent.replaceChild(node, el) : parent.insertBefore(node, marker);
+        else isParent && parent.removeChild(el);
+      } else inserted = true;
     }
-    node = node.host && node.host !== node && node.host instanceof Node ? node.host : node.parentNode;
-  }
+  } else parent.insertBefore(node, marker);
+  return [node];
 }
 
-function spreadExpression(node, props, prevProps = {}, isSVG, skipChildren) {
-  if (!skipChildren && 'children' in props) {
-    effect(() => (prevProps.children = insertExpression(node, props.children, prevProps.children)));
+function normalizeIncomingArray(normalized, array, unwrap) {
+  let dynamic = false;
+  for (let i = 0, len = array.length; i < len; i++) {
+    let item = array[i];
+    let t;
+    if (item instanceof Node) {
+      normalized.push(item);
+    } else if (item == null || item === true || item === false) {
+      // matches null, undefined, true or false
+      // skip
+    } else if (Array.isArray(item)) {
+      dynamic = normalizeIncomingArray(normalized, item) || dynamic;
+    } else if ((t = typeof item) === 'string') {
+      normalized.push(document.createTextNode(item));
+    } else if (t === 'function') {
+      if (unwrap) {
+        while (typeof item === 'function') item = item();
+        dynamic = normalizeIncomingArray(normalized, Array.isArray(item) ? item : [item]) || dynamic;
+      } else {
+        normalized.push(item);
+        dynamic = true;
+      }
+    } else normalized.push(document.createTextNode(item.toString()));
   }
-  effect(() => assign(node, props, isSVG, true, prevProps));
-  return prevProps;
+  return dynamic;
 }
 
 function insertExpression(parent, value, current, marker, unwrapArray) {
@@ -388,61 +499,21 @@ function insertExpression(parent, value, current, marker, unwrapArray) {
   return current;
 }
 
-function normalizeIncomingArray(normalized, array, unwrap) {
-  let dynamic = false;
-  for (let i = 0, len = array.length; i < len; i++) {
-    let item = array[i];
-    let t;
-    if (item instanceof Node) {
-      normalized.push(item);
-    } else if (item == null || item === true || item === false) {
-      // matches null, undefined, true or false
-      // skip
-    } else if (Array.isArray(item)) {
-      dynamic = normalizeIncomingArray(normalized, item) || dynamic;
-    } else if ((t = typeof item) === 'string') {
-      normalized.push(document.createTextNode(item));
-    } else if (t === 'function') {
-      if (unwrap) {
-        while (typeof item === 'function') item = item();
-        dynamic = normalizeIncomingArray(normalized, Array.isArray(item) ? item : [item]) || dynamic;
-      } else {
-        normalized.push(item);
-        dynamic = true;
-      }
-    } else normalized.push(document.createTextNode(item.toString()));
+function spreadExpression(node, props, prevProps = {}, isSVG, skipChildren) {
+  if (!skipChildren && 'children' in props) {
+    effect(() => (prevProps.children = insertExpression(node, props.children, prevProps.children)));
   }
-  return dynamic;
+  effect(() => assign(node, props, isSVG, true, prevProps));
+  return prevProps;
 }
 
-function appendNodes(parent, array, marker) {
-  for (let i = 0, len = array.length; i < len; i++) parent.insertBefore(array[i], marker);
-}
-
-function cleanChildren(parent, current, marker, replacement) {
-  if (marker === undefined) return (parent.textContent = '');
-  const node = replacement || document.createTextNode('');
-  if (current.length) {
-    let inserted = false;
-    for (let i = current.length - 1; i >= 0; i--) {
-      const el = current[i];
-      if (node !== el) {
-        const isParent = el.parentNode === parent;
-        if (!inserted && !i) isParent ? parent.replaceChild(node, el) : parent.insertBefore(node, marker);
-        else isParent && parent.removeChild(el);
-      } else inserted = true;
-    }
-  } else parent.insertBefore(node, marker);
-  return [node];
-}
-
-export function getHydrationKey() {
+export function getHydrationKey(): string {
   const hydrate = sharedConfig.context;
   return `${hydrate.id}${hydrate.count++}`;
 }
 
 // Components
-export function Assets() {
+export function HydrationScript() {
 
 }
 
@@ -450,20 +521,8 @@ export function NoHydration(props) {
   return sharedConfig.context ? undefined : props.children;
 }
 
-import { JSX } from "./jsx";
-
 type MountableElement = Element | Document | ShadowRoot | DocumentFragment | Node;
-export function template(html: string, count: number, isSVG?: boolean): Element;
-export function memo<T>(fn: () => T, equal: boolean): () => T;
-export function insert<T>(
-  parent: MountableElement,
-  accessor: (() => T) | T,
-  marker?: Node | null,
-  init?: JSX.Element
-): JSX.Element;
-export function createComponent<T>(Comp: (props: T) => JSX.Element, props: T): JSX.Element;
-export function delegateEvents(eventNames: string[]): void;
-export function clearDelegatedEvents(): void;
+
 export function spread<T>(
   node: Element,
   accessor: (() => T) | T,
@@ -471,29 +530,9 @@ export function spread<T>(
   skipChildren?: Boolean
 ): void;
 export function assign(node: Element, props: any, isSVG?: Boolean, skipChildren?: Boolean): void;
-export function setAttribute(node: Element, name: string, value: string): void;
-export function setAttributeNS(node: Element, namespace: string, name: string, value: string): void;
-export function addEventListener(node: Element, name: string, handler: () => void, delegate: boolean): void;
-export function classList(
-  node: Element,
-  value: { [k: string]: boolean },
-  prev?: { [k: string]: boolean }
-): void;
-export function style(
-  node: Element,
-  value: { [k: string]: string },
-  prev?: { [k: string]: string }
-): void;
+
 export function getOwner(): unknown;
 export function mergeProps(target: unknown, ...sources: unknown[]): unknown;
-export function dynamicProperty(props: unknown, key: string): unknown;
-
-export function hydrate(fn: () => JSX.Element, node: MountableElement): () => void;
-export function gatherHydratable(node: Element): void;
-export function getHydrationKey(): string;
-export function getNextElement(template: HTMLTemplateElement): Node;
-export function getNextMarker(start: Node): [Node, Array<Node>];
-
 
 export function render(
   code: () => JSX.Element,
@@ -502,4 +541,22 @@ export function render(
   return createRoot(() => batchCleanup(() => {
     insert(element, code(), element.firstChild ? null : undefined);
   }));
+}
+
+export function template(
+  html: string,
+  check: number,
+  isSVG?: boolean,
+): Element {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  if (check && t.innerHTML.split('<').length - 1 !== check) {
+    throw new Error(`The browser resolved template HTML does not match JSX input:\n${t.innerHTML}\n\n${html}. Is your HTML properly formed?`);
+  }
+  const result = t.content.firstChild;
+  const node = isSVG ? result?.firstChild : result;
+  if (node) {
+    return node as Element;
+  }
+  throw new Error('Malformed template');
 }
