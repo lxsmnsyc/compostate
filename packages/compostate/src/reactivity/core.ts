@@ -405,15 +405,19 @@ interface ComputationWork<T> extends ProcessWork {
   current?: T;
 }
 
-export function computation<T>(callback: (prev?: T) => T): Cleanup {
+export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup {
+  if (!HAS_PROCESS) {
+    untrack(() => callback(initial))
+    return NO_OP;
+  }
+
   const work: ComputationWork<T> = assign(createLinkedWork('computation'), {
+    current: initial,
     process: callback,
     errorBoundary: ERROR_BOUNDARY,
   });
 
-  if (HAS_PROCESS) {
-    runLinkedWork(work);
-  }
+  runLinkedWork(work);
 
   return onCleanup(() => {
     work.process = undefined;
@@ -479,14 +483,16 @@ export function batchEffects(callback: () => void): () => void {
 }
 
 export function effect(callback: Effect): Cleanup {
+  if (!HAS_PROCESS) {
+    return NO_OP;
+  }
+
   const instance = createEffect(callback);
 
-  if (HAS_PROCESS) {
-    if (BATCH_EFFECTS) {
-      BATCH_EFFECTS.push(instance);
-    } else {
-      runLinkedWork(instance);
-    }
+  if (BATCH_EFFECTS) {
+    BATCH_EFFECTS.push(instance);
+  } else {
+    runLinkedWork(instance);
   }
 
   return onCleanup(() => {
@@ -528,15 +534,16 @@ export function watch<T>(
   source: () => T,
   listen: (next: T, prev?: T) => void,
 ): () => void {
+  if (!HAS_PROCESS) {
+    untrack(() => listen(source()));
+    return NO_OP;
+  }
+
   const work: WatchWork<T> = assign(createLinkedWork('watch'), {
     source,
     listen,
     errorBoundary: ERROR_BOUNDARY,
   });
-
-  if (HAS_PROCESS) {
-    runLinkedWork(work);
-  }
 
   return onCleanup(() => {
     work.source = undefined;
@@ -551,10 +558,15 @@ export function computed<T>(compute: () => T): Ref<T> {
   const atom = createReactiveAtom();
 
   let value: T;
+  let initial = true;
 
   watch(compute, (current) => {
     value = current;
-    notifyReactiveAtom(atom);
+    if (initial) {
+      initial = false;
+    } else {
+      notifyReactiveAtom(atom);
+    }
   });
 
   return registerTrackable(atom, {
@@ -737,10 +749,18 @@ export function selector<T, U extends T>(
   source: () => T,
   fn: (a: U, b: T) => boolean = is,
 ): (item: U) => boolean {
+  if (!HAS_PROCESS) {
+    const result = untrack(source);
+    return (key: U) => fn(key, result);
+  }
+
   const subs = new Map<U, Set<LinkedWork>>();
   let v: T;
   watch(source, (current, prev) => {
-    for (const key of subs.keys()) {
+    const keys = Array.from(subs.keys());
+
+    for (let i = 0, len = keys.length, key: string; i < len; i++) {
+      key = keys[i];
       if (fn(key, current) || (prev !== undefined && fn(key, prev))) {
         const listeners = subs.get(key);
         if (listeners) {
@@ -750,6 +770,7 @@ export function selector<T, U extends T>(
         }
       }
     }
+
     v = current;
   });
   return (key: U) => {
