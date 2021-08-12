@@ -8,6 +8,7 @@ declare type PropsWithChildren<P> = P & {
 export declare type Component<P = {}> = (props: PropsWithChildren<P>) => JSX.Element;
 export declare type ComponentProps<T extends keyof JSX.IntrinsicElements | Component<any>> = T extends Component<infer P> ? P : T extends keyof JSX.IntrinsicElements ? JSX.IntrinsicElements[T] : {};
 export declare function createComponent<T>(Comp: Component<T>, props: T): JSX.Element;
-export declare function withContext<P>(comp: Component<P>): Component<P>;
+export declare function withErrorBoundary<P>(Comp: Component<P>): Component<P>;
+export declare function withContext<P>(Comp: Component<P>): Component<P>;
 export declare function lazy<P>(mod: () => Promise<Component<P>>): Component<P>;
 export {};
