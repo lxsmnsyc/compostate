@@ -4,10 +4,10 @@ import {
   batchCleanup,
   ref,
   Cleanup,
-  effect as cEffect,
   resource,
   contextual,
   errorBoundary,
+  computation,
 } from 'compostate';
 import type { JSX } from './jsx';
 
@@ -25,11 +25,7 @@ export function root<T>(fn: (dispose: () => void) => T): T {
   });
 }
 
-export function effect<T>(fn: (prev?: T) => T, current?: T): void {
-  cEffect(() => {
-    current = fn(current);
-  });
-}
+export const effect = computation;
 
 // only updates when boolean expression changes
 export function memo<T>(fn: () => T, equal?: boolean): () => T {

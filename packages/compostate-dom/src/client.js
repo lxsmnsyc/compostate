@@ -1,4 +1,4 @@
-import { batchCleanup, createRoot } from 'compostate';
+import { batchCleanup, computation, createRoot } from 'compostate';
 import {
   Properties,
   ChildProperties,
@@ -9,7 +9,6 @@ import {
 } from './constants';
 import reconcileArrays from './reconcile';
 import { sharedConfig } from './core';
-import { effect } from './lib';
 
 export {
   Properties,
@@ -155,7 +154,7 @@ export function style(node, value, prev = {}) {
 
 export function spread(node, accessor, isSVG, skipChildren) {
   if (typeof accessor === 'function') {
-    effect((current) => spreadExpression(node, accessor(), current, isSVG, skipChildren));
+    computation((current) => spreadExpression(node, accessor(), current, isSVG, skipChildren));
   } else spreadExpression(node, accessor, undefined, isSVG, skipChildren);
 }
 
@@ -184,7 +183,7 @@ export function insert(parent, accessor, marker, initial) {
   if (typeof accessor !== 'function') {
     insertExpression(parent, accessor, initial, marker);
   } else {
-    effect((current) => insertExpression(parent, accessor(), current, marker), initial);
+    computation((current) => insertExpression(parent, accessor(), current, marker), initial);
   }
 }
 
@@ -359,11 +358,11 @@ function eventHandler(e) {
 
 function spreadExpression(node, props, prevProps = {}, isSVG, skipChildren) {
   if (!skipChildren && 'children' in props) {
-    effect(() => {
+    computation(() => {
       prevProps.children = insertExpression(node, props.children, prevProps.children);
     });
   }
-  effect(() => assign(node, props, isSVG, true, prevProps));
+  computation(() => assign(node, props, isSVG, true, prevProps));
   return prevProps;
 }
 
@@ -403,7 +402,7 @@ function insertExpression(parent, value, current, marker, unwrapArray) {
     }
     current = cleanChildren(parent, current, marker);
   } else if (t === 'function') {
-    effect(() => {
+    computation(() => {
       let v = value();
       while (typeof v === 'function') {
         v = v();
@@ -414,8 +413,8 @@ function insertExpression(parent, value, current, marker, unwrapArray) {
   } else if (Array.isArray(value)) {
     const array = [];
     if (normalizeIncomingArray(array, value, unwrapArray)) {
-      effect(() => {
-        current = insertExpression(parent, array, current, marker, true)
+      computation(() => {
+        current = insertExpression(parent, array, current, marker, true);
       });
       return () => current;
     }
