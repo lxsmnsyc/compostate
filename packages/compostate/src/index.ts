@@ -64,6 +64,8 @@ export {
   createContext,
   provide,
   inject,
+  // selector
+  selector,
 } from './reactivity/core';
 // Extensions
 export { map, index } from './reactivity/array';

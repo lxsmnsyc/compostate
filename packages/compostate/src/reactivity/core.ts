@@ -749,3 +749,45 @@ export function inject<T>(context: Context<T>): T {
   }
   return context.defaultValue;
 }
+
+export function selector<T, U extends T>(
+  source: () => T,
+  fn: (a: U, b: T) => boolean = is,
+): (item: U) => boolean {
+  const subs = new Map<U, Set<LinkedWork>>();
+  let v: T;
+  watch(source, (current, prev) => {
+    for (const key of subs.keys()) {
+      if (fn(key, current) || (prev !== undefined && fn(key, prev))) {
+        const listeners = subs.get(key);
+        if (listeners) {
+          for (const listener of listeners) {
+            notifyReactiveAtom(listener);
+          }
+        }
+      }
+    }
+    v = current;
+  });
+  return (key: U) => {
+    const current = TRACKING;
+    if (current) {
+      let listeners: Set<LinkedWork>;
+      const currentListeners = subs.get(key);
+      if (currentListeners) {
+        listeners = currentListeners;
+      } else {
+        listeners = new Set([current]);
+        subs.set(key, listeners);
+      }
+      onCleanup(() => {
+        if (listeners.size > 1) {
+          listeners.delete(current);
+        } else {
+          subs.delete(key);
+        }
+      });
+    }
+    return fn(key, v);
+  };
+}
