@@ -142,6 +142,44 @@ export function capturedErrorBoundary<T extends any[], R>(
   };
 }
 
+export function capturedProvider<T extends any[], R>(
+  callback: (...args: T) => R,
+): (...args: T) => R {
+  const current = CONTEXT;
+  return (...args) => {
+    const parent = CONTEXT;
+    CONTEXT = current;
+    try {
+      return callback(...args);
+    } finally {
+      CONTEXT = parent;
+    }
+  };
+}
+
+export function captured<T extends any[], R>(
+  callback: (...args: T) => R,
+): (...args: T) => R {
+  const currentErrorBoundary = ERROR_BOUNDARY;
+  const currentCleanup = CLEANUP;
+  const currentContext = CONTEXT;
+  return (...args) => {
+    const parentErrorBoundary = ERROR_BOUNDARY;
+    const parentCleanup = CLEANUP;
+    const parentContext = CONTEXT;
+    ERROR_BOUNDARY = currentErrorBoundary;
+    CLEANUP = currentCleanup;
+    CONTEXT = currentContext;
+    try {
+      return callback(...args);
+    } finally {
+      CONTEXT = parentContext;
+      CLEANUP = parentCleanup;
+      ERROR_BOUNDARY = parentErrorBoundary;
+    }
+  };
+}
+
 export function onCleanup(cleanup: Cleanup): Cleanup {
   CLEANUP?.push(cleanup);
   return cleanup;
