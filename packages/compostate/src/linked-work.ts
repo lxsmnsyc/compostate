@@ -90,4 +90,7 @@ export function unlinkLinkedWorkPublishers(target: LinkedWork): void {
 export function destroyLinkedWork(target: LinkedWork): void {
   target.alive = false;
   unlinkLinkedWorkPublishers(target);
+  target.subscribers?.clear();
+  target.subscribers = undefined;
+  target.publishers = undefined;
 }
