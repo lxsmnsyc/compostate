@@ -52,6 +52,7 @@ let BATCH_UPDATES: Set<LinkedWork> | undefined;
 let BATCH_EFFECTS: EffectWork[] | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
 let CONTEXT: ContextTree | undefined;
+let HAS_PROCESS = true;
 
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
@@ -410,7 +411,9 @@ export function computation<T>(callback: (prev?: T) => T): Cleanup {
     errorBoundary: ERROR_BOUNDARY,
   });
 
-  runLinkedWork(work);
+  if (HAS_PROCESS) {
+    runLinkedWork(work);
+  }
 
   return onCleanup(() => {
     work.process = undefined;
@@ -467,8 +470,10 @@ export function batchEffects(callback: () => void): () => void {
     BATCH_EFFECTS = parent;
   }
   return () => {
-    for (let i = 0, len = batchedEffects.length; i < len; i++) {
-      runLinkedWork(batchedEffects[i]);
+    if (HAS_PROCESS) {
+      for (let i = 0, len = batchedEffects.length; i < len; i++) {
+        runLinkedWork(batchedEffects[i]);
+      }
     }
   };
 }
@@ -476,10 +481,12 @@ export function batchEffects(callback: () => void): () => void {
 export function effect(callback: Effect): Cleanup {
   const instance = createEffect(callback);
 
-  if (BATCH_EFFECTS) {
-    BATCH_EFFECTS.push(instance);
-  } else {
-    runLinkedWork(instance);
+  if (HAS_PROCESS) {
+    if (BATCH_EFFECTS) {
+      BATCH_EFFECTS.push(instance);
+    } else {
+      runLinkedWork(instance);
+    }
   }
 
   return onCleanup(() => {
@@ -527,7 +534,9 @@ export function watch<T>(
     errorBoundary: ERROR_BOUNDARY,
   });
 
-  runLinkedWork(work);
+  if (HAS_PROCESS) {
+    runLinkedWork(work);
+  }
 
   return onCleanup(() => {
     work.source = undefined;
@@ -764,4 +773,24 @@ export function selector<T, U extends T>(
     }
     return fn(key, v);
   };
+}
+
+export function disableProcess<T>(callback: () => T): T {
+  const parent = HAS_PROCESS;
+  HAS_PROCESS = false;
+  try {
+    return callback();
+  } finally {
+    HAS_PROCESS = parent;
+  }
+}
+
+export function enableProcess<T>(callback: () => T): T {
+  const parent = HAS_PROCESS;
+  HAS_PROCESS = true;
+  try {
+    return callback();
+  } finally {
+    HAS_PROCESS = parent;
+  }
 }
