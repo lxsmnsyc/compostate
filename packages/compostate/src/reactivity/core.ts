@@ -661,8 +661,15 @@ export function createContext<T>(defaultValue: T): Context<T> {
 }
 
 export function provide<T>(context: Context<T>, value: T): void {
-  if (CONTEXT) {
-    CONTEXT.data[context.id] = value;
+  const parent = CONTEXT;
+  if (parent) {
+    parent.data[context.id] = value;
+
+    // If provide is called in a linked work,
+    // make sure to delete the written data.
+    onCleanup(() => {
+      delete parent.data[context.id];
+    });
   }
 }
 
