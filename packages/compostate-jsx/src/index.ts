@@ -22,5 +22,6 @@ export {
 } from './reactivity';
 export {
   withContext,
+  withErrorBoundary,
   lazy,
 } from './hocs';
