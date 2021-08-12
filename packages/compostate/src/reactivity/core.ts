@@ -51,6 +51,7 @@ let TRACKING: LinkedWork | undefined;
 let BATCH_UPDATES: Set<LinkedWork> | undefined;
 let BATCH_EFFECTS: EffectWork[] | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
+let CONTEXT: ContextTree | undefined;
 
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
@@ -626,3 +627,52 @@ function runProcess(target: ProcessWork) {
 }
 
 setRunner(runProcess);
+
+interface ContextTree {
+  parent?: ContextTree;
+  data: Record<string, any>;
+}
+
+export function contextual<T>(callback: () => T): T {
+  const parent = CONTEXT;
+  CONTEXT = {
+    parent,
+    data: {},
+  };
+  try {
+    return callback();
+  } finally {
+    CONTEXT = parent;
+  }
+}
+
+export interface Context<T> {
+  id: number;
+  defaultValue: T;
+}
+
+let CONTEXT_ID = 0;
+
+export function createContext<T>(defaultValue: T): Context<T> {
+  return {
+    id: CONTEXT_ID++,
+    defaultValue,
+  };
+}
+
+export function provide<T>(context: Context<T>, value: T): void {
+  if (CONTEXT) {
+    CONTEXT.data[context.id] = value;
+  }
+}
+
+export function inject<T>(context: Context<T>): T {
+  let current = CONTEXT;
+  while (current) {
+    if (context.id in current.data) {
+      return current.data[context.id];
+    }
+    current = CONTEXT?.parent;
+  }
+  return context.defaultValue;
+}

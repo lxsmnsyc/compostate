@@ -57,6 +57,11 @@ export {
   isTrackable as isReactive,
   isTrackable,
   ref,
+  // context
+  contextual,
+  createContext,
+  provide,
+  inject,
 } from './reactivity/core';
 // Extensions
 export { default as debounce } from './reactivity/debounce';
