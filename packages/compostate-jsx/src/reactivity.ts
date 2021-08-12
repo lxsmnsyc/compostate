@@ -1,6 +1,5 @@
 import {
-  capturedBatchCleanup,
-  capturedErrorBoundary,
+  captured,
   batchCleanup,
   Cleanup,
   computed,
@@ -30,7 +29,7 @@ export function evalDerived<T>(value: Derived<T>): T {
 
 export function derived<T>(value: () => T): Derived<T> {
   return {
-    derive: capturedBatchCleanup(capturedErrorBoundary(value)),
+    derive: captured(value),
     suspense: SUSPENSE,
   };
 }
