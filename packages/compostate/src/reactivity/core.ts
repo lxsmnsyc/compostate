@@ -407,7 +407,7 @@ interface ComputationWork<T> extends ProcessWork {
 
 export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup {
   if (!HAS_PROCESS) {
-    untrack(() => callback(initial))
+    untrack(() => callback(initial));
     return NO_OP;
   }
 
