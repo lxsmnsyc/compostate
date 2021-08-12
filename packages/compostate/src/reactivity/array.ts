@@ -11,9 +11,16 @@ function dispose(d: Cleanup[]) {
   for (let i = 0, len = d.length; i < len; i++) d[i]();
 }
 
+// From https://github.com/solidjs/solid/blob/main/packages/solid/src/reactive/array.ts
+
+interface Mapper<T, U> {
+  (v: T): U;
+  (v: T, i: Ref<number>): U;
+}
+
 export function map<T, U>(
   list: () => T[],
-  mapFn: () => (v: T, i: Ref<number>) => U,
+  mapFn: () => Mapper<T, U>,
 ): () => U[] {
   let items: T[] = [];
   let mapped: U[] = [];
@@ -32,9 +39,13 @@ export function map<T, U>(
     function mapper() {
       let result: U | undefined;
       disposers[j] = batchCleanup(() => {
-        const key = ref(j);
-        indexes[j] = key;
-        result = actualMapFn(newItems[j], key);
+        if (actualMapFn.length === 1) {
+          result = actualMapFn(newItems[j]);
+        } else {
+          const key = ref(j);
+          indexes[j] = key;
+          result = actualMapFn(newItems[j], key);
+        }
       });
       return result as U;
     }
@@ -110,7 +121,7 @@ export function map<T, U>(
           if (j !== undefined && j !== -1) {
             temp[j] = mapped[i];
             tempdisposers[j] = disposers[i];
-            tempIndexes![j] = indexes[i];
+            tempIndexes[j] = indexes[i];
             j = newIndicesNext[j];
             newIndices.set(item, j);
           } else disposers[i]();
@@ -121,8 +132,11 @@ export function map<T, U>(
           if (j in temp) {
             mapped[j] = temp[j];
             disposers[j] = tempdisposers[j];
-            indexes[j] = tempIndexes![j];
-            indexes[j].value = j;
+            const refIndex = tempIndexes[j];
+            if (refIndex) {
+              indexes[j] = refIndex;
+              indexes[j].value = j;
+            }
           } else mapped[j] = createRoot(mapper);
         }
         // 3) in case the new set is shorter than the old, set the length of the mapped array
