@@ -91,7 +91,7 @@ export default function diff(
           let i = currentStart;
           // counts the amount of nodes that are the same in the future
           let sequence = 1;
-          while (++i < currentEnd && i < futureEnd && map.get(a[i]) === (index + sequence)) {
+          while (++i < currentEnd && i < futureEnd && map.get(current[i]) === (index + sequence)) {
             sequence++;
           }
           // effort decision here: if the sequence is longer than replaces
