@@ -282,6 +282,7 @@ function normalizeIncomingArray(
   let dynamic = false;
   for (let i = 0, len = array.length; i < len; i++) {
     let item = array[i];
+    let t;
     if (item instanceof Node) {
       normalized.push(item);
     } else if (item == null || item === true || item === false) {
@@ -289,14 +290,11 @@ function normalizeIncomingArray(
       // skip
     } else if (Array.isArray(item)) {
       dynamic = normalizeIncomingArray(normalized, item) || dynamic;
-      // TODO When 4.4 TS is released, reduce typeof item calls
-    } else if (typeof item === 'string') {
+    } else if ((t = typeof item) === 'string') {
       normalized.push(document.createTextNode(item));
-    } else if (typeof item === 'function') {
+    } else if (t === 'function') {
       if (unwrap) {
-        while (typeof item === 'function') {
-          item = item();
-        }
+        while (typeof item === 'function') item = item();
         dynamic = normalizeIncomingArray(
           normalized,
           Array.isArray(item) ? item : [item],
@@ -305,20 +303,15 @@ function normalizeIncomingArray(
         normalized.push(item);
         dynamic = true;
       }
-    } else {
-      normalized.push(document.createTextNode(`${item}`));
-    }
+    } else normalized.push(document.createTextNode(item.toString()));
   }
   return dynamic;
 }
 
 function cleanChildren(parent, current, marker, replacement) {
-  if (marker === undefined) {
-    parent.textContent = '';
-    return '';
-  }
+  if (marker === undefined) return (parent.textContent = '');
   const node = replacement || document.createTextNode('');
-  let i = current.length;
+  let i = current.length
   if (i) {
     let inserted = false;
     i--;
@@ -326,22 +319,12 @@ function cleanChildren(parent, current, marker, replacement) {
       const el = current[i];
       if (node !== el) {
         const isParent = el.parentNode === parent;
-        if (!inserted && !i) {
-          if (isParent) {
-            parent.replaceChild(node, el);
-          } else {
-            parent.insertBefore(node, marker);
-          }
-        } else if (isParent) {
-          parent.removeChild(el);
-        }
-      } else {
-        inserted = true;
-      }
+        if (!inserted && !i)
+          isParent ? parent.replaceChild(node, el) : parent.insertBefore(node, marker);
+        else isParent && parent.removeChild(el);
+      } else inserted = true;
     }
-  } else {
-    parent.insertBefore(node, marker);
-  }
+  } else parent.insertBefore(node, marker);
   return [node];
 }
 
@@ -352,88 +335,64 @@ function insertExpression(
   marker?: Node | null,
   unwrapArray?: boolean,
 ): JSX.Element {
-  while (typeof current === 'function') {
-    current = current();
-  }
-  if (value === current) {
-    return current;
-  }
-  const multi = marker !== undefined;
+  while (typeof current === 'function') current = current();
+  if (value === current) return current;
+  const t = typeof value,
+    multi = marker !== undefined;
   parent = (multi && current[0] && current[0].parentNode) || parent;
 
-  if (typeof value === 'string' || typeof value === 'number') {
-    value = `${value}`;
+  if (t === 'string' || t === 'number') {
+    if (t === 'number') value = value.toString();
     if (multi) {
       let node = current[0];
       if (node && node.nodeType === 3) {
         node.data = value;
-      } else {
-        node = document.createTextNode(value);
-      }
+      } else node = document.createTextNode(value);
       current = cleanChildren(parent, current, marker, node);
-    } else if (current !== '' && typeof current === 'string') {
-      current = value;
-      parent.firstChild.data = value;
     } else {
-      current = value;
-      parent.textContent = value;
+      if (current !== '' && typeof current === 'string') {
+        current = parent.firstChild.data = value;
+      } else current = parent.textContent = value;
     }
-  } else if (value == null || typeof value === 'boolean') {
-    if (sharedConfig.context) {
-      return current;
-    }
+  } else if (value == null || t === 'boolean') {
+    if (sharedConfig.context) return current;
     current = cleanChildren(parent, current, marker);
-  } else if (typeof value === 'function') {
-    computation(() => {
+  } else if (t === 'function') {
+    effect(() => {
       let v = value();
-      while (typeof v === 'function') {
-        v = v();
-      }
+      while (typeof v === 'function') v = v();
       current = insertExpression(parent, v, current, marker);
     });
     return () => current;
   } else if (Array.isArray(value)) {
-    const array: Node[] = [];
+    const array = [];
     if (normalizeIncomingArray(array, value, unwrapArray)) {
-      computation(() => {
-        current = insertExpression(parent, array, current, marker, true);
-      });
+      effect(() => (current = insertExpression(parent, array, current, marker, true)));
       return () => current;
     }
-    if (sharedConfig.context && current && current.length) {
-      return current;
-    }
+    if (sharedConfig.context && current && current.length) return current;
     if (array.length === 0) {
       current = cleanChildren(parent, current, marker);
-      if (multi) {
-        return current;
-      }
-    } else if (Array.isArray(current)) {
-      if (current.length === 0) {
-        appendNodes(parent, array, marker);
-      } else {
-        reconcileArrays(parent, current, array);
-      }
-    } else if (current == null || current === '') {
-      appendNodes(parent, array);
+      if (multi) return current;
     } else {
-      reconcileArrays(parent, multi ? current : [parent.firstChild], array);
+      if (Array.isArray(current)) {
+        if (current.length === 0) {
+          appendNodes(parent, array, marker);
+        } else reconcileArrays(parent, current, array);
+      } else if (current == null || current === '') {
+        appendNodes(parent, array);
+      } else {
+        reconcileArrays(parent, (multi && current) || [parent.firstChild], array);
+      }
     }
     current = array;
   } else if (value instanceof Node) {
     if (Array.isArray(current)) {
-      if (multi) {
-        return cleanChildren(parent, current, marker, value);
-      }
+      if (multi) return (current = cleanChildren(parent, current, marker, value));
       cleanChildren(parent, current, null, value);
-    } else {
-      const first = parent.firstChild;
-      if (current == null || current === '' || !first) {
-        parent.appendChild(value);
-      } else {
-        parent.replaceChild(value, first);
-      }
-    }
+    } else if (current == null || current === '' || !parent.firstChild) {
+      parent.appendChild(value);
+    } else parent.replaceChild(value, parent.firstChild);
     current = value;
   } else if (process.env.NODE_ENV !== 'production') {
     console.warn('Unrecognized value. Skipped inserting', value);
@@ -449,13 +408,14 @@ export function assign(
   skipChildren?: boolean,
   prevProps = {},
 ): void {
+  let isCE;
+  let isProp;
+  let isChildProp;
   const propKeys = keys(props);
   for (let i = 0, len = propKeys.length; i < len; i++) {
     const prop = propKeys[i];
     if (prop === 'children') {
-      if (!skipChildren) {
-        insertExpression(node, props.children);
-      }
+      if (!skipChildren) insertExpression(node, props.children);
       continue;
     }
     const value = props[prop];
@@ -474,31 +434,18 @@ export function assign(
       const name = prop.slice(2).toLowerCase();
       const delegate = DelegatedEvents.has(name);
       addEventListener(node, name, value, delegate);
-      if (delegate) {
-        delegateEvents([name]);
-      }
+      delegate && delegateEvents([name]);
+    } else if (
+      (isChildProp = ChildProperties.has(prop)) ||
+      (!isSVG && (PropAliases[prop] || (isProp = Properties.has(prop)))) ||
+      (isCE = node.nodeName.includes('-'))
+    ) {
+      if (isCE && !isProp && !isChildProp) node[toPropertyName(prop)] = value;
+      else node[PropAliases[prop] || prop] = value;
     } else {
-      const isChildProp = ChildProperties.has(prop);
-      const isProp = Properties.has(prop);
-      const isCE = node.nodeName.includes('-');
-      if (
-        isChildProp
-        || (!isSVG && (PropAliases[prop] || isProp))
-        || isCE
-      ) {
-        if (isCE && !isProp && !isChildProp) {
-          node[toPropertyName(prop)] = value;
-        } else {
-          node[PropAliases[prop] || prop] = value;
-        }
-      } else {
-        const ns = isSVG && prop.indexOf(':') > -1 && SVGNamespace[prop.split(':')[0]];
-        if (ns) {
-          setAttributeNS(node, ns, prop, value);
-        } else {
-          setAttribute(node, Aliases[prop] || prop, value);
-        }
-      }
+      const ns = isSVG && prop.indexOf(':') > -1 && SVGNamespace[prop.split(':')[0]];
+      if (ns) setAttributeNS(node, ns, prop, value);
+      else setAttribute(node, Aliases[prop] || prop, value);
     }
     prevProps[prop] = value;
   }
