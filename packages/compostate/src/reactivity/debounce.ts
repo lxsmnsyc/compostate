@@ -1,20 +1,16 @@
-import { computed, effect, ref } from './core';
-import readonly from './readonly';
-import { Ref } from './types';
+import { atom, effect, untrack } from './core';
 
 export default function debounce<T>(
   computation: () => T,
   timeoutMS: number,
-): Readonly<Ref<T>> {
-  const current = computed(computation);
-
-  const state = ref(current.value);
+): () => T {
+  const state = atom(untrack(computation));
 
   effect(() => {
-    const currentValue = current.value;
+    const currentValue = computation();
 
     const timeout = setTimeout(() => {
-      state.value = currentValue;
+      state(currentValue);
     }, timeoutMS);
 
     return () => {
@@ -22,5 +18,5 @@ export default function debounce<T>(
     };
   });
 
-  return readonly(state);
+  return () => state();
 }
