@@ -617,8 +617,6 @@ function runComputationProcess(target: ComputationWork<any>) {
           target.current = process(target.current);
         });
       });
-    } catch (error) {
-      handleError(target.errorBoundary, error);
     } finally {
       ERROR_BOUNDARY = parent;
     }
