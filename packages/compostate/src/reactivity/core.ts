@@ -663,9 +663,10 @@ export function ref<T>(value: T): Ref<T> {
   return new RefNode(value, instance);
 }
 
-export type Atom<T> =
-  | (() => T)
-  | ((next: T) => T);
+export interface Atom<T> {
+  (): T;
+  (next: T): T;
+}
 
 export function atom<T>(value: T): Atom<T> {
   const instance = createReactiveAtom();

@@ -27,8 +27,11 @@
  */
 import {
   createReactiveAtom,
+  destroyReactiveAtom,
   notifyReactiveAtom,
+  onCleanup,
   registerTrackable,
+  TRACKING,
 } from './core';
 import {
   createReactiveWeakKeys,
@@ -48,6 +51,10 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
   constructor(source: WeakMap<K, V>) {
     this.source = source;
 
+    onCleanup(() => {
+      destroyReactiveAtom(this.atom);
+    });
+
     registerTrackable(this.atom, this);
   }
 
@@ -55,7 +62,7 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
     const result = this.source.delete(key);
     if (result) {
       if (this.collection) {
-        notifyReactiveWeakKeys(this.collection, key);
+        notifyReactiveWeakKeys(this.collection, key, true);
       }
       notifyReactiveAtom(this.atom);
     }

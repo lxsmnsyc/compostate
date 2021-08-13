@@ -27,6 +27,7 @@
  */
 import {
   createReactiveAtom,
+  destroyReactiveAtom,
   notifyReactiveAtom,
   ReactiveAtom,
   trackReactiveAtom,
@@ -51,8 +52,13 @@ function getAtom<K extends object>(atoms: ReactiveWeakKeys<K>, key: K): Reactive
 export function notifyReactiveWeakKeys<K extends object>(
   atoms: ReactiveWeakKeys<K>,
   key: K,
+  destroy?: boolean,
 ): void {
-  notifyReactiveAtom(getAtom(atoms, key));
+  const atom = getAtom(atoms, key);
+  notifyReactiveAtom(atom);
+  if (destroy) {
+    destroyReactiveAtom(atom);
+  }
 }
 
 export function trackReactiveWeakKeys<K extends object>(
