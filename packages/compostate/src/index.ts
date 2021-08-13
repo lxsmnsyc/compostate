@@ -50,6 +50,7 @@ export {
   batchEffects,
   unbatchEffects,
   // computed
+  ref,
   computed,
   // subscription
   untrack,
@@ -58,7 +59,6 @@ export {
   // checks
   isTrackable as isReactive,
   isTrackable,
-  ref,
   // context
   contextual,
   createContext,
@@ -66,6 +66,9 @@ export {
   inject,
   // selector
   selector,
+  // atoms
+  atom,
+  computedAtom,
 } from './reactivity/core';
 // Extensions
 export {

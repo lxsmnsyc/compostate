@@ -556,7 +556,7 @@ export function watch<T>(
 }
 
 export function computed<T>(compute: () => T): Ref<T> {
-  const atom = createReactiveAtom();
+  const instance = createReactiveAtom();
 
   let value: T;
   let initial = true;
@@ -566,13 +566,13 @@ export function computed<T>(compute: () => T): Ref<T> {
     if (initial) {
       initial = false;
     } else {
-      notifyReactiveAtom(atom);
+      notifyReactiveAtom(instance);
     }
   });
 
-  return registerTrackable(atom, {
+  return registerTrackable(instance, {
     get value(): T {
-      trackReactiveAtom(atom);
+      trackReactiveAtom(instance);
       return value;
     },
   });
@@ -612,6 +612,47 @@ class RefNode<T> {
 export function ref<T>(value: T): Ref<T> {
   const instance = createReactiveAtom();
   return registerTrackable(instance, new RefNode(value, instance));
+}
+
+export type Atom<T> =
+  | (() => T)
+  | ((next: T) => T);
+
+export function atom<T>(value: T): Atom<T> {
+  const instance = createReactiveAtom();
+  return (...args: [] | [T]) => {
+    if (args.length === 1) {
+      const next = args[0];
+      if (!is(next, value)) {
+        value = next;
+        notifyReactiveAtom(instance);
+      }
+    } else {
+      trackReactiveAtom(instance);
+    }
+    return value;
+  };
+}
+
+export function computedAtom<T>(compute: () => T): () => T {
+  const instance = createReactiveAtom();
+
+  let value: T;
+  let initial = true;
+
+  watch(compute, (current) => {
+    value = current;
+    if (initial) {
+      initial = false;
+    } else {
+      notifyReactiveAtom(instance);
+    }
+  });
+
+  return () => {
+    trackReactiveAtom(instance);
+    return value;
+  };
 }
 
 interface ProcessWork extends LinkedWork {
