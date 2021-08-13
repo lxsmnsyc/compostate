@@ -40,6 +40,7 @@ import {
   Cleanup,
   Effect,
   ErrorCapture,
+  ReactiveBaseObject,
   Ref,
 } from './types';
 
@@ -318,7 +319,7 @@ export function destroyReactiveAtom(target: ReactiveAtom): void {
 }
 
 export function trackReactiveAtom(target: ReactiveAtom): void {
-  linkLinkedWork(target, TRACKING);
+  linkLinkedWork(target, TRACKING!);
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
@@ -537,27 +538,29 @@ export function watch<T>(
 const REF = Symbol('COMPOSTATE_REF');
 const READONLY = Symbol('COMPOSTATE_READONLY');
 const TRACKABLE = Symbol('COMPOSTATE_TRACKABLE');
- 
-type Trackable = Record<typeof TRACKABLE, ReactiveAtom | undefined>;
+
+type WithRef = Record<typeof REF, boolean>;
+type WithReadonly = Record<typeof READONLY, boolean>;
+type WithTrackable = Record<typeof TRACKABLE, ReactiveAtom | undefined>;
 
 export function registerTrackable<T>(
   instance: ReactiveAtom,
   trackable: T,
 ): T {
-  (trackable as unknown as Trackable)[TRACKABLE] = instance;
+  (trackable as unknown as WithTrackable)[TRACKABLE] = instance;
   return trackable;
 }
 
 export function isTrackable<T>(
   trackable: T,
 ): boolean {
-  return object && typeof object === 'object' && TRACKABLE in trackable;
+  return trackable && typeof trackable === 'object' && TRACKABLE in trackable;
 }
 
 export function getTrackableAtom<T>(
   trackable: T,
 ): ReactiveAtom | undefined {
-  return (trackable as unknown as Trackable)[TRACKABLE];
+  return (trackable as unknown as WithTrackable)[TRACKABLE];
 }
 
 export function isReadonly<T extends ReactiveBaseObject>(object: T): object is Readonly<T> {
@@ -570,16 +573,16 @@ const HANDLER = {
   },
 };
 
-export default function readonly<T extends ReactiveBaseObject>(object: T): Readonly<T> {
+export function readonly<T extends ReactiveBaseObject>(object: T): T {
   if (isReadonly(object)) {
     return object;
   }
   const newReadonly = new Proxy(object, HANDLER);
-  newReadonly[READONLY] = object;
+  (newReadonly as WithReadonly)[READONLY] = true;
   return newReadonly;
 }
 
-export function isRef<T>(object: T) T is Ref<any> {
+export function isRef<T>(object: any): object is Ref<T> {
   return object && typeof object === 'object' && REF in object;
 }
 
@@ -598,7 +601,7 @@ export function computed<T>(compute: () => T): Ref<T> {
     }
   });
 
-  return {
+  const node: Ref<T> & WithRef = {
     [REF]: true,
     get value(): T {
       if (TRACKING) {
@@ -607,6 +610,8 @@ export function computed<T>(compute: () => T): Ref<T> {
       return value;
     },
   };
+
+  return node;
 }
 
 export function track<T>(source: T): T {
@@ -619,15 +624,16 @@ export function track<T>(source: T): T {
   return source;
 }
 
-class RefNode<T> {
+class RefNode<T> implements WithRef {
   private val: T;
 
   private instance: ReactiveAtom;
 
+  [REF]: true;
+
   constructor(value: T, instance: ReactiveAtom) {
     this.val = value;
     this.instance = instance;
-    this[REF] = true;
   }
 
   get value() {
