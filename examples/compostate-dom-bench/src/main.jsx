@@ -2,7 +2,7 @@ import {
   render,
 } from 'compostate-dom';
 import {
-  ref,
+  atom,
   map,
   selector,
 } from 'compostate';
@@ -21,7 +21,7 @@ function buildData(count) {
   for (let i = 0; i < count; i++) {
     data[i] = {
       id: idCounter++,
-      label: ref(`${adjectives[_random(adjectives.length)]} ${colours[_random(colours.length)]} ${nouns[_random(nouns.length)]}`)
+      label: atom(`${adjectives[_random(adjectives.length)]} ${colours[_random(colours.length)]} ${nouns[_random(nouns.length)]}`)
     };
   }
   return data;
@@ -36,42 +36,45 @@ const Button = ({ id, text, fn }) => (
 );
 
 const Main = () => {
-  const data = ref([]);
-  const selected = ref(null);
+  const data = atom([]);
+  const selected = atom(null);
   function run() {
-    data.value = buildData(1000);
+    data(buildData(1000));
   }
   function runLots() {
-    data.value = buildData(10000);
+    data(buildData(10000));
   }
   function add() {
-    data.value = [...data.value, ...buildData(1000)];
+    data([...data(), ...buildData(1000)]);
   }
   function update() {
-    for (let i = 0; i < data.value.length; i += 10) {
-      data.value[i].label.value = data.value[i].label.value + ' !!!';
+    const state = data();
+    for (let i = 0, len = state.length; i < len ; i += 10) {
+      const { label } = state[i];
+      label(label() + ' !!!');
     }
   }
   function swapRows() {
-    const newData = data.value.slice();
+    const newData = data().slice();
     if (newData.length > 998) {
       let tmp = newData[1];
       newData[1] = newData[998];
       newData[998] = tmp;
-      data.value = newData;
+      data(newData);
     }
   }
   function clear() {
-    data.value = [];
+    data([]);
   }
   function remove(id) {
-    const idx = data.value.findIndex(d => d.id === id);
-    data.value = [...data.value.slice(0, idx), ...data.value.slice(idx + 1)];
+    const state = data();
+    const idx = state.findIndex(d => d.id === id);
+    data([...state.slice(0, idx), ...state.slice(idx + 1)]);
   }
   function select(id) {
-    selected.value = id;
+    selected(id);
   }
-  const isSelected = selector(() => selected.value);
+  const isSelected = selector(() => selected());
 
   return (
     <div class='container'>
@@ -94,13 +97,13 @@ const Main = () => {
       </div>
       <table class='table table-hover table-striped test-data'>
         <tbody>
-          {map(() => data.value, () => (row) => {
+          {map(() => data(), () => (row) => {
             const rowId = row.id;
             return (
               <tr class={isSelected(rowId) ? 'danger' : ''}>
                 <td class='col-md-1' textContent={rowId} />
                 <td class='col-md-4'>
-                  <a onClick={[select, rowId]} textContent={row.label.value} />
+                  <a onClick={[select, rowId]} textContent={row.label()} />
                 </td>
                 <td class='col-md-1'>
                   <a onClick={[remove, rowId]}>
