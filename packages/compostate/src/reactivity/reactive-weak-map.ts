@@ -67,10 +67,12 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
   }
 
   get(key: K): V | undefined {
-    if (!this.collection) {
-      this.collection = createReactiveWeakKeys();
+    if (TRACKING) {
+      if (!this.collection) {
+        this.collection = createReactiveWeakKeys();
+      }
+      trackReactiveWeakKeys(this.collection, key);
     }
-    trackReactiveWeakKeys(this.collection, key);
     return this.source.get(key);
   }
 
@@ -87,10 +89,12 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
   }
 
   has(key: K): boolean {
-    if (!this.collection) {
-      this.collection = createReactiveWeakKeys();
+    if (TRACKING) {
+      if (!this.collection) {
+        this.collection = createReactiveWeakKeys();
+      }
+      trackReactiveWeakKeys(this.collection, key);
     }
-    trackReactiveWeakKeys(this.collection, key);
     return this.source.has(key);
   }
 }

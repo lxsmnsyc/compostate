@@ -78,10 +78,12 @@ export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
   }
 
   has(value: V): boolean {
-    if (!this.collection) {
-      this.collection = createReactiveWeakKeys();
+    if (TRACKING) {
+      if (!this.collection) {
+        this.collection = createReactiveWeakKeys();
+      }
+      trackReactiveWeakKeys(this.collection, value);
     }
-    trackReactiveWeakKeys(this.collection, value);
     return this.source.has(value);
   }
 }
