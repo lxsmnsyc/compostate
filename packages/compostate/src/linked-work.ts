@@ -1,5 +1,5 @@
 export interface LinkedWork {
-  tag: string;
+  tag: number;
   id: number;
   alive: boolean;
   publishers?: Set<LinkedWork>;
@@ -14,7 +14,7 @@ export function setRunner(work: (work: LinkedWork) => void): void {
 
 let STATE = 0;
 
-export function createLinkedWork(tag: string): LinkedWork {
+export function createLinkedWork(tag: number): LinkedWork {
   return {
     tag,
     id: STATE++,

@@ -45,6 +45,12 @@ import {
 
 const { is, assign } = Object;
 
+// Work types
+const WORK_ATOM = 0b00000001;
+const WORK_COMPUTATION = 0b00000010;
+const WORK_EFFECT = 0b00000100;
+const WORK_WATCH = 0b00001000;
+
 // Execution contexts
 let CLEANUP: Cleanup[] | undefined;
 let TRACKING: LinkedWork | undefined;
@@ -303,7 +309,7 @@ export function captureError(): ErrorCapture {
 export type ReactiveAtom = LinkedWork;
 
 export function createReactiveAtom(): ReactiveAtom {
-  return createLinkedWork('atom');
+  return createLinkedWork(WORK_ATOM);
 }
 
 export function trackReactiveAtom(target: ReactiveAtom): void {
@@ -408,11 +414,11 @@ interface ComputationWork<T> extends ProcessWork {
 
 export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup {
   if (!HAS_PROCESS) {
-    untrack(() => callback(initial));
+    callback(initial);
     return NO_OP;
   }
 
-  const work: ComputationWork<T> = assign(createLinkedWork('computation'), {
+  const work: ComputationWork<T> = assign(createLinkedWork(WORK_COMPUTATION), {
     current: initial,
     process: callback,
     errorBoundary: ERROR_BOUNDARY,
@@ -437,7 +443,7 @@ interface EffectWork extends ProcessWork {
 }
 
 function createEffect(callback: Effect): EffectWork {
-  const node = assign(createLinkedWork('effect'), {
+  const node = assign(createLinkedWork(WORK_EFFECT), {
     callback,
     errorBoundary: ERROR_BOUNDARY,
   });
@@ -445,6 +451,10 @@ function createEffect(callback: Effect): EffectWork {
 }
 
 export function batchEffects(callback: () => void): () => void {
+  if (!HAS_PROCESS) {
+    callback();
+    return NO_OP;
+  }
   const batchedEffects: EffectWork[] = [];
   const parent = BATCH_EFFECTS;
   BATCH_EFFECTS = batchedEffects;
@@ -453,11 +463,14 @@ export function batchEffects(callback: () => void): () => void {
   } finally {
     BATCH_EFFECTS = parent;
   }
+  let alive = true;
   return () => {
-    if (HAS_PROCESS) {
+    if (alive) {
+      alive = false;
       for (let i = 0, len = batchedEffects.length; i < len; i++) {
         runLinkedWork(batchedEffects[i]);
       }
+      batchedEffects.length = 0;
     }
   };
 }
@@ -521,11 +534,11 @@ export function watch<T>(
   listen: (next: T, prev?: T) => void,
 ): () => void {
   if (!HAS_PROCESS) {
-    untrack(() => listen(source()));
+    listen(source());
     return NO_OP;
   }
 
-  const work: WatchWork<T> = assign(createLinkedWork('watch'), {
+  const work: WatchWork<T> = assign(createLinkedWork(WORK_WATCH), {
     source,
     listen,
     errorBoundary: ERROR_BOUNDARY,
@@ -639,9 +652,7 @@ function runWatchProcess(target: WatchWork<any>) {
 }
 
 function runEffectProcess(target: EffectWork) {
-  const parentBatchEffects = BATCH_EFFECTS;
   const parentErrorBoundary = ERROR_BOUNDARY;
-  BATCH_EFFECTS = undefined;
   ERROR_BOUNDARY = target.errorBoundary;
   try {
     const { callback } = target;
@@ -652,33 +663,37 @@ function runEffectProcess(target: EffectWork) {
       });
     }
   } finally {
-    BATCH_EFFECTS = parentBatchEffects;
     ERROR_BOUNDARY = parentErrorBoundary;
   }
 }
 
 function runProcess(target: ProcessWork) {
+  if (target.tag === WORK_ATOM) {
+    return;
+  }
   unlinkLinkedWorkPublishers(target);
   const parentTracking = TRACKING;
+  const parentBatchEffects = BATCH_EFFECTS;
   TRACKING = target;
+  BATCH_EFFECTS = undefined;
   try {
     switch (target.tag) {
-      case 'computation':
+      case WORK_COMPUTATION:
         runComputationProcess(target as ComputationWork<any>);
         break;
-      case 'watch':
+      case WORK_WATCH:
         runWatchProcess(target as WatchWork<any>);
         break;
-      case 'effect':
+      case WORK_EFFECT:
         runEffectProcess(target as EffectWork);
         break;
-      case 'atom':
       default:
         break;
     }
   } catch (error) {
     handleError(target.errorBoundary, error);
   } finally {
+    BATCH_EFFECTS = parentBatchEffects;
     TRACKING = parentTracking;
   }
 }
@@ -747,7 +762,7 @@ export function selector<T, U extends T>(
   fn: (a: U, b: T) => boolean = is,
 ): (item: U) => boolean {
   if (!HAS_PROCESS) {
-    const result = untrack(source);
+    const result = source();
     return (key: U) => fn(key, result);
   }
 
