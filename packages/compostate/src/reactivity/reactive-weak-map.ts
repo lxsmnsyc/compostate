@@ -27,8 +27,11 @@
  */
 import {
   createReactiveAtom,
+  destroyReactiveAtom,
   notifyReactiveAtom,
+  onCleanup,
   registerTrackable,
+  TRACKING,
 } from './core';
 import {
   createReactiveWeakKeys,
@@ -48,6 +51,10 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
   constructor(source: WeakMap<K, V>) {
     this.source = source;
 
+    onCleanup(() => {
+      destroyReactiveAtom(this.atom);
+    });
+
     registerTrackable(this.atom, this);
   }
 
@@ -55,7 +62,7 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
     const result = this.source.delete(key);
     if (result) {
       if (this.collection) {
-        notifyReactiveWeakKeys(this.collection, key);
+        notifyReactiveWeakKeys(this.collection, key, true);
       }
       notifyReactiveAtom(this.atom);
     }
@@ -67,10 +74,12 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
   }
 
   get(key: K): V | undefined {
-    if (!this.collection) {
-      this.collection = createReactiveWeakKeys();
+    if (TRACKING) {
+      if (!this.collection) {
+        this.collection = createReactiveWeakKeys();
+      }
+      trackReactiveWeakKeys(this.collection, key);
     }
-    trackReactiveWeakKeys(this.collection, key);
     return this.source.get(key);
   }
 
@@ -87,10 +96,12 @@ export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, 
   }
 
   has(key: K): boolean {
-    if (!this.collection) {
-      this.collection = createReactiveWeakKeys();
+    if (TRACKING) {
+      if (!this.collection) {
+        this.collection = createReactiveWeakKeys();
+      }
+      trackReactiveWeakKeys(this.collection, key);
     }
-    trackReactiveWeakKeys(this.collection, key);
     return this.source.has(key);
   }
 }

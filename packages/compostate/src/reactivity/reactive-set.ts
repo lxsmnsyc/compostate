@@ -27,11 +27,15 @@
  */
 import {
   createReactiveAtom,
+  destroyReactiveAtom,
   notifyReactiveAtom,
+  onCleanup,
   registerTrackable,
+  TRACKING,
 } from './core';
 import {
   createReactiveKeys,
+  destroyReactiveKeys,
   notifyAllReactiveKeys,
   notifyReactiveKeys,
   ReactiveKeys,
@@ -48,13 +52,20 @@ export default class ReactiveSet<V> implements Set<V> {
   constructor(source: Set<V>) {
     this.source = source;
 
+    onCleanup(() => {
+      if (this.collection) {
+        destroyReactiveKeys(this.collection);
+      }
+      destroyReactiveAtom(this.atom);
+    });
+
     registerTrackable(this.atom, this);
   }
 
   clear(): void {
     this.source.clear();
     if (this.collection) {
-      notifyAllReactiveKeys(this.collection);
+      notifyAllReactiveKeys(this.collection, true);
     }
     notifyReactiveAtom(this.atom);
   }
@@ -63,7 +74,7 @@ export default class ReactiveSet<V> implements Set<V> {
     const result = this.source.delete(value);
     if (result) {
       if (this.collection) {
-        notifyReactiveKeys(this.collection, value);
+        notifyReactiveKeys(this.collection, value, true);
       }
       notifyReactiveAtom(this.atom);
     }
@@ -114,10 +125,12 @@ export default class ReactiveSet<V> implements Set<V> {
   }
 
   has(value: V): boolean {
-    if (!this.collection) {
-      this.collection = createReactiveKeys();
+    if (TRACKING) {
+      if (!this.collection) {
+        this.collection = createReactiveKeys();
+      }
+      trackReactiveKeys(this.collection, value);
     }
-    trackReactiveKeys(this.collection, value);
     return this.source.has(value);
   }
 }

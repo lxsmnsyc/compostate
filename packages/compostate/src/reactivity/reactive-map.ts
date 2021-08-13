@@ -29,9 +29,13 @@ import {
   createReactiveAtom,
   registerTrackable,
   notifyReactiveAtom,
+  destroyReactiveAtom,
+  onCleanup,
+  TRACKING,
 } from './core';
 import {
   createReactiveKeys,
+  destroyReactiveKeys,
   notifyAllReactiveKeys,
   notifyReactiveKeys,
   ReactiveKeys,
@@ -48,13 +52,20 @@ export default class ReactiveMap<K, V> implements Map<K, V> {
   constructor(source: Map<K, V>) {
     this.source = source;
 
+    onCleanup(() => {
+      if (this.collection) {
+        destroyReactiveKeys(this.collection);
+      }
+      destroyReactiveAtom(this.atom);
+    });
+
     registerTrackable(this.atom, this);
   }
 
   clear(): void {
     this.source.clear();
     if (this.collection) {
-      notifyAllReactiveKeys(this.collection);
+      notifyAllReactiveKeys(this.collection, true);
     }
     notifyReactiveAtom(this.atom);
   }
@@ -63,7 +74,7 @@ export default class ReactiveMap<K, V> implements Map<K, V> {
     const result = this.source.delete(key);
     if (result) {
       if (this.collection) {
-        notifyReactiveKeys(this.collection, key);
+        notifyReactiveKeys(this.collection, key, true);
       }
       notifyReactiveAtom(this.atom);
     }
@@ -102,10 +113,12 @@ export default class ReactiveMap<K, V> implements Map<K, V> {
   }
 
   get(key: K): V | undefined {
-    if (!this.collection) {
-      this.collection = createReactiveKeys();
+    if (TRACKING) {
+      if (!this.collection) {
+        this.collection = createReactiveKeys();
+      }
+      trackReactiveKeys(this.collection, key);
     }
-    trackReactiveKeys(this.collection, key);
     return this.source.get(key);
   }
 
@@ -122,10 +135,12 @@ export default class ReactiveMap<K, V> implements Map<K, V> {
   }
 
   has(key: K): boolean {
-    if (!this.collection) {
-      this.collection = createReactiveKeys();
+    if (TRACKING) {
+      if (!this.collection) {
+        this.collection = createReactiveKeys();
+      }
+      trackReactiveKeys(this.collection, key);
     }
-    trackReactiveKeys(this.collection, key);
     return this.source.has(key);
   }
 }

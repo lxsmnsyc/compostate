@@ -25,9 +25,17 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import { createReactiveAtom, notifyReactiveAtom, registerTrackable } from './core';
+import {
+  createReactiveAtom,
+  destroyReactiveAtom,
+  notifyReactiveAtom,
+  onCleanup,
+  registerTrackable,
+  TRACKING,
+} from './core';
 import {
   createReactiveKeys,
+  destroyReactiveKeys,
   notifyReactiveKeys,
   ReactiveKeys,
   trackReactiveKeys,
@@ -39,19 +47,30 @@ class ReactiveObjectHandler<T extends ReactiveObject> {
 
   atom = createReactiveAtom();
 
-  get(target: T, key: string | symbol, receiver: any) {
-    if (!this.collection) {
-      this.collection = createReactiveKeys();
+  destroy() {
+    if (this.collection) {
+      destroyReactiveKeys(this.collection);
     }
-    trackReactiveKeys(this.collection, key);
+    destroyReactiveAtom(this.atom);
+  }
+
+  get(target: T, key: string | symbol, receiver: any) {
+    if (TRACKING) {
+      if (!this.collection) {
+        this.collection = createReactiveKeys();
+      }
+      trackReactiveKeys(this.collection, key);
+    }
     return Reflect.get(target, key, receiver);
   }
 
   has(target: T, key: string | symbol) {
-    if (!this.collection) {
-      this.collection = createReactiveKeys();
+    if (TRACKING) {
+      if (!this.collection) {
+        this.collection = createReactiveKeys();
+      }
+      trackReactiveKeys(this.collection, key);
     }
-    trackReactiveKeys(this.collection, key);
     return Reflect.has(target, key);
   }
 
@@ -59,7 +78,7 @@ class ReactiveObjectHandler<T extends ReactiveObject> {
     const deleted = Reflect.deleteProperty(target, key);
     if (deleted) {
       if (this.collection) {
-        notifyReactiveKeys(this.collection, key);
+        notifyReactiveKeys(this.collection, key, true);
       }
       notifyReactiveAtom(this.atom);
     }
@@ -86,6 +105,11 @@ export default function createReactiveObject<T extends ReactiveObject>(
   source: T,
 ): T {
   const handler = new ReactiveObjectHandler();
+
+  onCleanup(() => {
+    handler.destroy();
+  });
+
   const proxy = new Proxy(source, handler);
 
   registerTrackable(handler.atom, proxy);

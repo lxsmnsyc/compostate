@@ -27,6 +27,7 @@
  */
 import {
   createReactiveAtom,
+  destroyReactiveAtom,
   notifyReactiveAtom,
   ReactiveAtom,
   trackReactiveAtom,
@@ -36,6 +37,13 @@ export type ReactiveKeys<K> = Map<K, ReactiveAtom>;
 
 export function createReactiveKeys<K>(): ReactiveKeys<K> {
   return new Map();
+}
+
+export function destroyReactiveKeys<K>(keys: ReactiveKeys<K>): void {
+  const values = Array.from(keys.values());
+  for (let i = 0, len = values.length; i < len; i++) {
+    destroyReactiveAtom(values[i]);
+  }
 }
 
 function getAtom<K>(atoms: ReactiveKeys<K>, key: K): ReactiveAtom {
@@ -51,8 +59,13 @@ function getAtom<K>(atoms: ReactiveKeys<K>, key: K): ReactiveAtom {
 export function notifyReactiveKeys<K>(
   keys: ReactiveKeys<K>,
   key: K,
+  destroy?: boolean,
 ): void {
-  notifyReactiveAtom(getAtom(keys, key));
+  const atom = getAtom(keys, key);
+  notifyReactiveAtom(atom);
+  if (destroy) {
+    destroyReactiveAtom(atom);
+  }
 }
 
 export function trackReactiveKeys<K>(
@@ -64,8 +77,18 @@ export function trackReactiveKeys<K>(
 
 export function notifyAllReactiveKeys<K>(
   keys: ReactiveKeys<K>,
+  destroy?: boolean,
 ): void {
   if (keys.size) {
-    keys.forEach(notifyReactiveAtom);
+    const values = Array.from(keys.values());
+    for (let i = 0, len = values.length; i < len; i++) {
+      notifyReactiveAtom(values[i]);
+      if (destroy) {
+        destroyReactiveAtom(values[i]);
+      }
+    }
+    if (destroy) {
+      keys.clear();
+    }
   }
 }
