@@ -358,7 +358,7 @@ function insertExpression(
     if (sharedConfig.context) return current;
     current = cleanChildren(parent, current, marker);
   } else if (t === 'function') {
-    effect(() => {
+    computation(() => {
       let v = value();
       while (typeof v === 'function') v = v();
       current = insertExpression(parent, v, current, marker);
@@ -367,7 +367,7 @@ function insertExpression(
   } else if (Array.isArray(value)) {
     const array = [];
     if (normalizeIncomingArray(array, value, unwrapArray)) {
-      effect(() => (current = insertExpression(parent, array, current, marker, true)));
+      computation(() => (current = insertExpression(parent, array, current, marker, true)));
       return () => current;
     }
     if (sharedConfig.context && current && current.length) return current;
