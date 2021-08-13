@@ -589,6 +589,10 @@ export function isRef<T>(object: any): object is Ref<T> {
 export function computed<T>(compute: () => T): Ref<T> {
   const instance = createReactiveAtom();
 
+  onCleanup(() => {
+    destroyLinkedWork(instance);
+  });
+
   let value: T;
   let initial = true;
 
@@ -653,6 +657,9 @@ class RefNode<T> implements WithRef {
 
 export function ref<T>(value: T): Ref<T> {
   const instance = createReactiveAtom();
+  onCleanup(() => {
+    destroyLinkedWork(instance);
+  });
   return new RefNode(value, instance);
 }
 
@@ -662,6 +669,9 @@ export type Atom<T> =
 
 export function atom<T>(value: T): Atom<T> {
   const instance = createReactiveAtom();
+  onCleanup(() => {
+    destroyLinkedWork(instance);
+  });
   return (...args: [] | [T]) => {
     if (args.length === 1) {
       const next = args[0];
@@ -678,6 +688,10 @@ export function atom<T>(value: T): Atom<T> {
 
 export function computedAtom<T>(compute: () => T): () => T {
   const instance = createReactiveAtom();
+
+  onCleanup(() => {
+    destroyLinkedWork(instance);
+  });
 
   let value: T;
   let initial = true;
