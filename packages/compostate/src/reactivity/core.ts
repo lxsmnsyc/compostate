@@ -715,55 +715,47 @@ export function computedAtom<T>(compute: () => T): () => T {
 }
 
 interface ProcessWork extends LinkedWork {
+  cleanup?: Cleanup;
   errorBoundary?: ErrorBoundary;
 }
 
 function runComputationProcess(target: ComputationWork<any>) {
   const { process } = target;
   if (process) {
-    const parent = ERROR_BOUNDARY;
-    ERROR_BOUNDARY = target.errorBoundary;
-    try {
-      batch(() => {
-        target.cleanup?.();
-        target.cleanup = batchCleanup(() => {
-          target.current = process(target.current);
-        });
+    batch(() => {
+      target.cleanup?.();
+      target.cleanup = batchCleanup(() => {
+        target.current = process(target.current);
       });
-    } finally {
-      ERROR_BOUNDARY = parent;
-    }
+    });
   }
 }
 
 function runWatchProcess(target: WatchWork<any>) {
   const { source, listen } = target;
   if (source && listen) {
-    const hasCurrent = 'current' in target;
-    const next = source();
-    const prev = target.current;
-    if ((hasCurrent && !is(next, prev)) || !hasCurrent) {
-      target.current = next;
-      batch(() => {
-        listen(next, prev);
-      });
-    }
+    batch(() => {
+      const hasCurrent = 'current' in target;
+      const next = source();
+      const prev = target.current;
+      if ((hasCurrent && !is(next, prev)) || !hasCurrent) {
+        target.cleanup?.();
+        target.cleanup = batchCleanup(() => {
+          target.current = next;
+          listen(next, prev);
+        });
+      }
+    });
   }
 }
 
 function runEffectProcess(target: EffectWork) {
-  const parentErrorBoundary = ERROR_BOUNDARY;
-  ERROR_BOUNDARY = target.errorBoundary;
-  try {
-    const { callback } = target;
-    if (callback) {
-      batch(() => {
-        target.cleanup?.();
-        target.cleanup = batchCleanup(callback);
-      });
-    }
-  } finally {
-    ERROR_BOUNDARY = parentErrorBoundary;
+  const { callback } = target;
+  if (callback) {
+    batch(() => {
+      target.cleanup?.();
+      target.cleanup = batchCleanup(callback);
+    });
   }
 }
 
@@ -774,8 +766,10 @@ function runProcess(target: ProcessWork) {
   unlinkLinkedWorkPublishers(target);
   const parentTracking = TRACKING;
   const parentBatchEffects = BATCH_EFFECTS;
-  TRACKING = target;
+  const parentErrorBoundary = ERROR_BOUNDARY;
+  ERROR_BOUNDARY = target.errorBoundary;
   BATCH_EFFECTS = undefined;
+  TRACKING = target;
   try {
     switch (target.tag) {
       case WORK_COMPUTATION:
@@ -793,8 +787,9 @@ function runProcess(target: ProcessWork) {
   } catch (error) {
     handleError(target.errorBoundary, error);
   } finally {
-    BATCH_EFFECTS = parentBatchEffects;
     TRACKING = parentTracking;
+    BATCH_EFFECTS = parentBatchEffects;
+    ERROR_BOUNDARY = parentErrorBoundary;
   }
 }
 
