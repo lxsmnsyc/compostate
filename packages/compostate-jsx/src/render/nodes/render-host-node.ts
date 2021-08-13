@@ -3,7 +3,6 @@ import {
   captureError,
   watch,
   Cleanup,
-  isReactive,
 } from 'compostate';
 import {
   createStyle,
@@ -20,20 +19,19 @@ function applyHostProperty(
   el: HTMLElement,
   key: string,
   property: any,
-): Cleanup | undefined {
+): void {
   if (key.startsWith('on')) {
     const errorHandler = captureError();
 
-    return registerEvent(el, key, (evt) => {
+    onCleanup(registerEvent(el, key, (evt) => {
       // In case of synchronous calls
       try {
         (property as unknown as EventListener)(evt);
       } catch (error) {
         errorHandler(error);
       }
-    });
-  }
-  if (key === 'style') {
+    }));
+  } else if (key === 'style') {
     el.setAttribute(key, createStyle(property));
   // typeof is slow
   } else if (property === true || property === false) {
@@ -82,28 +80,15 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
         const rawProperty = props[key as keyof typeof props];
         const isObject = typeof rawProperty === 'object';
         if (isObject && isDerived(rawProperty)) {
-          let cleanup: Cleanup | undefined;
           watch(() => evalDerived(rawProperty), (prop) => {
-            cleanup?.();
-            cleanup = applyHostProperty(el, key, prop);
-          });
-          onCleanup(() => {
-            cleanup?.();
+            applyHostProperty(el, key, prop);
           });
         } else if (isObject && 'value' in rawProperty) {
-          let cleanup: Cleanup | undefined;
           watch(() => rawProperty.value, (prop) => {
-            cleanup?.();
-            cleanup = applyHostProperty(el, key, prop);
-          });
-          onCleanup(() => {
-            cleanup?.();
+            applyHostProperty(el, key, prop);
           });
         } else {
-          const cleanup = applyHostProperty(el, key, rawProperty);
-          if (cleanup) {
-            onCleanup(cleanup);
-          }
+          applyHostProperty(el, key, rawProperty);
         }
       }
     }
