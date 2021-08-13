@@ -34,12 +34,12 @@ const Properties = new Set(['className', 'indeterminate', 'value', 'readOnly', .
 const ChildProperties = new Set(['innerHTML', 'textContent', 'innerText', 'children']);
 
 // React Compat
-const Aliases = {
+const Aliases: Record<string, string> = {
   className: 'class',
   htmlFor: 'for',
 };
 
-const PropAliases = {
+const PropAliases: Record<string, string> = {
   class: 'className',
   readonly: 'readOnly',
 };

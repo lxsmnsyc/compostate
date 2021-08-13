@@ -18,6 +18,8 @@ module.exports = {
     "no-restricted-syntax": "off",
     "no-continue": "off",
     "@typescript-eslint/no-unsafe-assignment": "off",
-    "prefer-object-spread": "off"
+    "prefer-object-spread": "off",
+    "@typescript-eslint/unbound-method": "off",
+    "prefer-destructuring": "off"
   },
 };
