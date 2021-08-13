@@ -758,8 +758,8 @@ export function selector<T, U extends T>(
   watch(source, (current, prev) => {
     const keys = Array.from(subs.keys());
 
-    for (let i = 0, len = keys.length, key: U; i < len; i++) {
-      key = keys[i];
+    for (let i = 0, len = keys.length; i < len; i++) {
+      const key = keys[i];
       if (fn(key, current) || (prev !== undefined && fn(key, prev))) {
         const listeners = subs.get(key);
         if (listeners) {
