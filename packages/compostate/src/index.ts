@@ -75,7 +75,7 @@ export {
 } from './reactivity/core';
 // Extensions
 export { map, index } from './reactivity/array';
-export { default as debounce } from './reactivity/debounce';
+export { debounce, debouncedAtom } from './reactivity/debounce';
 export { default as reactive } from './reactivity/reactive';
 export { default as resource, Resource, ResourceOptions } from './reactivity/resource';
 export { spread, destructure, Spread } from './reactivity/spread';

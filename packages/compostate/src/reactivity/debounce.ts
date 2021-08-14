@@ -1,21 +1,45 @@
-import { atom, effect, untrack } from './core';
+import {
+  atom,
+  onCleanup,
+  ref,
+  untrack,
+  watch,
+} from './core';
+import { Ref } from './types';
 
-export default function debounce<T>(
+export function debounce<T>(
+  computation: () => T,
+  timeoutMS: number,
+): Ref<T> {
+  const state = ref(untrack(computation));
+
+  watch(computation, (next) => {
+    const timeout = setTimeout(() => {
+      state.value = next;
+    }, timeoutMS);
+
+    onCleanup(() => {
+      clearTimeout(timeout);
+    });
+  });
+
+  return state;
+}
+
+export function debouncedAtom<T>(
   computation: () => T,
   timeoutMS: number,
 ): () => T {
   const state = atom(untrack(computation));
 
-  effect(() => {
-    const currentValue = computation();
-
+  watch(computation, (next) => {
     const timeout = setTimeout(() => {
-      state(currentValue);
+      state(next);
     }, timeoutMS);
 
-    return () => {
+    onCleanup(() => {
       clearTimeout(timeout);
-    };
+    });
   });
 
   return () => state();
