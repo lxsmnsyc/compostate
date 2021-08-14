@@ -1,4 +1,4 @@
-import { effect, isReactive, onCleanup } from 'compostate';
+import { computation, isReactive, onCleanup } from 'compostate';
 import { VNode } from '../types';
 import {
   createFragment,
@@ -95,13 +95,12 @@ export default function renderChildren(
         insert(root, fragment, marker);
       }
     } else if (hasReactiveChildren(children)) {
-      let previousChildren: Node[];
       const childMarker = createMarker();
       insert(root, childMarker, marker);
-      effect(() => {
-        const newChildren = normalizeChildren(children);
-        renderChildren(root, newChildren, previousChildren, childMarker, true);
-        previousChildren = newChildren;
+      computation((prev) => {
+        const next = normalizeChildren(children);
+        renderChildren(root, next, prev, childMarker, true);
+        return next;
       });
       onCleanup(() => {
         remove(childMarker);
@@ -129,25 +128,23 @@ export default function renderChildren(
   } else if (children == null || children === true || children === false) {
     // skip
   } else if (isDerived(children)) {
-    let previousChildren: VNode;
     const childMarker = createMarker();
     insert(root, childMarker, marker);
-    effect(() => {
-      const newChildren = evalDerived(children);
-      renderChildren(root, newChildren, previousChildren, childMarker);
-      previousChildren = newChildren;
+    computation((prev) => {
+      const next = evalDerived(children);
+      renderChildren(root, next, prev, childMarker);
+      return next;
     });
     onCleanup(() => {
       remove(childMarker);
     });
   } else {
-    let previousChildren: VNode;
     const childMarker = createMarker();
     insert(root, childMarker, marker);
-    effect(() => {
-      const newChildren = children.value;
-      renderChildren(root, newChildren, previousChildren, childMarker);
-      previousChildren = newChildren;
+    computation((prev) => {
+      const next = children.value;
+      renderChildren(root, next, prev, childMarker);
+      return next;
     });
     onCleanup(() => {
       remove(childMarker);

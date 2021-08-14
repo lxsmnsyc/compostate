@@ -1,6 +1,4 @@
 import {
-  isReactive,
-  track,
   untrack,
 } from 'compostate';
 import { evalDerived, isDerived } from '../../reactivity';

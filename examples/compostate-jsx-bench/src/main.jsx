@@ -98,7 +98,7 @@ const Main = () => {
       <table class='table table-hover table-striped test-data'>
         <tbody>
           <For
-            in={data}
+            in={derived(data)}
             each={(row) => {
               const rowId = row.id;
               const onSelect = () => {

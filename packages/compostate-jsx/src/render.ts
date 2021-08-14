@@ -1,7 +1,7 @@
 /* eslint-disable no-param-reassign */
 import {
+  computation,
   createRoot,
-  effect,
   untrack,
 } from 'compostate';
 import {
@@ -18,16 +18,15 @@ import {
 import { evalDerived, isDerived } from './reactivity';
 
 export function render(root: HTMLElement, element: () => VNode): () => void {
-  let previous: VNode;
-  return createRoot(() => effect(() => {
-    const newNode = element();
+  return createRoot(() => computation((prev) => {
+    const next = element();
     renderChildren(
       root,
-      newNode,
-      previous,
+      next,
+      prev,
       null,
     );
-    previous = newNode;
+    return next;
   }));
 }
 
