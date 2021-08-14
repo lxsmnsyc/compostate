@@ -50,7 +50,9 @@ export {
   batchEffects,
   unbatchEffects,
   // computed
+  ref,
   computed,
+  readonly,
   // subscription
   untrack,
   track,
@@ -58,7 +60,8 @@ export {
   // checks
   isTrackable as isReactive,
   isTrackable,
-  ref,
+  isRef,
+  isReadonly,
   // context
   contextual,
   createContext,
@@ -66,6 +69,9 @@ export {
   inject,
   // selector
   selector,
+  // atoms
+  atom,
+  computedAtom,
 } from './reactivity/core';
 // Extensions
 export {
@@ -74,7 +80,6 @@ export {
 } from './reactivity/array';
 export { default as debounce } from './reactivity/debounce';
 export { default as reactive } from './reactivity/reactive';
-export { default as readonly } from './reactivity/readonly';
 export { default as resource, Resource, ResourceOptions } from './reactivity/resource';
 export {
   spread,

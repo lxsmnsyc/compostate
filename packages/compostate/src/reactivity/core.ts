@@ -40,18 +40,26 @@ import {
   Cleanup,
   Effect,
   ErrorCapture,
+  ReactiveBaseObject,
   Ref,
 } from './types';
 
 const { is, assign } = Object;
 
+// Work types
+const WORK_ATOM = 0b00000001;
+const WORK_COMPUTATION = 0b00000010;
+const WORK_EFFECT = 0b00000100;
+const WORK_WATCH = 0b00001000;
+
 // Execution contexts
-let CLEANUP: Cleanup[] | undefined;
-let TRACKING: LinkedWork | undefined;
+export let TRACKING: LinkedWork | undefined;
 let BATCH_UPDATES: Set<LinkedWork> | undefined;
-let BATCH_EFFECTS: EffectWork[] | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
+let BATCH_EFFECTS: EffectWork[] | undefined;
 let CONTEXT: ContextTree | undefined;
+let CLEANUP: Cleanup[] | undefined;
+
 let HAS_PROCESS = true;
 
 export function unbatch<T>(callback: () => T): T {
@@ -303,13 +311,15 @@ export function captureError(): ErrorCapture {
 export type ReactiveAtom = LinkedWork;
 
 export function createReactiveAtom(): ReactiveAtom {
-  return createLinkedWork('atom');
+  return createLinkedWork(WORK_ATOM);
+}
+
+export function destroyReactiveAtom(target: ReactiveAtom): void {
+  destroyLinkedWork(target);
 }
 
 export function trackReactiveAtom(target: ReactiveAtom): void {
-  if (TRACKING) {
-    linkLinkedWork(target, TRACKING);
-  }
+  linkLinkedWork(target, TRACKING!);
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
@@ -408,11 +418,11 @@ interface ComputationWork<T> extends ProcessWork {
 
 export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup {
   if (!HAS_PROCESS) {
-    untrack(() => callback(initial));
+    callback(initial);
     return NO_OP;
   }
 
-  const work: ComputationWork<T> = assign(createLinkedWork('computation'), {
+  const work: ComputationWork<T> = assign(createLinkedWork(WORK_COMPUTATION), {
     current: initial,
     process: callback,
     errorBoundary: ERROR_BOUNDARY,
@@ -437,7 +447,7 @@ interface EffectWork extends ProcessWork {
 }
 
 function createEffect(callback: Effect): EffectWork {
-  const node = assign(createLinkedWork('effect'), {
+  const node = assign(createLinkedWork(WORK_EFFECT), {
     callback,
     errorBoundary: ERROR_BOUNDARY,
   });
@@ -445,6 +455,10 @@ function createEffect(callback: Effect): EffectWork {
 }
 
 export function batchEffects(callback: () => void): () => void {
+  if (!HAS_PROCESS) {
+    callback();
+    return NO_OP;
+  }
   const batchedEffects: EffectWork[] = [];
   const parent = BATCH_EFFECTS;
   BATCH_EFFECTS = batchedEffects;
@@ -453,11 +467,14 @@ export function batchEffects(callback: () => void): () => void {
   } finally {
     BATCH_EFFECTS = parent;
   }
+  let alive = true;
   return () => {
-    if (HAS_PROCESS) {
+    if (alive) {
+      alive = false;
       for (let i = 0, len = batchedEffects.length; i < len; i++) {
         runLinkedWork(batchedEffects[i]);
       }
+      batchedEffects.length = 0;
     }
   };
 }
@@ -486,30 +503,6 @@ export function effect(callback: Effect): Cleanup {
   });
 }
 
-const TRACKABLE = Symbol('COMPOSTATE_TRACKABLE');
-
-type Trackable = Record<typeof TRACKABLE, ReactiveAtom | undefined>;
-
-export function registerTrackable<T>(
-  instance: ReactiveAtom,
-  trackable: T,
-): T {
-  (trackable as unknown as Trackable)[TRACKABLE] = instance;
-  return trackable;
-}
-
-export function isTrackable<T>(
-  trackable: T,
-): boolean {
-  return TRACKABLE in trackable;
-}
-
-export function getTrackableAtom<T>(
-  trackable: T,
-): ReactiveAtom | undefined {
-  return (trackable as unknown as Trackable)[TRACKABLE];
-}
-
 interface WatchWork<T> extends ProcessWork {
   source?: () => T,
   listen?: (next: T, prev?: T) => void,
@@ -521,11 +514,11 @@ export function watch<T>(
   listen: (next: T, prev?: T) => void,
 ): () => void {
   if (!HAS_PROCESS) {
-    untrack(() => listen(source()));
+    listen(source());
     return NO_OP;
   }
 
-  const work: WatchWork<T> = assign(createLinkedWork('watch'), {
+  const work: WatchWork<T> = assign(createLinkedWork(WORK_WATCH), {
     source,
     listen,
     errorBoundary: ERROR_BOUNDARY,
@@ -542,8 +535,63 @@ export function watch<T>(
   });
 }
 
+const REF = Symbol('COMPOSTATE_REF');
+const READONLY = Symbol('COMPOSTATE_READONLY');
+const TRACKABLE = Symbol('COMPOSTATE_TRACKABLE');
+
+type WithRef = Record<typeof REF, boolean>;
+type WithReadonly = Record<typeof READONLY, boolean>;
+type WithTrackable = Record<typeof TRACKABLE, ReactiveAtom | undefined>;
+
+export function registerTrackable<T>(
+  instance: ReactiveAtom,
+  trackable: T,
+): T {
+  (trackable as unknown as WithTrackable)[TRACKABLE] = instance;
+  return trackable;
+}
+
+export function isTrackable<T>(
+  trackable: T,
+): boolean {
+  return trackable && typeof trackable === 'object' && TRACKABLE in trackable;
+}
+
+export function getTrackableAtom<T>(
+  trackable: T,
+): ReactiveAtom | undefined {
+  return (trackable as unknown as WithTrackable)[TRACKABLE];
+}
+
+export function isReadonly<T extends ReactiveBaseObject>(object: T): object is Readonly<T> {
+  return object && typeof object === 'object' && READONLY in object;
+}
+
+const HANDLER = {
+  set() {
+    return true;
+  },
+};
+
+export function readonly<T extends ReactiveBaseObject>(object: T): T {
+  if (isReadonly(object)) {
+    return object;
+  }
+  const newReadonly = new Proxy(object, HANDLER);
+  (newReadonly as WithReadonly)[READONLY] = true;
+  return newReadonly;
+}
+
+export function isRef<T>(object: any): object is Ref<T> {
+  return object && typeof object === 'object' && REF in object;
+}
+
 export function computed<T>(compute: () => T): Ref<T> {
-  const atom = createReactiveAtom();
+  const instance = createReactiveAtom();
+
+  onCleanup(() => {
+    destroyLinkedWork(instance);
+  });
 
   let value: T;
   let initial = true;
@@ -553,30 +601,39 @@ export function computed<T>(compute: () => T): Ref<T> {
     if (initial) {
       initial = false;
     } else {
-      notifyReactiveAtom(atom);
+      notifyReactiveAtom(instance);
     }
   });
 
-  return registerTrackable(atom, {
+  const node: Ref<T> & WithRef = {
+    [REF]: true,
     get value(): T {
-      trackReactiveAtom(atom);
+      if (TRACKING) {
+        trackReactiveAtom(instance);
+      }
       return value;
     },
-  });
+  };
+
+  return node;
 }
 
 export function track<T>(source: T): T {
-  const instance = getTrackableAtom(source);
-  if (instance) {
-    trackReactiveAtom(instance);
+  if (TRACKING) {
+    const instance = getTrackableAtom(source);
+    if (instance) {
+      trackReactiveAtom(instance);
+    }
   }
   return source;
 }
 
-class RefNode<T> {
+class RefNode<T> implements WithRef {
   private val: T;
 
   private instance: ReactiveAtom;
+
+  [REF]: true;
 
   constructor(value: T, instance: ReactiveAtom) {
     this.val = value;
@@ -584,7 +641,9 @@ class RefNode<T> {
   }
 
   get value() {
-    trackReactiveAtom(this.instance);
+    if (TRACKING) {
+      trackReactiveAtom(this.instance);
+    }
     return this.val;
   }
 
@@ -598,81 +657,130 @@ class RefNode<T> {
 
 export function ref<T>(value: T): Ref<T> {
   const instance = createReactiveAtom();
-  return registerTrackable(instance, new RefNode(value, instance));
+  onCleanup(() => {
+    destroyLinkedWork(instance);
+  });
+  return new RefNode(value, instance);
+}
+
+export interface Atom<T> {
+  (): T;
+  (next: T): T;
+}
+
+export function atom<T>(value: T): Atom<T> {
+  const instance = createReactiveAtom();
+  onCleanup(() => {
+    destroyLinkedWork(instance);
+  });
+  return (...args: [] | [T]) => {
+    if (args.length === 1) {
+      const next = args[0];
+      if (!is(next, value)) {
+        value = next;
+        notifyReactiveAtom(instance);
+      }
+    } else if (TRACKING) {
+      trackReactiveAtom(instance);
+    }
+    return value;
+  };
+}
+
+export function computedAtom<T>(compute: () => T): () => T {
+  const instance = createReactiveAtom();
+
+  onCleanup(() => {
+    destroyLinkedWork(instance);
+  });
+
+  let value: T;
+  let initial = true;
+
+  watch(compute, (current) => {
+    value = current;
+    if (initial) {
+      initial = false;
+    } else {
+      notifyReactiveAtom(instance);
+    }
+  });
+
+  return () => {
+    if (TRACKING) {
+      trackReactiveAtom(instance);
+    }
+    return value;
+  };
 }
 
 interface ProcessWork extends LinkedWork {
+  cleanup?: Cleanup;
   errorBoundary?: ErrorBoundary;
 }
 
 function runComputationProcess(target: ComputationWork<any>) {
   const { process } = target;
   if (process) {
-    const parent = ERROR_BOUNDARY;
-    ERROR_BOUNDARY = target.errorBoundary;
-    try {
-      batch(() => {
-        target.cleanup?.();
-        target.cleanup = batchCleanup(() => {
-          target.current = process(target.current);
-        });
+    batch(() => {
+      target.cleanup?.();
+      target.cleanup = batchCleanup(() => {
+        target.current = process(target.current);
       });
-    } finally {
-      ERROR_BOUNDARY = parent;
-    }
+    });
   }
 }
 
 function runWatchProcess(target: WatchWork<any>) {
   const { source, listen } = target;
   if (source && listen) {
-    const hasCurrent = 'current' in target;
-    const next = source();
-    const prev = target.current;
-    if ((hasCurrent && !is(next, prev)) || !hasCurrent) {
-      target.current = next;
-      batch(() => {
-        listen(next, prev);
-      });
-    }
+    batch(() => {
+      const hasCurrent = 'current' in target;
+      const next = source();
+      const prev = target.current;
+      if ((hasCurrent && !is(next, prev)) || !hasCurrent) {
+        target.cleanup?.();
+        target.cleanup = batchCleanup(() => {
+          target.current = next;
+          listen(next, prev);
+        });
+      }
+    });
   }
 }
 
 function runEffectProcess(target: EffectWork) {
-  const parentBatchEffects = BATCH_EFFECTS;
-  const parentErrorBoundary = ERROR_BOUNDARY;
-  BATCH_EFFECTS = undefined;
-  ERROR_BOUNDARY = target.errorBoundary;
-  try {
-    const { callback } = target;
-    if (callback) {
-      batch(() => {
-        target.cleanup?.();
-        target.cleanup = batchCleanup(callback);
-      });
-    }
-  } finally {
-    BATCH_EFFECTS = parentBatchEffects;
-    ERROR_BOUNDARY = parentErrorBoundary;
+  const { callback } = target;
+  if (callback) {
+    batch(() => {
+      target.cleanup?.();
+      target.cleanup = batchCleanup(callback);
+    });
   }
 }
 
 function runProcess(target: ProcessWork) {
+  if (target.tag === WORK_ATOM) {
+    return;
+  }
   unlinkLinkedWorkPublishers(target);
   const parentTracking = TRACKING;
+  const parentBatchEffects = BATCH_EFFECTS;
+  const parentErrorBoundary = ERROR_BOUNDARY;
+  ERROR_BOUNDARY = target.errorBoundary;
+  BATCH_EFFECTS = undefined;
   TRACKING = target;
   try {
     switch (target.tag) {
-      case 'computation':
+      case WORK_COMPUTATION:
         runComputationProcess(target as ComputationWork<any>);
         break;
-      case 'watch':
+      case WORK_WATCH:
         runWatchProcess(target as WatchWork<any>);
         break;
-      case 'effect':
+      case WORK_EFFECT:
         runEffectProcess(target as EffectWork);
         break;
-      case 'atom':
       default:
         break;
     }
@@ -680,6 +788,8 @@ function runProcess(target: ProcessWork) {
     handleError(target.errorBoundary, error);
   } finally {
     TRACKING = parentTracking;
+    BATCH_EFFECTS = parentBatchEffects;
+    ERROR_BOUNDARY = parentErrorBoundary;
   }
 }
 
@@ -747,7 +857,7 @@ export function selector<T, U extends T>(
   fn: (a: U, b: T) => boolean = is,
 ): (item: U) => boolean {
   if (!HAS_PROCESS) {
-    const result = untrack(source);
+    const result = source();
     return (key: U) => fn(key, result);
   }
 

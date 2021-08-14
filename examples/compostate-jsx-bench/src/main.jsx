@@ -7,7 +7,7 @@ import {
   derived,
 } from 'compostate-jsx';
 import {
-  ref,
+  atom,
   selector,
 } from 'compostate';
 
@@ -25,7 +25,7 @@ function buildData(count) {
   for (let i = 0; i < count; i++) {
     data[i] = {
       id: idCounter++,
-      label: ref(`${adjectives[_random(adjectives.length)]} ${colours[_random(colours.length)]} ${nouns[_random(nouns.length)]}`)
+      label: atom(`${adjectives[_random(adjectives.length)]} ${colours[_random(colours.length)]} ${nouns[_random(nouns.length)]}`)
     };
   }
   return data;
@@ -33,60 +33,68 @@ function buildData(count) {
 
 const Button = ({ id, text, fn }) => (
   <div class='col-sm-6 smallpad'>
-    <button id={ id } class='btn btn-primary btn-block' type='button' onClick={fn}>
+    <button id={id} class='btn btn-primary btn-block' type='button' onClick={fn}>
       {text}
     </button>
   </div>
 );
 
 const Main = () => {
-  const data = ref([]);
-  const selected = ref(null);
+  const data = atom([]);
+  const selected = atom(null);
   function run() {
-    data.value = buildData(1000);
+    data(buildData(1000));
   }
   function runLots() {
-    data.value = buildData(10000);
+    data(buildData(10000));
   }
   function add() {
-    data.value = [...data.value, ...buildData(1000)];
+    data([...data(), ...buildData(1000)]);
   }
   function update() {
-    for (let i = 0; i < data.value.length; i += 10) {
-      data.value[i].label.value = data.value[i].label.value + ' !!!';
+    const state = data();
+    for (let i = 0; i < state.length; i += 10) {
+      const { label } = state[i];
+      label(label() + ' !!!');
     }
   }
   function swapRows() {
-    const newData = data.value.slice();
+    const newData = data().slice();
     if (newData.length > 998) {
       let tmp = newData[1];
       newData[1] = newData[998];
       newData[998] = tmp;
-      data.value = newData;
+      data(newData);
     }
   }
   function clear() {
-    data.value = [];
+    data([]);
   }
   function remove(id) {
-    const idx = data.value.findIndex(d => d.id === id);
-    data.value = [...data.value.slice(0, idx), ...data.value.slice(idx + 1)];
+    const state = data();
+    const idx = state.findIndex(d => d.id === id);
+    data([...state.slice(0, idx), ...state.slice(idx + 1)]);
   }
-  const isSelected = selector(() => selected.value);
+  const isSelected = selector(() => selected());
 
   return (
     <div class='container'>
-      <div class='jumbotron'><div class='row'>
-        <div class='col-md-6'><h1>compostate-jsx</h1></div>
-        <div class='col-md-6'><div class='row'>
-          <Button id='run' text='Create 1,000 rows' fn={ run } />
-          <Button id='runlots' text='Create 10,000 rows' fn={ runLots } />
-          <Button id='add' text='Append 1,000 rows' fn={ add } />
-          <Button id='update' text='Update every 10th row' fn={ update } />
-          <Button id='clear' text='Clear' fn={ clear } />
-          <Button id='swaprows' text='Swap Rows' fn={ swapRows } />
-        </div></div>
-      </div></div>
+      <div class='jumbotron'>
+        <div class='row'>
+        <div class='col-md-6'>
+          <h1>compostate-jsx</h1></div>
+          <div class='col-md-6'>
+            <div class='row'>
+              <Button id='run' text='Create 1,000 rows' fn={run} />
+              <Button id='runlots' text='Create 10,000 rows' fn={runLots} />
+              <Button id='add' text='Append 1,000 rows' fn={add} />
+              <Button id='update' text='Update every 10th row' fn={update} />
+              <Button id='clear' text='Clear' fn={clear} />
+              <Button id='swaprows' text='Swap Rows' fn={swapRows} />
+            </div>
+          </div>
+        </div>
+      </div>
       <table class='table table-hover table-striped test-data'>
         <tbody>
           <For
@@ -94,7 +102,7 @@ const Main = () => {
             each={(row) => {
               const rowId = row.id;
               const onSelect = () => {
-                selected.value = rowId;
+                selected(rowId);
               }
               const onRemove = () => {
                 remove(rowId);
@@ -108,7 +116,7 @@ const Main = () => {
                 <tr class={selectedDerived}>
                   <td class='col-md-1' textContent={rowId} />
                   <td class='col-md-4'>
-                    <a onClick={onSelect} textContent={row.label} />
+                    <a onClick={onSelect} textContent={derived(row.label)} />
                   </td>
                   <td class='col-md-1'>
                     <a onClick={onRemove}>
