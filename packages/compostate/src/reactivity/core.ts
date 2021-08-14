@@ -892,7 +892,7 @@ export function selector<T, U extends T>(
         const listeners = subs.get(key);
         if (listeners) {
           for (const listener of listeners) {
-            runLinkedWork(listener);
+            runLinkedWork(listener, BATCH_UPDATES);
           }
         }
       }
