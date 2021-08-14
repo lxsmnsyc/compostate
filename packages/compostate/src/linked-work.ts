@@ -58,43 +58,46 @@ export function publisherLinkSubscriber(
 }
 
 function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
-  if (target.alive) {
-    if (target.type === 'publisher') {
-      const { subscribers } = target;
-      if (subscribers?.size) {
-        const copy = new Set(subscribers);
-        for (const subscriber of copy) {
-          flattenLinkedWork(subscriber, queue);
-        }
+  if (target.type === 'publisher') {
+    const { subscribers } = target;
+    if (subscribers?.size) {
+      const copy = new Set(subscribers);
+      for (const subscriber of copy) {
+        flattenLinkedWork(subscriber, queue);
       }
-    } else {
-      queue.delete(target);
-      queue.add(target);
     }
+  } else {
+    // Sets are internally ordered, so we can emulate
+    // a simple queue where we move the node to the end
+    // of the order
+    // Currently this is the fastest and cheapest
+    // non-linked list operation we can do
+    queue.delete(target);
+    queue.add(target);
   }
 }
 
 function evaluateLinkedWork(target: LinkedWork): void {
-  if (target.alive) {
-    if (target.type === 'publisher') {
-      const { subscribers } = target;
-      if (subscribers?.size) {
-        const copy = new Set(subscribers);
-        for (const subscriber of copy) {
-          RUNNER(subscriber);
-        }
+  if (target.type === 'publisher') {
+    const { subscribers } = target;
+    if (subscribers?.size) {
+      const copy = new Set(subscribers);
+      for (const subscriber of copy) {
+        RUNNER(subscriber);
       }
-    } else {
-      RUNNER(target);
     }
+  } else {
+    RUNNER(target);
   }
 }
 
 export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void {
-  if (queue) {
-    flattenLinkedWork(target, queue);
-  } else {
-    evaluateLinkedWork(target);
+  if (target.alive) {
+    if (queue) {
+      flattenLinkedWork(target, queue);
+    } else {
+      evaluateLinkedWork(target);
+    }
   }
 }
 
