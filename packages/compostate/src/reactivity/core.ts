@@ -733,6 +733,7 @@ export function computedAtom<T>(
 interface ProcessWork extends LinkedWork {
   cleanup?: Cleanup;
   errorBoundary?: ErrorBoundary;
+  context?: ContextTree;
 }
 
 function runComputationProcess(target: ComputationWork<any>) {
@@ -781,12 +782,14 @@ function runProcess(target: ProcessWork) {
     return;
   }
   unlinkLinkedWorkPublishers(target);
+  const parentContext = CONTEXT;
   const parentTracking = TRACKING;
   const parentBatchEffects = BATCH_EFFECTS;
   const parentErrorBoundary = ERROR_BOUNDARY;
   ERROR_BOUNDARY = target.errorBoundary;
   BATCH_EFFECTS = undefined;
   TRACKING = target;
+  CONTEXT = target.context;
   try {
     switch (target.tag) {
       case WORK_COMPUTATION:
@@ -804,6 +807,7 @@ function runProcess(target: ProcessWork) {
   } catch (error) {
     handleError(target.errorBoundary, error);
   } finally {
+    CONTEXT = parentContext;
     TRACKING = parentTracking;
     BATCH_EFFECTS = parentBatchEffects;
     ERROR_BOUNDARY = parentErrorBoundary;
