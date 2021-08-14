@@ -507,11 +507,13 @@ interface WatchWork<T> extends ProcessWork {
   source?: () => T,
   listen?: (next: T, prev?: T) => void,
   current?: T;
+  shouldUpdate?: (next: T, prev: T) => boolean,
 }
 
 export function watch<T>(
   source: () => T,
   listen: (next: T, prev?: T) => void,
+  shouldUpdate: (next: T, prev: T) => boolean = is,
 ): () => void {
   if (!HAS_PROCESS) {
     listen(source());
@@ -522,6 +524,7 @@ export function watch<T>(
     source,
     listen,
     errorBoundary: ERROR_BOUNDARY,
+    shouldUpdate,
   });
 
   runLinkedWork(work);
@@ -531,6 +534,7 @@ export function watch<T>(
     work.listen = undefined;
     work.current = undefined;
     work.errorBoundary = undefined;
+    work.shouldUpdate = undefined;
     destroyLinkedWork(work);
   });
 }
@@ -586,7 +590,10 @@ export function isRef<T>(object: any): object is Ref<T> {
   return object && typeof object === 'object' && REF in object;
 }
 
-export function computed<T>(compute: () => T): Ref<T> {
+export function computed<T>(
+  compute: () => T,
+  shouldUpdate: (next: T, prev: T) => boolean = is,
+): Ref<T> {
   const instance = createReactiveAtom();
 
   onCleanup(() => {
@@ -603,7 +610,7 @@ export function computed<T>(compute: () => T): Ref<T> {
     } else {
       notifyReactiveAtom(instance);
     }
-  });
+  }, shouldUpdate);
 
   const node: Ref<T> & WithRef = {
     [REF]: true,
@@ -633,11 +640,14 @@ class RefNode<T> implements WithRef {
 
   private instance: ReactiveAtom;
 
+  private shouldUpdate: (next: T, prev: T) => boolean;
+
   [REF]: true;
 
-  constructor(value: T, instance: ReactiveAtom) {
+  constructor(value: T, instance: ReactiveAtom, shouldUpdate: (next: T, prev: T) => boolean) {
     this.val = value;
     this.instance = instance;
+    this.shouldUpdate = shouldUpdate;
   }
 
   get value() {
@@ -648,19 +658,22 @@ class RefNode<T> implements WithRef {
   }
 
   set value(next: T) {
-    if (!is(next, this.val)) {
+    if (!this.shouldUpdate(next, this.val)) {
       this.val = next;
       notifyReactiveAtom(this.instance);
     }
   }
 }
 
-export function ref<T>(value: T): Ref<T> {
+export function ref<T>(
+  value: T,
+  shouldUpdate: (next: T, prev: T) => boolean = is,
+): Ref<T> {
   const instance = createReactiveAtom();
   onCleanup(() => {
     destroyLinkedWork(instance);
   });
-  return new RefNode(value, instance);
+  return new RefNode(value, instance, shouldUpdate);
 }
 
 export interface Atom<T> {
@@ -668,7 +681,7 @@ export interface Atom<T> {
   (next: T): T;
 }
 
-export function atom<T>(value: T): Atom<T> {
+export function atom<T>(value: T, shouldUpdate: (next: T, prev: T) => boolean = is): Atom<T> {
   const instance = createReactiveAtom();
   onCleanup(() => {
     destroyLinkedWork(instance);
@@ -676,7 +689,7 @@ export function atom<T>(value: T): Atom<T> {
   return (...args: [] | [T]) => {
     if (args.length === 1) {
       const next = args[0];
-      if (!is(next, value)) {
+      if (!shouldUpdate(next, value)) {
         value = next;
         notifyReactiveAtom(instance);
       }
@@ -687,7 +700,10 @@ export function atom<T>(value: T): Atom<T> {
   };
 }
 
-export function computedAtom<T>(compute: () => T): () => T {
+export function computedAtom<T>(
+  compute: () => T,
+  shouldUpdate: (next: T, prev: T) => boolean = is,
+): () => T {
   const instance = createReactiveAtom();
 
   onCleanup(() => {
@@ -704,7 +720,7 @@ export function computedAtom<T>(compute: () => T): () => T {
     } else {
       notifyReactiveAtom(instance);
     }
-  });
+  }, shouldUpdate);
 
   return () => {
     if (TRACKING) {
@@ -738,7 +754,8 @@ function runWatchProcess(target: WatchWork<any>) {
       const hasCurrent = 'current' in target;
       const next = source();
       const prev = target.current;
-      if ((hasCurrent && !is(next, prev)) || !hasCurrent) {
+      const compare = target.shouldUpdate ?? is;
+      if ((hasCurrent && !compare(next, prev)) || !hasCurrent) {
         target.cleanup?.();
         target.cleanup = batchCleanup(() => {
           target.current = next;
