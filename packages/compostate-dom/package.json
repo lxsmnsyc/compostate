@@ -1,6 +1,6 @@
 {
   "description": "compostate with a Fine-Grained Renderer",
-  "version": "0.2.1-no-vdom.56",
+  "version": "0.2.1-no-vdom.58",
   "types": "dist/types/index.d.ts",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -21,9 +21,9 @@
   ],
   "name": "compostate-dom",
   "devDependencies": {
-    "compostate": "0.2.1-no-vdom.57",
     "@types/jest": "^27.0.0",
     "@types/node": "^16.6.0",
+    "compostate": "0.2.1-no-vdom.58",
     "eslint": "^7.32.0",
     "eslint-config-lxsmnsyc": "^0.2.3",
     "pridepack": "^0.10.0",
