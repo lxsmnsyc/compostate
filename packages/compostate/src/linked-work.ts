@@ -67,6 +67,11 @@ function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
       }
     }
   } else {
+    // Sets are internally ordered, so we can emulate
+    // a simple queue where we move the node to the end
+    // of the order
+    // Currently this is the fastest and cheapest
+    // non-linked list operation we can do
     queue.delete(target);
     queue.add(target);
   }
