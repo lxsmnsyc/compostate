@@ -1,28 +1,50 @@
-export interface LinkedWork {
+interface Work {
   tag: number;
   id: number;
   alive: boolean;
-  publishers?: Set<LinkedWork>;
-  subscribers?: Set<LinkedWork>
+}
+export interface PublisherWork extends Work {
+  type: 'publisher';
+  subscribers?: Set<SubscriberWork>
 }
 
-let RUNNER: (work: LinkedWork) => void;
+export interface SubscriberWork extends Work {
+  type: 'subscriber';
+  publishers?: Set<PublisherWork>;
+}
 
-export function setRunner(work: (work: LinkedWork) => void): void {
+export type LinkedWork = PublisherWork | SubscriberWork;
+
+let RUNNER: (work: SubscriberWork) => void;
+
+export function setRunner(work: (work: SubscriberWork) => void): void {
   RUNNER = work;
 }
 
 let STATE = 0;
 
-export function createLinkedWork(tag: number): LinkedWork {
+export function createPublisherWork(tag: number): PublisherWork {
   return {
+    type: 'publisher',
     tag,
     id: STATE++,
     alive: true,
   };
 }
 
-export function linkLinkedWork(publisher: LinkedWork, subscriber: LinkedWork): void {
+export function createSubscriberWork(tag: number): SubscriberWork {
+  return {
+    type: 'subscriber',
+    tag,
+    id: STATE++,
+    alive: true,
+  };
+}
+
+export function publisherLinkSubscriber(
+  publisher: PublisherWork,
+  subscriber: SubscriberWork,
+): void {
   if (publisher.alive && subscriber.alive) {
     if (!publisher.subscribers) {
       publisher.subscribers = new Set();
@@ -37,33 +59,33 @@ export function linkLinkedWork(publisher: LinkedWork, subscriber: LinkedWork): v
 
 function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
   if (target.alive) {
-    queue.delete(target);
-    queue.add(target);
-    const { subscribers } = target;
-    if (subscribers?.size) {
-      const copy = new Set(subscribers);
-      for (const subscriber of copy) {
-        flattenLinkedWork(subscriber, queue);
+    if (target.type === 'publisher') {
+      const { subscribers } = target;
+      if (subscribers?.size) {
+        const copy = new Set(subscribers);
+        for (const subscriber of copy) {
+          flattenLinkedWork(subscriber, queue);
+        }
       }
+    } else {
+      queue.delete(target);
+      queue.add(target);
     }
-  }
-}
-
-export function runLinkedWorkAlone(target: LinkedWork): void {
-  if (target.alive) {
-    RUNNER(target);
   }
 }
 
 function evaluateLinkedWork(target: LinkedWork): void {
   if (target.alive) {
-    RUNNER(target);
-    const { subscribers } = target;
-    if (subscribers?.size) {
-      const copy = new Set(subscribers);
-      for (const subscriber of copy) {
-        evaluateLinkedWork(subscriber);
+    if (target.type === 'publisher') {
+      const { subscribers } = target;
+      if (subscribers?.size) {
+        const copy = new Set(subscribers);
+        for (const subscriber of copy) {
+          RUNNER(subscriber);
+        }
       }
+    } else {
+      RUNNER(target);
     }
   }
 }
@@ -76,7 +98,7 @@ export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void
   }
 }
 
-export function unlinkLinkedWorkPublishers(target: LinkedWork): void {
+export function unlinkLinkedWorkPublishers(target: SubscriberWork): void {
   const { publishers } = target;
   if (publishers) {
     const copy = new Set(publishers);
@@ -89,8 +111,11 @@ export function unlinkLinkedWorkPublishers(target: LinkedWork): void {
 
 export function destroyLinkedWork(target: LinkedWork): void {
   target.alive = false;
-  unlinkLinkedWorkPublishers(target);
-  target.subscribers?.clear();
-  target.subscribers = undefined;
-  target.publishers = undefined;
+  if (target.type === 'subscriber') {
+    unlinkLinkedWorkPublishers(target);
+    target.publishers = undefined;
+  } else {
+    target.subscribers?.clear();
+    target.subscribers = undefined;
+  }
 }

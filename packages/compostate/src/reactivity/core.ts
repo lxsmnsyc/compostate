@@ -26,13 +26,15 @@
  * @copyright Alexis Munsayac 2021
  */
 import {
-  createLinkedWork,
+  createPublisherWork,
+  createSubscriberWork,
   destroyLinkedWork,
   LinkedWork,
-  linkLinkedWork,
+  publisherLinkSubscriber,
+  PublisherWork,
   runLinkedWork,
-  runLinkedWorkAlone,
   setRunner,
+  SubscriberWork,
   unlinkLinkedWorkPublishers,
 } from '../linked-work';
 import { cancelCallback, requestCallback, Task } from '../scheduler';
@@ -53,7 +55,7 @@ const WORK_EFFECT = 0b00000100;
 const WORK_WATCH = 0b00001000;
 
 // Execution contexts
-export let TRACKING: LinkedWork | undefined;
+export let TRACKING: SubscriberWork | undefined;
 let BATCH_UPDATES: Set<LinkedWork> | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
 let BATCH_EFFECTS: EffectWork[] | undefined;
@@ -308,10 +310,10 @@ export function captureError(): ErrorCapture {
 /**
  * Linked Work
  */
-export type ReactiveAtom = LinkedWork;
+export type ReactiveAtom = PublisherWork;
 
 export function createReactiveAtom(): ReactiveAtom {
-  return createLinkedWork(WORK_ATOM);
+  return createPublisherWork(WORK_ATOM);
 }
 
 export function destroyReactiveAtom(target: ReactiveAtom): void {
@@ -319,7 +321,7 @@ export function destroyReactiveAtom(target: ReactiveAtom): void {
 }
 
 export function trackReactiveAtom(target: ReactiveAtom): void {
-  linkLinkedWork(target, TRACKING!);
+  publisherLinkSubscriber(target, TRACKING!);
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
@@ -329,7 +331,7 @@ export function notifyReactiveAtom(target: ReactiveAtom): void {
   if (!parent) {
     BATCH_UPDATES = instance;
     for (const work of instance) {
-      runLinkedWorkAlone(work);
+      runLinkedWork(work);
     }
     BATCH_UPDATES = undefined;
   }
@@ -347,7 +349,7 @@ export function batch(callback: () => void): void {
   if (!parent) {
     BATCH_UPDATES = instance;
     for (const work of instance) {
-      runLinkedWorkAlone(work);
+      runLinkedWork(work);
     }
     BATCH_UPDATES = undefined;
   }
@@ -372,7 +374,7 @@ export function createTransition(timeout?: number): Transition {
       if (transitions.size) {
         BATCH_UPDATES = transitions;
         for (const work of transitions) {
-          runLinkedWorkAlone(work);
+          runLinkedWork(work);
         }
         BATCH_UPDATES = undefined;
         transitions.clear();
@@ -422,7 +424,7 @@ export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup 
     return NO_OP;
   }
 
-  const work: ComputationWork<T> = assign(createLinkedWork(WORK_COMPUTATION), {
+  const work: ComputationWork<T> = assign(createSubscriberWork(WORK_COMPUTATION), {
     current: initial,
     process: callback,
     errorBoundary: ERROR_BOUNDARY,
@@ -447,7 +449,7 @@ interface EffectWork extends ProcessWork {
 }
 
 function createEffect(callback: Effect): EffectWork {
-  const node = assign(createLinkedWork(WORK_EFFECT), {
+  const node = assign(createSubscriberWork(WORK_EFFECT), {
     callback,
     errorBoundary: ERROR_BOUNDARY,
   });
@@ -520,7 +522,7 @@ export function watch<T>(
     return NO_OP;
   }
 
-  const work: WatchWork<T> = assign(createLinkedWork(WORK_WATCH), {
+  const work: WatchWork<T> = assign(createSubscriberWork(WORK_WATCH), {
     source,
     listen,
     errorBoundary: ERROR_BOUNDARY,
@@ -730,7 +732,7 @@ export function computedAtom<T>(
   };
 }
 
-interface ProcessWork extends LinkedWork {
+interface ProcessWork extends SubscriberWork {
   cleanup?: Cleanup;
   errorBoundary?: ErrorBoundary;
   context?: ContextTree;
@@ -778,9 +780,6 @@ function runEffectProcess(target: EffectWork) {
 }
 
 function runProcess(target: ProcessWork) {
-  if (target.tag === WORK_ATOM) {
-    return;
-  }
   unlinkLinkedWorkPublishers(target);
   const parentContext = CONTEXT;
   const parentTracking = TRACKING;
@@ -882,7 +881,7 @@ export function selector<T, U extends T>(
     return (key: U) => fn(key, result);
   }
 
-  const subs = new Map<U, Set<LinkedWork>>();
+  const subs = new Map<U, Set<SubscriberWork>>();
   let v: T;
   watch(source, (current, prev) => {
     const keys = Array.from(subs.keys());
@@ -893,7 +892,7 @@ export function selector<T, U extends T>(
         const listeners = subs.get(key);
         if (listeners) {
           for (const listener of listeners) {
-            notifyReactiveAtom(listener);
+            runLinkedWork(listener);
           }
         }
       }
@@ -904,7 +903,7 @@ export function selector<T, U extends T>(
   return (key: U) => {
     const current = TRACKING;
     if (current) {
-      let listeners: Set<LinkedWork>;
+      let listeners: Set<SubscriberWork>;
       const currentListeners = subs.get(key);
       if (currentListeners) {
         listeners = currentListeners;
