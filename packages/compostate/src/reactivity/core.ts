@@ -595,7 +595,7 @@ export function isRef<T>(object: any): object is Ref<T> {
 export function computed<T>(
   compute: () => T,
   shouldUpdate: (next: T, prev: T) => boolean = is,
-): Ref<T> {
+): Readonly<Ref<T>> {
   const instance = createReactiveAtom();
 
   onCleanup(() => {
@@ -614,8 +614,9 @@ export function computed<T>(
     }
   }, shouldUpdate);
 
-  const node: Ref<T> & WithRef = {
+  const node: Ref<T> & WithRef & WithReadonly = {
     [REF]: true,
+    [READONLY]: true,
     get value(): T {
       if (TRACKING) {
         trackReactiveAtom(instance);
@@ -644,12 +645,17 @@ class RefNode<T> implements WithRef {
 
   private shouldUpdate: (next: T, prev: T) => boolean;
 
-  [REF]: true;
+  [REF]: boolean;
 
-  constructor(value: T, instance: ReactiveAtom, shouldUpdate: (next: T, prev: T) => boolean) {
+  constructor(
+    value: T,
+    instance: ReactiveAtom,
+    shouldUpdate: (next: T, prev: T) => boolean,
+  ) {
     this.val = value;
     this.instance = instance;
     this.shouldUpdate = shouldUpdate;
+    this[REF] = true;
   }
 
   get value() {
