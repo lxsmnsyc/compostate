@@ -61,9 +61,9 @@ function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
   if (target.type === 'publisher') {
     const { subscribers } = target;
     if (subscribers?.size) {
-      const copy = new Set(subscribers);
-      for (const subscriber of copy) {
-        flattenLinkedWork(subscriber, queue);
+      const copy = Array.from(subscribers);
+      for (let i = 0, len = copy.length; i < len; i++) {
+        flattenLinkedWork(copy[i], queue);
       }
     }
   } else {
@@ -81,9 +81,9 @@ function evaluateLinkedWork(target: LinkedWork): void {
   if (target.type === 'publisher') {
     const { subscribers } = target;
     if (subscribers?.size) {
-      const copy = new Set(subscribers);
-      for (const subscriber of copy) {
-        RUNNER(subscriber);
+      const copy = Array.from(subscribers);
+      for (let i = 0, len = copy.length; i < len; i++) {
+        RUNNER(copy[i]);
       }
     }
   } else {
@@ -104,9 +104,9 @@ export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void
 export function unlinkLinkedWorkPublishers(target: SubscriberWork): void {
   const { publishers } = target;
   if (publishers) {
-    const copy = new Set(publishers);
-    for (const publisher of copy) {
-      publisher.subscribers?.delete(target);
+    const copy = Array.from(publishers);
+    for (let i = 0, len = copy.length; i < len; i++) {
+      copy[i].subscribers?.delete(target);
     }
     publishers.clear();
   }
