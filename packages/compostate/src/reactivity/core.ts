@@ -248,9 +248,9 @@ function handleError(instance: ErrorBoundary | undefined, error: Error): void {
       const parentTracking = TRACKING;
       TRACKING = undefined;
       try {
-        const copy = new Set(calls);
-        for (const handle of copy) {
-          handle(error);
+        const copy = Array.from(calls);
+        for (let i = 0, len = copy.length; i < len; i++) {
+          copy[i](error);
         }
       } catch (newError) {
         handleError(parent, error);
