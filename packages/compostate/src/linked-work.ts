@@ -58,43 +58,41 @@ export function publisherLinkSubscriber(
 }
 
 function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
-  if (target.alive) {
-    if (target.type === 'publisher') {
-      const { subscribers } = target;
-      if (subscribers?.size) {
-        const copy = new Set(subscribers);
-        for (const subscriber of copy) {
-          flattenLinkedWork(subscriber, queue);
-        }
+  if (target.type === 'publisher') {
+    const { subscribers } = target;
+    if (subscribers?.size) {
+      const copy = new Set(subscribers);
+      for (const subscriber of copy) {
+        flattenLinkedWork(subscriber, queue);
       }
-    } else {
-      queue.delete(target);
-      queue.add(target);
     }
+  } else {
+    queue.delete(target);
+    queue.add(target);
   }
 }
 
 function evaluateLinkedWork(target: LinkedWork): void {
-  if (target.alive) {
-    if (target.type === 'publisher') {
-      const { subscribers } = target;
-      if (subscribers?.size) {
-        const copy = new Set(subscribers);
-        for (const subscriber of copy) {
-          RUNNER(subscriber);
-        }
+  if (target.type === 'publisher') {
+    const { subscribers } = target;
+    if (subscribers?.size) {
+      const copy = new Set(subscribers);
+      for (const subscriber of copy) {
+        RUNNER(subscriber);
       }
-    } else {
-      RUNNER(target);
     }
+  } else {
+    RUNNER(target);
   }
 }
 
 export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void {
-  if (queue) {
-    flattenLinkedWork(target, queue);
-  } else {
-    evaluateLinkedWork(target);
+  if (target.alive) {
+    if (queue) {
+      flattenLinkedWork(target, queue);
+    } else {
+      evaluateLinkedWork(target);
+    }
   }
 }
 
