@@ -21,6 +21,7 @@
   ],
   "name": "compostate-dom",
   "devDependencies": {
+    "compostate": "0.2.1-no-vdom.57",
     "@types/jest": "^27.0.0",
     "@types/node": "^16.6.0",
     "eslint": "^7.32.0",
