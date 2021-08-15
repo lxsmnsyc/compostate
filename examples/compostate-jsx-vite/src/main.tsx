@@ -5,7 +5,6 @@ import {
   For,
   Fragment,
   render,
-  derived,
 } from 'compostate-jsx';
 import {
   effect,
@@ -55,23 +54,23 @@ function TodoListItem(props: TodoListItemProps) {
 
   return (
     <div
-      className={derived(() => (
+      className={() => (
         `todo-item ${item.done ? 'complete' : 'pending'}`
-      ))}
+      )}
     >
       <div className="todo-item-content">
-        {derived(() => item.message)}
+        {() => item.message}
       </div>
       <div className="todo-item-actions">
         <button
-          className={derived(() => (
+          className={() => (
             `todo-item-toggle ${item.done ? 'complete' : 'pending'}`
-          ))}
+          )}
           onClick={onToggle}
         >
-          {derived(() => (item.done ? 'Completed' : 'Pending'))}
+          {() => (item.done ? 'Completed' : 'Pending')}
         </button>
-        <button className="todo-item-delete" onClick={onRemove}>
+        <button className="todo-item-delete" onClick={() => onRemove}>
           Delete
         </button>
       </div>
@@ -98,20 +97,18 @@ function TodoListForm() {
     message.value = '';
   }
 
-  const disableButton = derived(() => message.value === '');
-
   return (
-    <form className="todo-list-form" onSubmit={onSubmit}>
+    <form className="todo-list-form" onSubmit={() => onSubmit}>
       <input
         type="text"
         value={message}
-        onInput={(e) => {
+        onInput={() => (e) => {
           message.value = (e.target as HTMLInputElement).value;
         }}
       />
       <button
         type="submit"
-        disabled={disableButton}
+        disabled={() => message.value === ''}
       >
         Add
       </button>
@@ -126,7 +123,7 @@ function TodoList() {
       <div className="todo-list">
         <For
           in={list}
-          each={(item) => (
+          each={() => (item) => (
             <TodoListItem item={item} />
           )}
         />
