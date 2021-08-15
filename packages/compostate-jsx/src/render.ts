@@ -2,23 +2,16 @@
 import {
   computation,
   createRoot,
-  untrack,
 } from 'compostate';
-import {
-  Fragment,
-  Suspense,
-} from './special';
 import { createHydration, HYDRATION, setHydration } from './hydration';
 import renderChildren from './render/render-children';
-import unwrapRef from './render/unwrap-ref';
 import {
   VNode,
   WithChildren,
 } from './types';
-import { evalDerived, isDerived } from './reactivity';
 
 export function render(root: HTMLElement, element: () => VNode): () => void {
-  return createRoot(() => computation((prev) => {
+  return createRoot(() => computation<VNode>((prev) => {
     const next = element();
     renderChildren(
       root,
@@ -70,46 +63,34 @@ export function renderToString(element: VNode): string {
   if (typeof element === 'string' || typeof element === 'number') {
     return `${element}`;
   }
-  if ('value' in element) {
-    return renderToString(element.value);
-  }
-  if (isDerived(element)) {
-    return renderToString(evalDerived(element));
+  if (typeof element === 'function') {
+    return renderToString(element());
   }
   const { type, props } = element;
-  const constructor = untrack(() => unwrapRef(type));
 
-  if (constructor) {
-    if (typeof constructor === 'string') {
-      if (VOID_ELEMENTS.test(constructor)) {
-        return `<${constructor} ${propsToString(props)} />`;
+  if (typeof type === 'string') {
+    if (VOID_ELEMENTS.test(type)) {
+      return `<${type} ${propsToString(props)} />`;
+    }
+    let content = '';
+    Object.entries(props).forEach(([key, value]) => {
+      switch (key) {
+        case 'textContent':
+        case 'innerHTML':
+          content = value as string;
+          break;
+        case 'children':
+          content = renderToString(value);
+          break;
+        default:
+          break;
       }
-      let content = '';
-      Object.entries(props).forEach(([key, value]) => {
-        switch (key) {
-          case 'textContent':
-          case 'innerHTML':
-            content = value as string;
-            break;
-          case 'children':
-            content = renderToString(value);
-            break;
-          default:
-            break;
-        }
-      });
+    });
 
-      return `<${constructor} ${propsToString(props)}>${content}</${constructor}>`;
-    }
-    if (typeof constructor === 'function') {
-      return renderToString(constructor(props));
-    }
-    if (constructor === Fragment) {
-      return renderToString(props.children);
-    }
-    if (constructor === Suspense) {
-      return renderToString(props.fallback);
-    }
+    return `<${type} ${propsToString(props)}>${content}</${type}>`;
+  }
+  if (typeof type === 'function') {
+    return renderToString(type(props));
   }
   return renderToString((props as WithChildren).children);
 }

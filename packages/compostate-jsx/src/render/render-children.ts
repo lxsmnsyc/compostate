@@ -1,4 +1,4 @@
-import { computation, isReactive, onCleanup } from 'compostate';
+import { computation, onCleanup } from 'compostate';
 import { VNode } from '../types';
 import {
   createFragment,
@@ -8,7 +8,6 @@ import {
   remove,
 } from '../dom';
 import diff from './diff';
-import { evalDerived, isDerived } from '../reactivity';
 
 function hasReactiveChildren(children: VNode[]): boolean {
   for (let i = 0, len = children.length, child: VNode; i < len; i++) {
@@ -17,7 +16,7 @@ function hasReactiveChildren(children: VNode[]): boolean {
     if (Array.isArray(child)) {
       return hasReactiveChildren(child);
     }
-    if (child && typeof child === 'object' && (isDerived(child) || isReactive(child))) {
+    if (typeof child === 'function') {
       return true;
     }
   }
@@ -36,14 +35,8 @@ function normalizeChildren(children: VNode[], base: Node[] = []): Node[] {
       normalizeChildren(child, base);
     } else if (typeof child === 'string' || typeof child === 'number') {
       base.push(createText(`${child}`));
-    } else if (isDerived(child)) {
-      const item = evalDerived(child);
-      normalizeChildren(
-        Array.isArray(item) ? item : [item],
-        base,
-      );
-    } else {
-      const item = child.value;
+    } else if (typeof child === 'function') {
+      const item = child();
       normalizeChildren(
         Array.isArray(item) ? item : [item],
         base,
@@ -97,7 +90,7 @@ export default function renderChildren(
     } else if (hasReactiveChildren(children)) {
       const childMarker = createMarker();
       insert(root, childMarker, marker);
-      computation((prev) => {
+      computation<VNode>((prev) => {
         const next = normalizeChildren(children);
         renderChildren(root, next, prev, childMarker, true);
         return next;
@@ -127,22 +120,11 @@ export default function renderChildren(
     });
   } else if (children == null || children === true || children === false) {
     // skip
-  } else if (isDerived(children)) {
+  } else if (typeof children === 'function') {
     const childMarker = createMarker();
     insert(root, childMarker, marker);
-    computation((prev) => {
-      const next = evalDerived(children);
-      renderChildren(root, next, prev, childMarker);
-      return next;
-    });
-    onCleanup(() => {
-      remove(childMarker);
-    });
-  } else {
-    const childMarker = createMarker();
-    insert(root, childMarker, marker);
-    computation((prev) => {
-      const next = children.value;
+    computation<VNode>((prev) => {
+      const next = children();
       renderChildren(root, next, prev, childMarker);
       return next;
     });

@@ -1,5 +1,4 @@
 import { contextual, errorBoundary, resource } from 'compostate';
-import { derived } from './reactivity';
 import { suspend } from './suspense';
 import { VComponent } from './types';
 
@@ -17,11 +16,11 @@ export function lazy<P>(mod: () => Promise<VComponent<P>>): VComponent<P> {
 
     suspend(data);
 
-    return derived(() => {
+    return () => {
       if (data.status === 'success') {
         return data.value(props);
       }
       return undefined;
-    });
+    };
   };
 }

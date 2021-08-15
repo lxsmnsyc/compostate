@@ -2,7 +2,6 @@ import {
   onCleanup,
   captureError,
   watch,
-  Cleanup,
 } from 'compostate';
 import {
   createStyle,
@@ -10,7 +9,6 @@ import {
   setAttribute,
 } from '../../dom';
 import { claimHydration, HYDRATION } from '../../hydration';
-import { evalDerived, isDerived } from '../../reactivity';
 import { Reactive, RefAttributes, VNode } from '../../types';
 import { DOMAttributes } from '../../types/dom';
 import renderChildren from '../render-children';
@@ -78,13 +76,8 @@ export default function renderHostNode<P extends DOMAttributes<Element>>(
         renderChildren(el, props.children, null, null);
       } else {
         const rawProperty = props[key as keyof typeof props];
-        const isObject = typeof rawProperty === 'object';
-        if (isObject && isDerived(rawProperty)) {
-          watch(() => evalDerived(rawProperty), (prop) => {
-            applyHostProperty(el, key, prop);
-          });
-        } else if (isObject && 'value' in rawProperty) {
-          watch(() => rawProperty.value, (prop) => {
+        if (typeof rawProperty === 'function') {
+          watch(rawProperty, (prop) => {
             applyHostProperty(el, key, prop);
           });
         } else {

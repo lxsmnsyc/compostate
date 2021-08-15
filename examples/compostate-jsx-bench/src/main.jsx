@@ -4,7 +4,6 @@ import {
   c,
   For,
   render,
-  derived,
 } from 'compostate-jsx';
 import {
   atom,
@@ -33,7 +32,7 @@ function buildData(count) {
 
 const Button = ({ id, text, fn }) => (
   <div class='col-sm-6 smallpad'>
-    <button id={id} class='btn btn-primary btn-block' type='button' onClick={fn}>
+    <button id={id} class='btn btn-primary btn-block' type='button' onClick={() => fn}>
       {text}
     </button>
   </div>
@@ -85,12 +84,12 @@ const Main = () => {
           <h1>compostate-jsx</h1></div>
           <div class='col-md-6'>
             <div class='row'>
-              <Button id='run' text='Create 1,000 rows' fn={run} />
-              <Button id='runlots' text='Create 10,000 rows' fn={runLots} />
-              <Button id='add' text='Append 1,000 rows' fn={add} />
-              <Button id='update' text='Update every 10th row' fn={update} />
-              <Button id='clear' text='Clear' fn={clear} />
-              <Button id='swaprows' text='Swap Rows' fn={swapRows} />
+              <Button id='run' text='Create 1,000 rows' fn={() => run} />
+              <Button id='runlots' text='Create 10,000 rows' fn={() => runLots} />
+              <Button id='add' text='Append 1,000 rows' fn={() => add} />
+              <Button id='update' text='Update every 10th row' fn={() => update} />
+              <Button id='clear' text='Clear' fn={() => clear} />
+              <Button id='swaprows' text='Swap Rows' fn={() => swapRows} />
             </div>
           </div>
         </div>
@@ -98,8 +97,8 @@ const Main = () => {
       <table class='table table-hover table-striped test-data'>
         <tbody>
           <For
-            in={derived(data)}
-            each={(row) => {
+            in={data}
+            each={() => (row) => {
               const rowId = row.id;
               const onSelect = () => {
                 selected(rowId);
@@ -107,19 +106,19 @@ const Main = () => {
               const onRemove = () => {
                 remove(rowId);
               }
-              const selectedDerived = derived(() => (
+              const selectedDerived = () => (
                 isSelected(rowId)
                   ? 'danger'
                   : ''
-              ));
+              );
               return (
                 <tr class={selectedDerived}>
                   <td class='col-md-1' textContent={rowId} />
                   <td class='col-md-4'>
-                    <a onClick={onSelect} textContent={derived(row.label)} />
+                    <a onClick={() => onSelect} textContent={row.label} />
                   </td>
                   <td class='col-md-1'>
-                    <a onClick={onRemove}>
+                    <a onClick={() => onRemove}>
                       <span class='glyphicon glyphicon-remove' aria-hidden="true" />
                     </a>
                   </td>

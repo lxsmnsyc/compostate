@@ -3,10 +3,12 @@ export {
 } from './core';
 export {
   Fragment,
-  Suspense,
+  FragmentProps,
   Offscreen,
-  Portal,
+  Suspense,
+  SuspenseProps,
   For,
+  ForProps,
 } from './special';
 export {
   render,
@@ -17,9 +19,6 @@ export {
   suspend,
 } from './suspense';
 export * from './types';
-export {
-  derived,
-} from './reactivity';
 export {
   withContext,
   withErrorBoundary,
