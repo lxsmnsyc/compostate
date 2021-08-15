@@ -57,46 +57,54 @@ export function publisherLinkSubscriber(
   }
 }
 
-function flattenLinkedWork(target: LinkedWork, queue: Set<LinkedWork>): void {
-  if (target.type === 'publisher') {
-    const { subscribers } = target;
-    if (subscribers?.size) {
-      const copy = Array.from(subscribers);
-      for (let i = 0, len = copy.length; i < len; i++) {
-        flattenLinkedWork(copy[i], queue);
-      }
+function enqueueSubscriberWork(
+  target: SubscriberWork,
+  queue: Set<LinkedWork>,
+): void {
+  // Sets are internally ordered, so we can emulate
+  // a simple queue where we move the node to the end
+  // of the order
+  // Currently this is the fastest and cheapest
+  // non-linked list operation we can do
+  queue.delete(target);
+  queue.add(target);
+}
+
+function enqueuePublisherWork(
+  target: PublisherWork,
+  queue: Set<LinkedWork>,
+): void {
+  const { subscribers } = target;
+  if (subscribers?.size) {
+    const copy = Array.from(subscribers);
+    for (let i = 0, len = copy.length; i < len; i++) {
+      enqueueSubscriberWork(copy[i], queue);
     }
-  } else {
-    // Sets are internally ordered, so we can emulate
-    // a simple queue where we move the node to the end
-    // of the order
-    // Currently this is the fastest and cheapest
-    // non-linked list operation we can do
-    queue.delete(target);
-    queue.add(target);
   }
 }
 
-function evaluateLinkedWork(target: LinkedWork): void {
-  if (target.type === 'publisher') {
-    const { subscribers } = target;
-    if (subscribers?.size) {
-      const copy = Array.from(subscribers);
-      for (let i = 0, len = copy.length; i < len; i++) {
-        RUNNER(copy[i]);
-      }
+function evaluatePublisherWork(target: PublisherWork): void {
+  const { subscribers } = target;
+  if (subscribers?.size) {
+    const copy = Array.from(subscribers);
+    for (let i = 0, len = copy.length; i < len; i++) {
+      RUNNER(copy[i]);
     }
-  } else {
-    RUNNER(target);
   }
 }
 
 export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void {
   if (target.alive) {
-    if (queue) {
-      flattenLinkedWork(target, queue);
+    if (target.type === 'publisher') {
+      if (queue) {
+        enqueuePublisherWork(target, queue);
+      } else {
+        evaluatePublisherWork(target);
+      }
+    } else if (queue) {
+      enqueueSubscriberWork(target, queue);
     } else {
-      evaluateLinkedWork(target);
+      RUNNER(target);
     }
   }
 }
