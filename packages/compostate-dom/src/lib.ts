@@ -128,7 +128,7 @@ export function Suspense(props: SuspenseProps): JSX.Element {
     // Track the resource size and set the value
     // of suspend to false when the resource size
     // becomes zero (no suspended resources)
-    return () => (track(resources).size > 0 ? fallback : children);
+    return () => (track(resources).size > 0 ? fallback() : children());
   });
 }
 
@@ -165,5 +165,5 @@ export function Offscreen(props: OffscreenProps): JSX.Element {
   effect(() => {
     children(props.children);
   });
-  return () => props.mount && children;
+  return () => props.mount && children();
 }
