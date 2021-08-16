@@ -1,9 +1,13 @@
-import { Atom, computed } from './core';
+import { computed, isRef } from './core';
 import { Ref } from './types';
+
+function isLazy<T>(value: any): value is () => T {
+  return typeof value === 'function';
+}
 
 export default function template<T>(
   strings: TemplateStringsArray,
-  ...args: (T | Ref<T> | Atom<T>)[]
+  ...args: (T | Ref<T> | (() => T))[]
 ): Ref<string> {
   return computed(() => {
     let result = '';
@@ -12,12 +16,12 @@ export default function template<T>(
       result = `${result}${strings[i]}`;
       if (a < args.length) {
         const node = args[a++];
-        if (typeof node === 'string') {
-          result = `${result}${String(node)}`;
-        } else if (typeof node === 'function') {
+        if (isRef(node)) {
+          result = `${result}${String(node.value)}`;
+        } else if (isLazy(node)) {
           result = `${result}${String(node())}`;
         } else {
-          result = `${result}${String(node.value)}`;
+          result = `${result}${String(node)}`;
         }
       }
     }
