@@ -9,15 +9,13 @@ export {
   SuspenseProps,
   For,
   ForProps,
+  suspend,
 } from './special';
 export {
   render,
   renderToString,
   hydrate,
 } from './render';
-export {
-  suspend,
-} from './suspense';
 export * from './types';
 export {
   withContext,
