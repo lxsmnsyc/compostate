@@ -1,9 +1,9 @@
 import { Atom, computed } from './core';
 import { Ref } from './types';
 
-export default function template(
+export default function template<T>(
   strings: TemplateStringsArray,
-  ...args: (string | Ref<string> | Atom<string>)[]
+  ...args: (T | Ref<T> | Atom<T>)[]
 ): Ref<string> {
   return computed(() => {
     let result = '';
@@ -13,11 +13,11 @@ export default function template(
       if (a < args.length) {
         const node = args[a++];
         if (typeof node === 'string') {
-          result = `${result}${node}`;
+          result = `${result}${String(node)}`;
         } else if (typeof node === 'function') {
-          result = `${result}${node()}`;
+          result = `${result}${String(node())}`;
         } else {
-          result = `${result}${node.value}`;
+          result = `${result}${String(node.value)}`;
         }
       }
     }
