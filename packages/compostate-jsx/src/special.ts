@@ -1,12 +1,10 @@
 import {
   atom,
-  Cleanup,
   contextual,
   createContext,
   effect,
   inject,
   map,
-  onCleanup,
   provide,
   reactive,
   Ref,
@@ -23,7 +21,7 @@ export interface SuspenseProps {
 }
 
 interface SuspenseData {
-  capture: <T>(resource: Resource<T>) => Cleanup
+  capture: <T>(resource: Resource<T>) => void
 }
 
 const SuspenseContext = createContext<SuspenseData | undefined>(undefined);
@@ -54,10 +52,12 @@ export function Suspense(props: SuspenseProps): VNode {
 
     provide(SuspenseContext, {
       capture: <T>(data: Resource<T>) => {
-        resources.add(data);
-        return () => {
-          resources.delete(data);
-        };
+        effect(() => {
+          resources.add(track(data));
+          return () => {
+            resources.delete(data);
+          };
+        });
       },
     });
 
@@ -82,7 +82,7 @@ export function suspend<T>(data: Resource<T>): void {
   const boundary = inject(SuspenseContext);
 
   if (boundary) {
-    onCleanup(boundary.capture(data));
+    boundary.capture(data);
   }
 }
 
