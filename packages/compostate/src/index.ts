@@ -33,7 +33,7 @@ export {
   // captures
   capturedBatchCleanup,
   capturedErrorBoundary,
-  capturedProvider,
+  capturedContext,
   captured,
   // cleanup
   onCleanup,
