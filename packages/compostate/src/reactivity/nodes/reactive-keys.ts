@@ -40,9 +40,8 @@ export function createReactiveKeys<K>(): ReactiveKeys<K> {
 }
 
 export function destroyReactiveKeys<K>(keys: ReactiveKeys<K>): void {
-  const values = Array.from(keys.values());
-  for (let i = 0, len = values.length; i < len; i++) {
-    destroyReactiveAtom(values[i]);
+  for (const value of keys.values()) {
+    destroyReactiveAtom(value);
   }
 }
 
@@ -80,11 +79,10 @@ export function notifyAllReactiveKeys<K>(
   destroy?: boolean,
 ): void {
   if (keys.size) {
-    const values = Array.from(keys.values());
-    for (let i = 0, len = values.length; i < len; i++) {
-      notifyReactiveAtom(values[i]);
+    for (const value of keys.values()) {
+      notifyReactiveAtom(value);
       if (destroy) {
-        destroyReactiveAtom(values[i]);
+        destroyReactiveAtom(value);
       }
     }
     if (destroy) {
