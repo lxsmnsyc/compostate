@@ -33,7 +33,7 @@ export {
   // captures
   capturedBatchCleanup,
   capturedErrorBoundary,
-  capturedProvider,
+  capturedContext,
   captured,
   // cleanup
   onCleanup,
@@ -78,12 +78,11 @@ export { map, index } from './reactivity/array';
 export { debounce, debouncedAtom } from './reactivity/debounce';
 export { default as reactive } from './reactivity/reactive';
 export { default as resource, Resource, ResourceOptions } from './reactivity/resource';
+export { spread, destructure, Spread } from './reactivity/spread';
 export {
-  spread,
-  destructure,
-  Spread,
-} from './reactivity/spread';
-export { default as template } from './reactivity/template';
+  template,
+  templateAtom,
+} from './reactivity/template';
 export {
   Effect,
   Cleanup,

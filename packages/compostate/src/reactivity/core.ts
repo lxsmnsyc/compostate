@@ -153,7 +153,7 @@ export function capturedErrorBoundary<T extends any[], R>(
   };
 }
 
-export function capturedProvider<T extends any[], R>(
+export function capturedContext<T extends any[], R>(
   callback: (...args: T) => R,
 ): (...args: T) => R {
   const current = CONTEXT;

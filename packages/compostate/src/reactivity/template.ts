@@ -1,9 +1,12 @@
-import { Atom, computed } from './core';
+import { computed, computedAtom, isRef } from './core';
 import { Ref } from './types';
 
-export default function template(
+function isLazy<T>(value: any): value is () => T {
+  return typeof value === 'function';
+}
+export function template<T>(
   strings: TemplateStringsArray,
-  ...args: (string | Ref<string> | Atom<string>)[]
+  ...args: (T | Ref<T> | (() => T))[]
 ): Ref<string> {
   return computed(() => {
     let result = '';
@@ -12,12 +15,36 @@ export default function template(
       result = `${result}${strings[i]}`;
       if (a < args.length) {
         const node = args[a++];
-        if (typeof node === 'string') {
-          result = `${result}${node}`;
-        } else if (typeof node === 'function') {
-          result = `${result}${node()}`;
+        if (isRef(node)) {
+          result = `${result}${String(node.value)}`;
+        } else if (isLazy(node)) {
+          result = `${result}${String(node())}`;
         } else {
-          result = `${result}${node.value}`;
+          result = `${result}${String(node)}`;
+        }
+      }
+    }
+    return result;
+  });
+}
+
+export function templateAtom<T>(
+  strings: TemplateStringsArray,
+  ...args: (T | Ref<T> | (() => T))[]
+): () => string {
+  return computedAtom(() => {
+    let result = '';
+    let a = 0;
+    for (let i = 0, len = strings.length; i < len; i++) {
+      result = `${result}${strings[i]}`;
+      if (a < args.length) {
+        const node = args[a++];
+        if (isRef(node)) {
+          result = `${result}${String(node.value)}`;
+        } else if (isLazy(node)) {
+          result = `${result}${String(node())}`;
+        } else {
+          result = `${result}${String(node)}`;
         }
       }
     }
