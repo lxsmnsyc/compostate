@@ -126,7 +126,7 @@ export function clearDelegatedEvents(
 ): void {
   const collection = document[$$EVENTS];
   if (collection) {
-    for (const name of collection) {
+    for (const name of collection.keys()) {
       document.removeEventListener(name, eventHandler);
     }
     delete document[$$EVENTS];
