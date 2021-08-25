@@ -76,9 +76,8 @@ function enqueuePublisherWork(
 ): void {
   const { subscribers } = target;
   if (subscribers?.size) {
-    const copy = Array.from(subscribers);
-    for (let i = 0, len = copy.length; i < len; i++) {
-      enqueueSubscriberWork(copy[i], queue);
+    for (const item of subscribers.keys()) {
+      enqueueSubscriberWork(item, queue);
     }
   }
 }
@@ -86,9 +85,8 @@ function enqueuePublisherWork(
 function evaluatePublisherWork(target: PublisherWork): void {
   const { subscribers } = target;
   if (subscribers?.size) {
-    const copy = Array.from(subscribers);
-    for (let i = 0, len = copy.length; i < len; i++) {
-      RUNNER(copy[i]);
+    for (const item of subscribers.keys()) {
+      RUNNER(item);
     }
   }
 }
@@ -112,9 +110,8 @@ export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void
 export function unlinkLinkedWorkPublishers(target: SubscriberWork): void {
   const { publishers } = target;
   if (publishers) {
-    const copy = Array.from(publishers);
-    for (let i = 0, len = copy.length; i < len; i++) {
-      copy[i].subscribers?.delete(target);
+    for (const item of publishers.keys()) {
+      item.subscribers?.delete(target);
     }
     publishers.clear();
   }

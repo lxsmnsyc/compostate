@@ -248,9 +248,8 @@ function handleError(instance: ErrorBoundary | undefined, error: Error): void {
       const parentTracking = TRACKING;
       TRACKING = undefined;
       try {
-        const copy = Array.from(calls);
-        for (let i = 0, len = copy.length; i < len; i++) {
-          copy[i](error);
+        for (const item of calls.keys()) {
+          item(error);
         }
       } catch (newError) {
         handleError(parent, error);
@@ -890,10 +889,7 @@ export function selector<T, U extends T>(
   const subs = new Map<U, Set<SubscriberWork>>();
   let v: T;
   watch(source, (current, prev) => {
-    const keys = Array.from(subs.keys());
-
-    for (let i = 0, len = keys.length; i < len; i++) {
-      const key = keys[i];
+    for (const key of subs.keys()) {
       if (fn(key, current) || (prev !== undefined && fn(key, prev))) {
         const listeners = subs.get(key);
         if (listeners) {
