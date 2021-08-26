@@ -1,6 +1,6 @@
 {
   "description": "compostate with a Fine-Grained Renderer",
-  "version": "0.2.1-beta.0",
+  "version": "0.2.1-beta.1",
   "types": "dist/types/index.d.ts",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
