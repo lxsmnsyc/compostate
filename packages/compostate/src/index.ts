@@ -26,7 +26,8 @@
  * @copyright Alexis Munsayac 2021
  */
 export {
-  createTransition,
+  startTransition,
+  isTransitionPending,
   batch,
   unbatch,
   createRoot,

@@ -354,63 +354,6 @@ export function batch(callback: () => void): void {
   }
 }
 
-export interface Transition {
-  start: (cb: () => void) => void;
-  isPending: () => boolean;
-}
-
-export function createTransition(timeout?: number): Transition {
-  const transitions = new Set<LinkedWork>();
-  let isPending = false;
-  let task: Task | undefined;
-
-  function schedule() {
-    isPending = true;
-    if (task) {
-      cancelCallback(task);
-    }
-    task = requestCallback(() => {
-      if (transitions.size) {
-        BATCH_UPDATES = transitions;
-        for (const work of transitions) {
-          runLinkedWork(work);
-        }
-        BATCH_UPDATES = undefined;
-        transitions.clear();
-      }
-      isPending = false;
-      task = undefined;
-    }, { timeout });
-  }
-
-  onCleanup(() => {
-    if (task) {
-      cancelCallback(task);
-    }
-    transitions.clear();
-    isPending = false;
-  });
-
-  return {
-    start(callback: () => void) {
-      const parent = BATCH_UPDATES;
-      BATCH_UPDATES = transitions;
-      try {
-        // Unbatch first so that the scheduled updates
-        // do not get pushed synchronously
-        callback();
-      } finally {
-        BATCH_UPDATES = parent;
-      }
-
-      schedule();
-    },
-    isPending() {
-      return isPending;
-    },
-  };
-}
-
 interface ComputationWork<T> extends ProcessWork {
   cleanup?: Cleanup;
   process?: (prev?: T) => T;
@@ -943,4 +886,62 @@ export function enableProcess<T>(callback: () => T): T {
   } finally {
     HAS_PROCESS = parent;
   }
+}
+
+const TRANSITIONS = new Set<LinkedWork>();
+const TRANSITION_PENDING = atom(false);
+let task: Task | undefined;
+
+function scheduleTransition() {
+  TRANSITION_PENDING(true);
+  if (task) {
+    cancelCallback(task);
+  }
+  task = requestCallback(() => {
+    TRANSITION_PENDING(false);
+    task = undefined;
+    if (TRANSITIONS.size) {
+      const transitions = new Set(TRANSITIONS);
+      BATCH_UPDATES = transitions;
+      try {
+        for (const work of transitions) {
+          runLinkedWork(work);
+        }
+      } finally {
+        BATCH_UPDATES = undefined;
+      }
+    }
+  });
+}
+
+export function startTransition(callback: () => void): void {
+  const parent = BATCH_UPDATES;
+  BATCH_UPDATES = TRANSITIONS;
+  try {
+    // Unbatch first so that the scheduled updates
+    // do not get pushed synchronously
+    callback();
+  } finally {
+    BATCH_UPDATES = parent;
+  }
+
+  scheduleTransition();
+}
+
+export function isTransitionPending(): boolean {
+  return TRANSITION_PENDING();
+}
+
+export function deferredAtom<T>(callback: () => T): () => T {
+  const state = atom(untrack(callback));
+  effect(() => {
+    startTransition(() => {
+      state(callback());
+    });
+  });
+  return () => state();
+}
+
+export function deferred<T>(callback: () => T): Readonly<Ref<T>> {
+  return computed(deferredAtom(callback));
 }
