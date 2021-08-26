@@ -12,10 +12,12 @@
     "publish": {
       "npmClient": "yarn",
       "allowBranch": [
-        "main"
+        "main",
+        "vdom",
+        "no-vdom"
       ],
       "registry": "https://registry.npmjs.org/"
     }
   },
-  "version": "0.2.1-alpha.19"
+  "version": "0.2.1-no-vdom.61"
 }

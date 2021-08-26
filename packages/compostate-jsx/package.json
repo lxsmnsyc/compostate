@@ -1,4 +1,5 @@
 {
+  "description": "compostate with a Fine-Grained Renderer",
   "version": "0.2.1-no-vdom.61",
   "types": "dist/types/index.d.ts",
   "main": "dist/cjs/index.js",
@@ -18,19 +19,16 @@
   "keywords": [
     "pridepack"
   ],
-  "name": "compostate-element",
+  "name": "compostate-jsx",
   "devDependencies": {
-    "@types/jest": "^26.0.23",
-    "@types/node": "^15.12.4",
+    "@types/jest": "^27.0.0",
+    "@types/node": "^16.6.0",
     "compostate": "0.2.1-no-vdom.61",
-    "eslint": "^7.29.0",
+    "eslint": "^7.32.0",
     "eslint-config-lxsmnsyc": "^0.2.3",
     "pridepack": "^0.10.0",
-    "tslib": "^2.3.0",
-    "typescript": "^4.3.4"
-  },
-  "peerDependencies": {
-    "compostate": "^0.1.0"
+    "tslib": "^2.3.1",
+    "typescript": "^4.3.5"
   },
   "scripts": {
     "prepublish": "pridepack clean && pridepack build",
@@ -41,15 +39,23 @@
     "clean": "pridepack clean",
     "watch": "pridepack watch"
   },
-  "description": "compostate + Custom Elements",
-  "repository": "https://github.com/LXSMNSYC/compostate.git",
-  "bugs": {
-    "url": "https://github.com/LXSMNSYC/compostate/issues"
+  "peerDependencies": {
+    "compostate": "^0.2.0"
   },
-  "homepage": "https://github.com/LXSMNSYC/compostate/tree/main/packages/compostate-element",
+  "repository": {
+    "url": "https://github.com/lxsmnsyc/compostate.git",
+    "type": "git"
+  },
+  "homepage": "https://github.com/lxsmnsyc/compostate/tree/main/packages/compostate-jsx",
+  "bugs": {
+    "url": "https://github.com/lxsmnsyc/compostate/issues"
+  },
   "publishConfig": {
     "access": "public"
   },
-  "author": "Alexis Munsayac <alexis.munsayac@gmail.com>",
-  "private": false
+  "author": "Alexis Munsayac",
+  "private": false,
+  "dependencies": {
+    "devalue": "^2.0.1"
+  }
 }
