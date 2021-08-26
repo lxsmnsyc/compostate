@@ -19,7 +19,7 @@
   "keywords": [
     "pridepack"
   ],
-  "name": "compostate-dom",
+  "name": "compostate-jsx",
   "devDependencies": {
     "@types/jest": "^27.0.0",
     "@types/node": "^16.6.0",
@@ -46,7 +46,7 @@
     "url": "https://github.com/lxsmnsyc/compostate.git",
     "type": "git"
   },
-  "homepage": "https://github.com/lxsmnsyc/compostate/tree/main/packages/compostate-dom",
+  "homepage": "https://github.com/lxsmnsyc/compostate/tree/main/packages/compostate-jsx",
   "bugs": {
     "url": "https://github.com/lxsmnsyc/compostate/issues"
   },
