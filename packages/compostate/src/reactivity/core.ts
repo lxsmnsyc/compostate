@@ -902,6 +902,7 @@ function scheduleTransition() {
     task = undefined;
     if (TRANSITIONS.size) {
       const transitions = new Set(TRANSITIONS);
+      TRANSITIONS.clear();
       BATCH_UPDATES = transitions;
       try {
         for (const work of transitions) {
