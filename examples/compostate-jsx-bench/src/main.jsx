@@ -81,7 +81,7 @@ const Main = () => {
       <div class='jumbotron'>
         <div class='row'>
           <div class='col-md-6'>
-            <h1>compostate-dom</h1>
+            <h1>compostate-jsx</h1>
           </div>
           <div class='col-md-6'>
             <div class='row'>
