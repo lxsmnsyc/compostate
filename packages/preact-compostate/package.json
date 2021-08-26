@@ -33,7 +33,7 @@
     "typescript": "^4.3.2"
   },
   "peerDependencies": {
-    "compostate": "^0.0.0",
+    "compostate": "0.2.1-beta.0",
     "preact": "^10.0.0"
   },
   "scripts": {

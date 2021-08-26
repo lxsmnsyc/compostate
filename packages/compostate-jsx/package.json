@@ -40,7 +40,7 @@
     "watch": "pridepack watch"
   },
   "peerDependencies": {
-    "compostate": "^0.2.0"
+    "compostate": "0.2.1-beta.0"
   },
   "repository": {
     "url": "https://github.com/lxsmnsyc/compostate.git",
