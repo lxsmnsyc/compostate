@@ -929,9 +929,16 @@ const TRANSITIONS = new Set<LinkedWork>();
 const [readTransitionPending, writeTransitionPending] = signal(false);
 let task: Task | undefined;
 
-function exhaustTransitions(transitions: Set<LinkedWork>): void {
-  for (const work of transitions) {
-    runLinkedWork(work);
+function flushTransition() {
+  writeTransitionPending(false);
+  task = undefined;
+  if (TRANSITIONS.size) {
+    const transitions = new Set(TRANSITIONS);
+    TRANSITIONS.clear();
+    BATCH_UPDATES = transitions;
+    const result = pcall(exhaustUpdates, transitions);
+    BATCH_UPDATES = undefined;
+    unwrap(result);
   }
 }
 
@@ -940,18 +947,7 @@ function scheduleTransition() {
   if (task) {
     cancelCallback(task);
   }
-  task = requestCallback(() => {
-    writeTransitionPending(false);
-    task = undefined;
-    if (TRANSITIONS.size) {
-      const transitions = new Set(TRANSITIONS);
-      TRANSITIONS.clear();
-      BATCH_UPDATES = transitions;
-      const result = pcall(exhaustTransitions, transitions);
-      BATCH_UPDATES = undefined;
-      unwrap(result);
-    }
-  });
+  task = requestCallback(flushTransition);
 }
 
 export function startTransition(callback: () => void): void {
