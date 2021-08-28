@@ -334,11 +334,14 @@ export function notifyReactiveAtom(target: ReactiveAtom): void {
   }
 }
 
-export function batch(callback: () => void): void {
+export function batch<T extends any[]>(
+  callback: (...arg: T) => void,
+  ...args: T
+): void {
   const instance = new Set<LinkedWork>();
   const parent = BATCH_UPDATES;
   BATCH_UPDATES = parent ?? instance;
-  const result = pcall(callback);
+  const result = pcall(callback, ...args);
   BATCH_UPDATES = parent;
   unwrap(result);
   if (!parent) {
@@ -679,14 +682,37 @@ interface ProcessWork extends SubscriberWork {
   context?: ContextTree;
 }
 
+function runComputationProcessInternal<T>(
+  target: ComputationWork<T>,
+  process: (prev?: T) => T,
+) {
+  target.cleanup?.();
+  target.cleanup = batchCleanup(() => {
+    target.current = process(target.current);
+  });
+}
+
 function runComputationProcess(target: ComputationWork<any>) {
   const { process } = target;
   if (process) {
-    batch(() => {
-      target.cleanup?.();
-      target.cleanup = batchCleanup(() => {
-        target.current = process(target.current);
-      });
+    batch(runComputationProcessInternal, target, process);
+  }
+}
+
+function runWatchProcessInternal<T>(
+  target: WatchWork<T>,
+  source: () => T,
+  listen: (next: T, prev?: T) => void,
+) {
+  const hasCurrent = 'current' in target;
+  const next = source();
+  const prev = target.current;
+  const compare = target.isEqual ?? is;
+  if ((hasCurrent && !compare(next, prev)) || !hasCurrent) {
+    target.cleanup?.();
+    target.cleanup = batchCleanup(() => {
+      target.current = next;
+      listen(next, prev);
     });
   }
 }
@@ -694,29 +720,22 @@ function runComputationProcess(target: ComputationWork<any>) {
 function runWatchProcess(target: WatchWork<any>) {
   const { source, listen } = target;
   if (source && listen) {
-    batch(() => {
-      const hasCurrent = 'current' in target;
-      const next = source();
-      const prev = target.current;
-      const compare = target.isEqual ?? is;
-      if ((hasCurrent && !compare(next, prev)) || !hasCurrent) {
-        target.cleanup?.();
-        target.cleanup = batchCleanup(() => {
-          target.current = next;
-          listen(next, prev);
-        });
-      }
-    });
+    batch(runWatchProcessInternal, target, source, listen);
   }
+}
+
+function runEffectProcessInternal(
+  target: EffectWork,
+  callback: Effect,
+) {
+  target.cleanup?.();
+  target.cleanup = batchCleanup(callback);
 }
 
 function runEffectProcess(target: EffectWork) {
   const { callback } = target;
   if (callback) {
-    batch(() => {
-      target.cleanup?.();
-      target.cleanup = batchCleanup(callback);
-    });
+    batch(runEffectProcessInternal, target, callback);
   }
 }
 
