@@ -26,15 +26,12 @@
  * @copyright Alexis Munsayac 2021
  */
 import {
-  createPublisherWork,
-  createSubscriberWork,
+  createLinkedWork,
   destroyLinkedWork,
   LinkedWork,
   publisherLinkSubscriber,
-  PublisherWork,
   runLinkedWork,
   setRunner,
-  SubscriberWork,
   unlinkLinkedWorkPublishers,
 } from '../linked-work';
 import { cancelCallback, requestCallback, Task } from '../scheduler';
@@ -56,7 +53,7 @@ const WORK_EFFECT = 0b00000100;
 const WORK_WATCH = 0b00001000;
 
 // Execution contexts
-export let TRACKING: SubscriberWork | undefined;
+export let TRACKING: LinkedWork | undefined;
 let BATCH_UPDATES: Set<LinkedWork> | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
 let BATCH_EFFECTS: EffectWork[] | undefined;
@@ -302,10 +299,10 @@ export function captureError(): ErrorCapture {
 /**
  * Linked Work
  */
-export type ReactiveAtom = PublisherWork;
+export type ReactiveAtom = LinkedWork;
 
 export function createReactiveAtom(): ReactiveAtom {
-  return createPublisherWork(WORK_ATOM);
+  return createLinkedWork('publisher', WORK_ATOM);
 }
 
 export function destroyReactiveAtom(target: ReactiveAtom): void {
@@ -365,7 +362,7 @@ export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup 
     return NO_OP;
   }
 
-  const work: ComputationWork<T> = assign(createSubscriberWork(WORK_COMPUTATION), {
+  const work: ComputationWork<T> = assign(createLinkedWork('subscriber', WORK_COMPUTATION), {
     current: initial,
     process: callback,
     errorBoundary: ERROR_BOUNDARY,
@@ -393,7 +390,7 @@ interface EffectWork extends ProcessWork {
 }
 
 function createEffect(callback: Effect): EffectWork {
-  const node = assign(createSubscriberWork(WORK_EFFECT), {
+  const node = assign(createLinkedWork('subscriber', WORK_EFFECT), {
     callback,
     errorBoundary: ERROR_BOUNDARY,
   });
@@ -467,7 +464,7 @@ export function watch<T>(
     return NO_OP;
   }
 
-  const work: WatchWork<T> = assign(createSubscriberWork(WORK_WATCH), {
+  const work: WatchWork<T> = assign(createLinkedWork('subscriber', WORK_WATCH), {
     source,
     listen,
     errorBoundary: ERROR_BOUNDARY,
@@ -715,7 +712,7 @@ export function computedAtom<T>(
   };
 }
 
-interface ProcessWork extends SubscriberWork {
+interface ProcessWork extends LinkedWork {
   cleanup?: Cleanup;
   errorBoundary?: ErrorBoundary;
   context?: ContextTree;
@@ -880,7 +877,7 @@ export function selector<T, U extends T>(
     return (key: U) => fn(key, result);
   }
 
-  const subs = new Map<U, Set<SubscriberWork>>();
+  const subs = new Map<U, Set<LinkedWork>>();
   let v: T;
   watch(source, (current, prev) => {
     for (const key of subs.keys()) {
@@ -899,7 +896,7 @@ export function selector<T, U extends T>(
   return (key: U) => {
     const current = TRACKING;
     if (current) {
-      let listeners: Set<SubscriberWork>;
+      let listeners: Set<LinkedWork>;
       const currentListeners = subs.get(key);
       if (currentListeners) {
         listeners = currentListeners;

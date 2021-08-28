@@ -1,40 +1,25 @@
-interface Work {
+export interface LinkedWork {
+  type: 'subscriber' | 'publisher';
   tag: number;
   id: number;
   alive: boolean;
-}
-export interface PublisherWork extends Work {
-  type: 'publisher';
-  subscribers?: Set<SubscriberWork>
+  links?: Set<LinkedWork>
 }
 
-export interface SubscriberWork extends Work {
-  type: 'subscriber';
-  publishers?: Set<PublisherWork>;
-}
+let RUNNER: (work: LinkedWork) => void;
 
-export type LinkedWork = PublisherWork | SubscriberWork;
-
-let RUNNER: (work: SubscriberWork) => void;
-
-export function setRunner(work: (work: SubscriberWork) => void): void {
+export function setRunner(work: (work: LinkedWork) => void): void {
   RUNNER = work;
 }
 
 let STATE = 0;
 
-export function createPublisherWork(tag: number): PublisherWork {
+export function createLinkedWork(
+  type: 'publisher' | 'subscriber',
+  tag: number,
+): LinkedWork {
   return {
-    type: 'publisher',
-    tag,
-    id: STATE++,
-    alive: true,
-  };
-}
-
-export function createSubscriberWork(tag: number): SubscriberWork {
-  return {
-    type: 'subscriber',
+    type,
     tag,
     id: STATE++,
     alive: true,
@@ -42,23 +27,23 @@ export function createSubscriberWork(tag: number): SubscriberWork {
 }
 
 export function publisherLinkSubscriber(
-  publisher: PublisherWork,
-  subscriber: SubscriberWork,
+  publisher: LinkedWork,
+  subscriber: LinkedWork,
 ): void {
   if (publisher.alive && subscriber.alive) {
-    if (!publisher.subscribers) {
-      publisher.subscribers = new Set();
+    if (!publisher.links) {
+      publisher.links = new Set();
     }
-    publisher.subscribers.add(subscriber);
-    if (!subscriber.publishers) {
-      subscriber.publishers = new Set();
+    publisher.links.add(subscriber);
+    if (!subscriber.links) {
+      subscriber.links = new Set();
     }
-    subscriber.publishers.add(publisher);
+    subscriber.links.add(publisher);
   }
 }
 
 function enqueueSubscriberWork(
-  target: SubscriberWork,
+  target: LinkedWork,
   queue: Set<LinkedWork>,
 ): void {
   // Sets are internally ordered, so we can emulate
@@ -71,21 +56,19 @@ function enqueueSubscriberWork(
 }
 
 function enqueuePublisherWork(
-  target: PublisherWork,
+  target: LinkedWork,
   queue: Set<LinkedWork>,
 ): void {
-  const { subscribers } = target;
-  if (subscribers?.size) {
-    for (const item of subscribers.keys()) {
+  if (target.links?.size) {
+    for (const item of target.links.keys()) {
       enqueueSubscriberWork(item, queue);
     }
   }
 }
 
-function evaluatePublisherWork(target: PublisherWork): void {
-  const { subscribers } = target;
-  if (subscribers?.size) {
-    for (const item of subscribers.keys()) {
+function evaluatePublisherWork(target: LinkedWork): void {
+  if (target.links?.size) {
+    for (const item of target.links.keys()) {
       RUNNER(item);
     }
   }
@@ -107,23 +90,21 @@ export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void
   }
 }
 
-export function unlinkLinkedWorkPublishers(target: SubscriberWork): void {
-  const { publishers } = target;
-  if (publishers) {
-    for (const item of publishers.keys()) {
-      item.subscribers?.delete(target);
+export function unlinkLinkedWorkPublishers(target: LinkedWork): void {
+  if (target.links) {
+    for (const item of target.links.keys()) {
+      item.links?.delete(target);
     }
-    publishers.clear();
+    target.links.clear();
   }
 }
 
 export function destroyLinkedWork(target: LinkedWork): void {
-  target.alive = false;
-  if (target.type === 'subscriber') {
-    unlinkLinkedWorkPublishers(target);
-    target.publishers = undefined;
-  } else {
-    target.subscribers?.clear();
-    target.subscribers = undefined;
+  if (target.alive) {
+    target.alive = false;
+    if (target.type === 'subscriber') {
+      unlinkLinkedWorkPublishers(target);
+    }
+    target.links = undefined;
   }
 }
