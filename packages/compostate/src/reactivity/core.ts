@@ -352,8 +352,16 @@ export function batch<T extends any[]>(
   }
 }
 
+function cleanProcess(work: ProcessWork): void {
+  if (work.cleanup) {
+    batch(work.cleanup);
+    work.cleanup = undefined;
+  }
+  work.context = undefined;
+  work.errorBoundary = undefined;
+}
+
 interface ComputationWork<T> extends ProcessWork {
-  cleanup?: Cleanup;
   process?: (prev?: T) => T;
   current?: T;
 }
@@ -376,12 +384,8 @@ export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup 
     if (!work.alive) {
       return;
     }
-    if (work.cleanup) {
-      batch(work.cleanup);
-    }
-    work.cleanup = undefined;
+    cleanProcess(work);
     work.process = undefined;
-    work.errorBoundary = undefined;
     destroyLinkedWork(work);
   });
 }
@@ -389,14 +393,6 @@ export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup 
 interface EffectWork extends ProcessWork {
   callback?: Effect;
   cleanup?: Cleanup;
-}
-
-function createEffect(callback: Effect): EffectWork {
-  const node = assign(createLinkedWork('subscriber', WORK_EFFECT), {
-    callback,
-    errorBoundary: ERROR_BOUNDARY,
-  });
-  return node;
 }
 
 export function batchEffects(callback: () => void): () => void {
@@ -427,25 +423,24 @@ export function effect(callback: Effect): Cleanup {
     return NO_OP;
   }
 
-  const instance = createEffect(callback);
+  const work: EffectWork = assign(createLinkedWork('subscriber', WORK_EFFECT), {
+    callback,
+    errorBoundary: ERROR_BOUNDARY,
+  });
 
   if (BATCH_EFFECTS) {
-    BATCH_EFFECTS.push(instance);
+    BATCH_EFFECTS.push(work);
   } else {
-    runLinkedWork(instance);
+    runLinkedWork(work);
   }
 
   return onCleanup(() => {
-    if (!instance.alive) {
+    if (!work.alive) {
       return;
     }
-    if (instance.cleanup) {
-      batch(instance.cleanup);
-    }
-    instance.callback = undefined;
-    instance.cleanup = undefined;
-    instance.errorBoundary = undefined;
-    destroyLinkedWork(instance);
+    cleanProcess(work);
+    work.callback = undefined;
+    destroyLinkedWork(work);
   });
 }
 
@@ -479,10 +474,10 @@ export function watch<T>(
     if (!work.alive) {
       return;
     }
+    cleanProcess(work);
     work.source = undefined;
     work.listen = undefined;
     work.current = undefined;
-    work.errorBoundary = undefined;
     work.isEqual = undefined;
     destroyLinkedWork(work);
   });
