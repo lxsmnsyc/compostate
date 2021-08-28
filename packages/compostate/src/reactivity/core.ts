@@ -437,7 +437,7 @@ export function effect(callback: Effect): Cleanup {
   }
 
   return onCleanup(() => {
-    if (!work.alive) {
+    if (!instance.alive) {
       return;
     }
     if (instance.cleanup) {
