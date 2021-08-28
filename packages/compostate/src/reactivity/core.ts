@@ -327,10 +327,11 @@ function runUpdates(instance: Set<LinkedWork>) {
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
-  const instance = new Set<LinkedWork>();
-  const parent = BATCH_UPDATES;
-  runLinkedWork(target, parent ?? instance);
-  if (!parent) {
+  if (BATCH_UPDATES) {
+    runLinkedWork(target, BATCH_UPDATES);
+  } else {
+    const instance = new Set<LinkedWork>();
+    runLinkedWork(target, instance);
     runUpdates(instance);
   }
 }
@@ -339,13 +340,14 @@ export function batch<T extends any[]>(
   callback: (...arg: T) => void,
   ...args: T
 ): void {
-  const instance = new Set<LinkedWork>();
-  const parent = BATCH_UPDATES;
-  BATCH_UPDATES = parent ?? instance;
-  const result = pcall(callback, ...args);
-  BATCH_UPDATES = parent;
-  unwrap(result);
-  if (!parent) {
+  if (BATCH_UPDATES) {
+    callback(...args);
+  } else {
+    const instance = new Set<LinkedWork>();
+    BATCH_UPDATES = instance;
+    const result = pcall(callback, ...args);
+    BATCH_UPDATES = undefined;
+    unwrap(result);
     runUpdates(instance);
   }
 }
