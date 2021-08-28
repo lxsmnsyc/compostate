@@ -316,22 +316,21 @@ export function trackReactiveAtom(target: ReactiveAtom): void {
   publisherLinkSubscriber(target, TRACKING!);
 }
 
+function exhaustUpdates(instance: Set<LinkedWork>): void {
+  for (const work of instance) {
+    runLinkedWork(work);
+  }
+}
+
 export function notifyReactiveAtom(target: ReactiveAtom): void {
   const instance = new Set<LinkedWork>();
   const parent = BATCH_UPDATES;
   runLinkedWork(target, parent ?? instance);
   if (!parent) {
     BATCH_UPDATES = instance;
-    for (const work of instance) {
-      runLinkedWork(work);
-    }
+    const internal = pcall(exhaustUpdates, instance);
     BATCH_UPDATES = undefined;
-  }
-}
-
-function exhaustUpdates(instance: Set<LinkedWork>): void {
-  for (const work of instance) {
-    runLinkedWork(work);
+    unwrap(internal);
   }
 }
 
