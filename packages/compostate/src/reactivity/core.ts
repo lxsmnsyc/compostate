@@ -322,15 +322,19 @@ function exhaustUpdates(instance: Set<LinkedWork>): void {
   }
 }
 
+function runUpdates(instance: Set<LinkedWork>) {
+  BATCH_UPDATES = instance;
+  const result = pcall(exhaustUpdates, instance);
+  BATCH_UPDATES = undefined;
+  unwrap(result);
+}
+
 export function notifyReactiveAtom(target: ReactiveAtom): void {
   const instance = new Set<LinkedWork>();
   const parent = BATCH_UPDATES;
   runLinkedWork(target, parent ?? instance);
   if (!parent) {
-    BATCH_UPDATES = instance;
-    const internal = pcall(exhaustUpdates, instance);
-    BATCH_UPDATES = undefined;
-    unwrap(internal);
+    runUpdates(instance);
   }
 }
 
@@ -345,10 +349,7 @@ export function batch<T extends any[]>(
   BATCH_UPDATES = parent;
   unwrap(result);
   if (!parent) {
-    BATCH_UPDATES = instance;
-    const internal = pcall(exhaustUpdates, instance);
-    BATCH_UPDATES = undefined;
-    unwrap(internal);
+    runUpdates(instance);
   }
 }
 
@@ -934,11 +935,11 @@ function flushTransition() {
   task = undefined;
   if (TRANSITIONS.size) {
     const transitions = new Set(TRANSITIONS);
+    // Clear the original so that
+    // the next transitions are
+    // deferred
     TRANSITIONS.clear();
-    BATCH_UPDATES = transitions;
-    const result = pcall(exhaustUpdates, transitions);
-    BATCH_UPDATES = undefined;
-    unwrap(result);
+    runUpdates(transitions);
   }
 }
 
