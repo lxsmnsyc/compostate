@@ -374,6 +374,9 @@ export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup 
   runLinkedWork(work);
 
   return onCleanup(() => {
+    if (!work.alive) {
+      return;
+    }
     if (work.cleanup) {
       batch(work.cleanup);
     }
@@ -434,6 +437,9 @@ export function effect(callback: Effect): Cleanup {
   }
 
   return onCleanup(() => {
+    if (!work.alive) {
+      return;
+    }
     if (instance.cleanup) {
       batch(instance.cleanup);
     }
@@ -471,6 +477,9 @@ export function watch<T>(
   runLinkedWork(work);
 
   return onCleanup(() => {
+    if (!work.alive) {
+      return;
+    }
     work.source = undefined;
     work.listen = undefined;
     work.current = undefined;
