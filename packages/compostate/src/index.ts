@@ -73,6 +73,8 @@ export {
   // atoms
   atom,
   computedAtom,
+  // signal
+  signal,
 } from './reactivity/core';
 // Extensions
 export { map, index } from './reactivity/array';

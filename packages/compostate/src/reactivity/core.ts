@@ -622,6 +622,35 @@ export function ref<T>(
   return new RefNode(value, instance, isEqual);
 }
 
+export type Signal<T> = [
+  () => T,
+  (value: T) => void,
+];
+
+export function signal<T>(
+  value: T,
+  isEqual: (next: T, prev: T) => boolean = is,
+): Signal<T> {
+  const instance = createReactiveAtom();
+  onCleanup(() => {
+    destroyLinkedWork(instance);
+  });
+  return [
+    () => {
+      if (TRACKING) {
+        trackReactiveAtom(instance);
+      }
+      return value;
+    },
+    (next) => {
+      if (!isEqual(next, value)) {
+        value = next;
+        notifyReactiveAtom(instance);
+      }
+    },
+  ];
+}
+
 export interface Atom<T> {
   (): T;
   (next: T): T;
@@ -897,7 +926,7 @@ export function enableProcess<T>(callback: () => T): T {
 }
 
 const TRANSITIONS = new Set<LinkedWork>();
-const TRANSITION_PENDING = atom(false);
+const [readTransitionPending, writeTransitionPending] = signal(false);
 let task: Task | undefined;
 
 function exhaustTransitions(transitions: Set<LinkedWork>): void {
@@ -907,12 +936,12 @@ function exhaustTransitions(transitions: Set<LinkedWork>): void {
 }
 
 function scheduleTransition() {
-  TRANSITION_PENDING(true);
+  writeTransitionPending(true);
   if (task) {
     cancelCallback(task);
   }
   task = requestCallback(() => {
-    TRANSITION_PENDING(false);
+    writeTransitionPending(false);
     task = undefined;
     if (TRANSITIONS.size) {
       const transitions = new Set(TRANSITIONS);
@@ -936,17 +965,17 @@ export function startTransition(callback: () => void): void {
 }
 
 export function isTransitionPending(): boolean {
-  return TRANSITION_PENDING();
+  return readTransitionPending();
 }
 
 export function deferredAtom<T>(callback: () => T): () => T {
-  const state = atom(untrack(callback));
+  const [read, write] = signal(untrack(callback));
   effect(() => {
     startTransition(() => {
-      state(callback());
+      write(callback());
     });
   });
-  return () => state();
+  return read;
 }
 
 export function deferred<T>(callback: () => T): Readonly<Ref<T>> {
