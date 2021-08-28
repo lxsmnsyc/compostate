@@ -20,7 +20,7 @@ interface Mapper<T, U> {
 
 export function map<T, U>(
   list: () => T[],
-  mapFn: () => Mapper<T, U>,
+  mapFn: Mapper<T, U>,
 ): () => U[] {
   let items: T[] = [];
   let mapped: U[] = [];
@@ -32,19 +32,18 @@ export function map<T, U>(
 
   return () => {
     const newItems = list();
-    const actualMapFn = mapFn();
     let i: number;
     let j: number;
 
     function mapper() {
       let result: U | undefined;
       disposers[j] = batchCleanup(() => {
-        if (actualMapFn.length === 1) {
-          result = actualMapFn(newItems[j]);
+        if (mapFn.length === 1) {
+          result = mapFn(newItems[j]);
         } else {
           const key = ref(j);
           indexes[j] = key;
-          result = actualMapFn(newItems[j], key);
+          result = mapFn(newItems[j], key);
         }
       });
       return result as U;
@@ -151,7 +150,7 @@ export function map<T, U>(
 
 export function index<T, U>(
   list: () => T[],
-  mapFn: () => (v: Ref<T>, i: number) => U,
+  mapFn: (v: Ref<T>, i: number) => U,
 ): () => U[] {
   let items: T[] = [];
   let mapped: U[] = [];
@@ -163,14 +162,13 @@ export function index<T, U>(
   onCleanup(() => dispose(disposers));
   return () => {
     const newItems = list();
-    const actualMapFn = mapFn();
 
     function mapper() {
       let result: U | undefined;
       disposers[i] = batchCleanup(() => {
         const item = ref(newItems[i]);
         refs[i] = item;
-        result = actualMapFn(item, i);
+        result = mapFn(item, i);
       });
       return result as U;
     }
