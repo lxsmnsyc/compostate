@@ -97,7 +97,7 @@ const Main = () => {
       </div>
       <table class='table table-hover table-striped test-data'>
         <tbody>
-          {map(() => data(), () => (row) => {
+          {map(() => data(), (row) => {
             const rowId = row.id;
             return (
               <tr class={isSelected(rowId) ? 'danger' : ''}>
