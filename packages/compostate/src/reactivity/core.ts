@@ -445,13 +445,13 @@ interface WatchWork<T> extends ProcessWork {
   source?: () => T,
   listen?: (next: T, prev?: T) => void,
   current?: T;
-  shouldUpdate?: (next: T, prev: T) => boolean,
+  isEqual?: (next: T, prev: T) => boolean,
 }
 
 export function watch<T>(
   source: () => T,
   listen: (next: T, prev?: T) => void,
-  shouldUpdate: (next: T, prev: T) => boolean = is,
+  isEqual: (next: T, prev: T) => boolean = is,
 ): () => void {
   if (!HAS_PROCESS) {
     listen(source());
@@ -462,7 +462,7 @@ export function watch<T>(
     source,
     listen,
     errorBoundary: ERROR_BOUNDARY,
-    shouldUpdate,
+    isEqual,
   });
 
   runLinkedWork(work);
@@ -472,7 +472,7 @@ export function watch<T>(
     work.listen = undefined;
     work.current = undefined;
     work.errorBoundary = undefined;
-    work.shouldUpdate = undefined;
+    work.isEqual = undefined;
     destroyLinkedWork(work);
   });
 }
@@ -530,7 +530,7 @@ export function isRef<T>(object: any): object is Ref<T> {
 
 export function computed<T>(
   compute: () => T,
-  shouldUpdate: (next: T, prev: T) => boolean = is,
+  isEqual: (next: T, prev: T) => boolean = is,
 ): Readonly<Ref<T>> {
   const instance = createReactiveAtom();
 
@@ -548,7 +548,7 @@ export function computed<T>(
     } else {
       notifyReactiveAtom(instance);
     }
-  }, shouldUpdate);
+  }, isEqual);
 
   const node: Ref<T> & WithRef & WithReadonly = {
     [REF]: true,
@@ -579,18 +579,18 @@ class RefNode<T> implements WithRef {
 
   private instance: ReactiveAtom;
 
-  private shouldUpdate: (next: T, prev: T) => boolean;
+  private isEqual: (next: T, prev: T) => boolean;
 
   [REF]: boolean;
 
   constructor(
     value: T,
     instance: ReactiveAtom,
-    shouldUpdate: (next: T, prev: T) => boolean,
+    isEqual: (next: T, prev: T) => boolean,
   ) {
     this.val = value;
     this.instance = instance;
-    this.shouldUpdate = shouldUpdate;
+    this.isEqual = isEqual;
     this[REF] = true;
   }
 
@@ -602,7 +602,7 @@ class RefNode<T> implements WithRef {
   }
 
   set value(next: T) {
-    if (!this.shouldUpdate(next, this.val)) {
+    if (!this.isEqual(next, this.val)) {
       this.val = next;
       notifyReactiveAtom(this.instance);
     }
@@ -611,13 +611,13 @@ class RefNode<T> implements WithRef {
 
 export function ref<T>(
   value: T,
-  shouldUpdate: (next: T, prev: T) => boolean = is,
+  isEqual: (next: T, prev: T) => boolean = is,
 ): Ref<T> {
   const instance = createReactiveAtom();
   onCleanup(() => {
     destroyLinkedWork(instance);
   });
-  return new RefNode(value, instance, shouldUpdate);
+  return new RefNode(value, instance, isEqual);
 }
 
 export interface Atom<T> {
@@ -625,7 +625,7 @@ export interface Atom<T> {
   (next: T): T;
 }
 
-export function atom<T>(value: T, shouldUpdate: (next: T, prev: T) => boolean = is): Atom<T> {
+export function atom<T>(value: T, isEqual: (next: T, prev: T) => boolean = is): Atom<T> {
   const instance = createReactiveAtom();
   onCleanup(() => {
     destroyLinkedWork(instance);
@@ -633,7 +633,7 @@ export function atom<T>(value: T, shouldUpdate: (next: T, prev: T) => boolean = 
   return (...args: [] | [T]) => {
     if (args.length === 1) {
       const next = args[0];
-      if (!shouldUpdate(next, value)) {
+      if (!isEqual(next, value)) {
         value = next;
         notifyReactiveAtom(instance);
       }
@@ -646,7 +646,7 @@ export function atom<T>(value: T, shouldUpdate: (next: T, prev: T) => boolean = 
 
 export function computedAtom<T>(
   compute: () => T,
-  shouldUpdate: (next: T, prev: T) => boolean = is,
+  isEqual: (next: T, prev: T) => boolean = is,
 ): () => T {
   const instance = createReactiveAtom();
 
@@ -664,7 +664,7 @@ export function computedAtom<T>(
     } else {
       notifyReactiveAtom(instance);
     }
-  }, shouldUpdate);
+  }, isEqual);
 
   return () => {
     if (TRACKING) {
@@ -699,7 +699,7 @@ function runWatchProcess(target: WatchWork<any>) {
       const hasCurrent = 'current' in target;
       const next = source();
       const prev = target.current;
-      const compare = target.shouldUpdate ?? is;
+      const compare = target.isEqual ?? is;
       if ((hasCurrent && !compare(next, prev)) || !hasCurrent) {
         target.cleanup?.();
         target.cleanup = batchCleanup(() => {
