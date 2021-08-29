@@ -20,6 +20,7 @@ module.exports = {
     "@typescript-eslint/no-unsafe-assignment": "off",
     "prefer-object-spread": "off",
     "@typescript-eslint/unbound-method": "off",
-    "prefer-destructuring": "off"
+    "prefer-destructuring": "off",
+    "guard-for-in": "off"
   },
 };

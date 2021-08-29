@@ -27,7 +27,6 @@ export {
 } from './constants';
 
 const {
-  keys,
   defineProperty,
   defineProperties,
   getOwnPropertyDescriptors,
@@ -182,18 +181,12 @@ export function setAttributeNS(
 }
 
 export function classList(node, value, prev = {}) {
-  const classKeys = keys(value);
-  const prevKeys = keys(prev);
-  let i; let
-    len;
-  for (i = 0, len = prevKeys.length; i < len; i++) {
-    const key = prevKeys[i];
+  for (const key in prev) {
     if (!key || key === 'undefined' || key in value) continue;
     toggleClassKey(node, key, false);
     delete prev[key];
   }
-  for (i = 0, len = classKeys.length; i < len; i++) {
-    const key = classKeys[i];
+  for (const key in value) {
     const classValue = !!value[key];
     if (!key || key === 'undefined' || prev[key] === classValue) continue;
     toggleClassKey(node, key, classValue);
@@ -211,17 +204,13 @@ export function style(node, value, prev = {}) {
   if (typeof prev === 'string') {
     prev = {};
   }
-  const prevKeys = keys(prev);
-  for (let i = 0, len = prevKeys.length; i < len; i++) {
-    const s = prevKeys[i];
+  for (const s in prev) {
     if (value[s] == null) {
       nodeStyle.removeProperty(s);
     }
     delete prev[s];
   }
-  const nextKeys = keys(value);
-  for (let i = 0, len = nextKeys.length; i < len; i++) {
-    const s = nextKeys[i];
+  for (const s in value) {
     const v = value[s];
     if (v !== prev[s]) {
       nodeStyle.setProperty(s, v);
@@ -411,9 +400,7 @@ export function assign(
   let isCE;
   let isProp;
   let isChildProp;
-  const propKeys = keys(props);
-  for (let i = 0, len = propKeys.length; i < len; i++) {
-    const prop = propKeys[i];
+  for (const prop in props) {
     if (prop === 'children') {
       if (!skipChildren) insertExpression(node, props.children);
       continue;
