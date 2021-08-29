@@ -29,11 +29,11 @@ import {
   createLinkedWork,
   destroyLinkedWork,
   enqueuePublisherWork,
+  enqueueSubscriberWork,
   evaluateSubscriberWork,
   LinkedWork,
   publisherLinkSubscriber,
   runLinkedWork,
-  runSubscriberWork,
   setRunner,
   unlinkLinkedWorkPublishers,
 } from '../linked-work';
@@ -888,10 +888,10 @@ export function selector<T, U extends T>(
     for (const key of subs.keys()) {
       if (fn(key, current) || (prev !== undefined && fn(key, prev))) {
         const listeners = subs.get(key);
-        if (listeners) {
+        if (listeners?.size) {
           for (const listener of listeners) {
             if (listener.alive) {
-              runSubscriberWork(listener, BATCH_UPDATES);
+              enqueueSubscriberWork(listener, BATCH_UPDATES!);
             }
           }
         }

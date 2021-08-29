@@ -72,19 +72,11 @@ export function enqueuePublisherWork(
   }
 }
 
-export function evaluatePublisherWork(target: LinkedWork): void {
+function evaluatePublisherWork(target: LinkedWork): void {
   if (target.links?.size) {
     for (const item of target.links.keys()) {
       RUNNER(item);
     }
-  }
-}
-
-export function runSubscriberWork(target: LinkedWork, queue?: Set<LinkedWork>): void {
-  if (queue) {
-    enqueueSubscriberWork(target, queue);
-  } else {
-    RUNNER(target);
   }
 }
 
