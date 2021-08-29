@@ -28,9 +28,12 @@
 import {
   createLinkedWork,
   destroyLinkedWork,
+  enqueuePublisherWork,
+  evaluateSubscriberWork,
   LinkedWork,
   publisherLinkSubscriber,
   runLinkedWork,
+  runSubscriberWork,
   setRunner,
   unlinkLinkedWorkPublishers,
 } from '../linked-work';
@@ -327,12 +330,14 @@ function runUpdates(instance: Set<LinkedWork>) {
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
-  if (BATCH_UPDATES) {
-    runLinkedWork(target, BATCH_UPDATES);
-  } else {
-    const instance = new Set<LinkedWork>();
-    runLinkedWork(target, instance);
-    runUpdates(instance);
+  if (target.alive) {
+    if (BATCH_UPDATES) {
+      enqueuePublisherWork(target, BATCH_UPDATES);
+    } else {
+      const instance = new Set<LinkedWork>();
+      enqueuePublisherWork(target, instance);
+      runUpdates(instance);
+    }
   }
 }
 
@@ -378,7 +383,7 @@ export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup 
     errorBoundary: ERROR_BOUNDARY,
   });
 
-  runLinkedWork(work);
+  evaluateSubscriberWork(work);
 
   return onCleanup(() => {
     if (!work.alive) {
@@ -411,7 +416,10 @@ export function batchEffects(callback: () => void): () => void {
     if (alive) {
       alive = false;
       for (let i = 0, len = batchedEffects.length; i < len; i++) {
-        runLinkedWork(batchedEffects[i]);
+        const item = batchedEffects[i];
+        if (item.alive) {
+          evaluateSubscriberWork(item);
+        }
       }
       batchedEffects.length = 0;
     }
@@ -431,7 +439,7 @@ export function effect(callback: Effect): Cleanup {
   if (BATCH_EFFECTS) {
     BATCH_EFFECTS.push(work);
   } else {
-    runLinkedWork(work);
+    evaluateSubscriberWork(work);
   }
 
   return onCleanup(() => {
@@ -468,7 +476,7 @@ export function watch<T>(
     isEqual,
   });
 
-  runLinkedWork(work);
+  evaluateSubscriberWork(work);
 
   return onCleanup(() => {
     if (!work.alive) {
@@ -882,7 +890,9 @@ export function selector<T, U extends T>(
         const listeners = subs.get(key);
         if (listeners) {
           for (const listener of listeners) {
-            runLinkedWork(listener, BATCH_UPDATES);
+            if (listener.alive) {
+              runSubscriberWork(listener, BATCH_UPDATES);
+            }
           }
         }
       }

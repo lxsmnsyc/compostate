@@ -42,7 +42,7 @@ export function publisherLinkSubscriber(
   }
 }
 
-function enqueueSubscriberWork(
+export function enqueueSubscriberWork(
   target: LinkedWork,
   queue: Set<LinkedWork>,
 ): void {
@@ -55,7 +55,13 @@ function enqueueSubscriberWork(
   queue.add(target);
 }
 
-function enqueuePublisherWork(
+export function evaluateSubscriberWork(
+  target: LinkedWork,
+): void {
+  RUNNER(target);
+}
+
+export function enqueuePublisherWork(
   target: LinkedWork,
   queue: Set<LinkedWork>,
 ): void {
@@ -66,11 +72,19 @@ function enqueuePublisherWork(
   }
 }
 
-function evaluatePublisherWork(target: LinkedWork): void {
+export function evaluatePublisherWork(target: LinkedWork): void {
   if (target.links?.size) {
     for (const item of target.links.keys()) {
       RUNNER(item);
     }
+  }
+}
+
+export function runSubscriberWork(target: LinkedWork, queue?: Set<LinkedWork>): void {
+  if (queue) {
+    enqueueSubscriberWork(target, queue);
+  } else {
+    RUNNER(target);
   }
 }
 
