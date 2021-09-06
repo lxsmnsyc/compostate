@@ -1,16 +1,14 @@
-const { ref, computation, batch, computed, watch } = require('./packages/compostate');
+const { signal, computation } = require('./packages/compostate');
 
-const a = ref('A');
-const b = ref('B');
+const [seconds, setSeconds] = signal(0);
+setInterval(() => {
+  setSeconds(seconds() + 1)
+}, 1000);
 
-const c = computed(() => a.value + b.value);
-const d = computed(() => b.value + a.value);
+const [t, setT] = signal(1);
+computation(() => setT(seconds() + 1))
 
-const e = computed(() => `${c.value} ${d.value}`);
+const [g, setG] = signal(true);
+computation(() => setG(t() > seconds()))
 
-watch(() => e.value, console.log);
-
-batch(() => {
-  a.value = 'C';
-  b.value = 'D';
-});
+computation(() => console.log(seconds(), g(), t()))
