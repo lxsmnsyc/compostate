@@ -13,7 +13,7 @@
   "browserslist": "last 2 Chrome versions",
   "devDependencies": {
     "@babel/core": "^7.15.0",
-    "babel-plugin-jsx-dom-expressions": "^0.29.13",
+    "babel-plugin-jsx-dom-expressions": "^0.29.15",
     "eslint": "^7.29.0",
     "eslint-config-lxsmnsyc": "^0.2.3",
     "parcel-bundler": "^1.12.5"
