@@ -380,6 +380,7 @@ export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup 
     const work: ComputationWork<T> = assign(createLinkedWork('subscriber', WORK_COMPUTATION), {
       current: initial,
       process: callback,
+      context: CONTEXT,
       errorBoundary: ERROR_BOUNDARY,
     });
 
@@ -433,6 +434,7 @@ export function effect(callback: Effect): Cleanup {
   if (HAS_PROCESS) {
     const work: EffectWork = assign(createLinkedWork('subscriber', WORK_EFFECT), {
       callback,
+      context: CONTEXT,
       errorBoundary: ERROR_BOUNDARY,
     });
 
@@ -470,6 +472,7 @@ export function watch<T>(
     const work: WatchWork<T> = assign(createLinkedWork('subscriber', WORK_WATCH), {
       source,
       listen,
+      context: CONTEXT,
       errorBoundary: ERROR_BOUNDARY,
       isEqual,
     });
