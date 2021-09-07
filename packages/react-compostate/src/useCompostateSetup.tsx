@@ -10,7 +10,7 @@ import {
 } from '@lyonph/react-hooks';
 import {
   createCompositionContext,
-  pushCompositionContext,
+  getCompositionContext,
   runCompositionContext,
 } from './composition';
 
@@ -32,17 +32,21 @@ export default function useCompostateSetup<Props extends Record<string, any>, T>
 ): T {
   const currentState = useConstant(() => {
     const propObject = createPropObject(props);
-    const context = createCompositionContext();
-    const popContext = pushCompositionContext(context);
-    let render: (() => T) | undefined;
+    const { context, render, lifecycle } = createCompositionContext(() => {
+      let result: (() => T) | undefined;
 
-    const lifecycle = untrack(() => (
-      effect(() => {
-        render = setup(propObject);
-      })
-    ));
+      const lc = untrack(() => (
+        effect(() => {
+          result = setup(propObject);
+        })
+      ));
 
-    popContext();
+      return {
+        render: result,
+        context: getCompositionContext(),
+        lifecycle: lc,
+      };
+    });
 
     if (typeof render !== 'function') {
       throw new Error(`

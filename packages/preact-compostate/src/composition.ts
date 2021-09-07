@@ -1,4 +1,11 @@
-import { effect } from 'compostate';
+import {
+  Effect,
+  effect,
+  inject,
+  createContext,
+  contextual,
+  provide,
+} from 'compostate';
 
 interface CompositionContextMethods {
   mounted(): void;
@@ -13,13 +20,26 @@ export type CompositionContext = {
   [key in CompositionContextKeys]: CompositionContextMethods[key][];
 };
 
-export function createCompositionContext(): CompositionContext {
-  return {
-    mounted: [],
-    unmounted: [],
-    updated: [],
-    effect: [],
-  };
+const COMPOSITION_CONTEXT = createContext<CompositionContext | undefined>(undefined);
+
+export function createCompositionContext<T>(cb: () => T): T {
+  return contextual(() => {
+    provide(COMPOSITION_CONTEXT, {
+      mounted: [],
+      unmounted: [],
+      effect: [],
+      updated: [],
+    });
+    return cb();
+  });
+}
+
+export function getCompositionContext(): CompositionContext {
+  const context = inject(COMPOSITION_CONTEXT);
+  if (context) {
+    return context;
+  }
+  throw new Error('Attempt to read DOMContext');
 }
 
 export function runCompositionContext<K extends CompositionContextKeys>(
@@ -32,63 +52,20 @@ export function runCompositionContext<K extends CompositionContextKeys>(
   });
 }
 
-let CURRENT_CONTEXT: CompositionContext;
-
-export function pushCompositionContext(context: CompositionContext): () => void {
-  const parentContext = CURRENT_CONTEXT;
-  CURRENT_CONTEXT = context;
-
-  return () => {
-    CURRENT_CONTEXT = parentContext;
-  };
-}
-
 export function onEffect(callback: Effect): void {
-  if (CURRENT_CONTEXT) {
-    CURRENT_CONTEXT.effect.push(() => {
-      effect(callback);
-    });
-  } else {
-    throw new Error(`
-Invalid call for 'onEffect'.
-
-The 'onEffect' hook should only be called in Component setups.
-`);
-  }
+  getCompositionContext().effect.push(() => {
+    effect(callback);
+  });
 }
 
 export function onMounted(callback: CompositionContextMethods['mounted']): void {
-  if (CURRENT_CONTEXT) {
-    CURRENT_CONTEXT.mounted.push(callback);
-  } else {
-    throw new Error(`
-Invalid call for 'onMounted'.
-
-The 'onMounted' hook should only be called in Component setups.
-`);
-  }
+  getCompositionContext().mounted.push(callback);
 }
 
 export function onUnmounted(callback: CompositionContextMethods['unmounted']): void {
-  if (CURRENT_CONTEXT) {
-    CURRENT_CONTEXT.unmounted.push(callback);
-  } else {
-    throw new Error(`
-Invalid call for 'onUnmounted'.
-
-The 'onUnmounted' hook should only be called in Component setups.
-`);
-  }
+  getCompositionContext().unmounted.push(callback);
 }
 
 export function onUpdated(callback: CompositionContextMethods['updated']): void {
-  if (CURRENT_CONTEXT) {
-    CURRENT_CONTEXT.updated.push(callback);
-  } else {
-    throw new Error(`
-Invalid call for 'onUpdated'.
-
-The 'onUpdated' hook should only be called in Component setups.
-`);
-  }
+  getCompositionContext().updated.push(callback);
 }

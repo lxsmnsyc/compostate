@@ -4,9 +4,9 @@ import {
   reactive,
 } from 'compostate';
 import {
-  Context,
-  createContext,
-  pushContext,
+  createDOMContext,
+  DOMContext,
+  getDOMContext,
   runContext,
 } from './composition';
 import { render } from './renderer';
@@ -49,7 +49,7 @@ export default function define<RenderResult, Props extends string>(
       return currentProps;
     }
 
-    private context?: Context;
+    private context?: DOMContext;
 
     private props: PropObject<Props>;
 
@@ -70,40 +70,40 @@ export default function define<RenderResult, Props extends string>(
     }
 
     connectedCallback() {
+      // Isolate so that the lifecycle of
+      // this effect is not synchronously
+      // tracked by a parent effect.
       this.lifecycle = createRoot(() => (
-        // Isolate so that the lifecycle of
-        // this effect is not synchronously
-        // tracked by a parent effect.
-        effect(() => {
-          // Create a context for composition
-          this.context = createContext();
-          const popContext = pushContext(this.context);
-          const result = options.setup(this.props);
-          popContext();
-
-          let mounted = false;
-
-          // The effect is separated so that
-          // observed values in the render function
-          // do not update nor re-evaluate the setup
-          // function
+        createDOMContext(() => (
           effect(() => {
-            const nodes = result();
+            // Create a context for composition
+            this.context = getDOMContext();
+            const result = options.setup(this.props);
 
-            // Render the result to the root
-            render(this.root, nodes);
+            let mounted = false;
 
-            // If the element has been mounted before
-            // the re-render is an update call, we
-            // run the onUpdated hooks.
-            if (mounted && this.context) {
-              runContext(this.context, 'updated');
-            }
+            // The effect is separated so that
+            // observed values in the render function
+            // do not update nor re-evaluate the setup
+            // function
+            effect(() => {
+              const nodes = result();
 
-            // Mark the element as mounted.
-            mounted = true;
-          });
-        })
+              // Render the result to the root
+              render(this.root, nodes);
+
+              // If the element has been mounted before
+              // the re-render is an update call, we
+              // run the onUpdated hooks.
+              if (mounted && this.context) {
+                runContext(this.context, 'updated');
+              }
+
+              // Mark the element as mounted.
+              mounted = true;
+            });
+          })
+        ))
       ));
 
       // Run onConnected hooks
