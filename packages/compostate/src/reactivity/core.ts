@@ -345,15 +345,19 @@ export function batch<T extends any[]>(
   callback: (...arg: T) => void,
   ...args: T
 ): void {
-  if (BATCH_UPDATES) {
-    callback(...args);
+  if (HAS_PROCESS) {
+    if (BATCH_UPDATES) {
+      callback(...args);
+    } else {
+      const instance = new Set<LinkedWork>();
+      BATCH_UPDATES = instance;
+      const result = pcall(callback, ...args);
+      BATCH_UPDATES = undefined;
+      unwrap(result);
+      runUpdates(instance);
+    }
   } else {
-    const instance = new Set<LinkedWork>();
-    BATCH_UPDATES = instance;
-    const result = pcall(callback, ...args);
-    BATCH_UPDATES = undefined;
-    unwrap(result);
-    runUpdates(instance);
+    callback(...args);
   }
 }
 
@@ -372,27 +376,26 @@ interface ComputationWork<T> extends ProcessWork {
 }
 
 export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup {
-  if (!HAS_PROCESS) {
-    callback(initial);
-    return NO_OP;
+  if (HAS_PROCESS) {
+    const work: ComputationWork<T> = assign(createLinkedWork('subscriber', WORK_COMPUTATION), {
+      current: initial,
+      process: callback,
+      errorBoundary: ERROR_BOUNDARY,
+    });
+
+    evaluateSubscriberWork(work);
+
+    return onCleanup(() => {
+      if (!work.alive) {
+        return;
+      }
+      cleanProcess(work);
+      work.process = undefined;
+      destroyLinkedWork(work);
+    });
   }
-
-  const work: ComputationWork<T> = assign(createLinkedWork('subscriber', WORK_COMPUTATION), {
-    current: initial,
-    process: callback,
-    errorBoundary: ERROR_BOUNDARY,
-  });
-
-  evaluateSubscriberWork(work);
-
-  return onCleanup(() => {
-    if (!work.alive) {
-      return;
-    }
-    cleanProcess(work);
-    work.process = undefined;
-    destroyLinkedWork(work);
-  });
+  callback(initial);
+  return NO_OP;
 }
 
 interface EffectWork extends ProcessWork {
@@ -401,55 +404,54 @@ interface EffectWork extends ProcessWork {
 }
 
 export function batchEffects(callback: () => void): () => void {
-  if (!HAS_PROCESS) {
-    callback();
-    return NO_OP;
-  }
-  const batchedEffects: EffectWork[] = [];
-  const parent = BATCH_EFFECTS;
-  BATCH_EFFECTS = batchedEffects;
-  const result = pcall(callback);
-  BATCH_EFFECTS = parent;
-  unwrap(result);
-  let alive = true;
-  return () => {
-    if (alive) {
-      alive = false;
-      for (let i = 0, len = batchedEffects.length; i < len; i++) {
-        const item = batchedEffects[i];
-        if (item.alive) {
-          evaluateSubscriberWork(item);
+  if (HAS_PROCESS) {
+    const batchedEffects: EffectWork[] = [];
+    const parent = BATCH_EFFECTS;
+    BATCH_EFFECTS = batchedEffects;
+    const result = pcall(callback);
+    BATCH_EFFECTS = parent;
+    unwrap(result);
+    let alive = true;
+    return () => {
+      if (alive) {
+        alive = false;
+        for (let i = 0, len = batchedEffects.length; i < len; i++) {
+          const item = batchedEffects[i];
+          if (item.alive) {
+            evaluateSubscriberWork(item);
+          }
         }
+        batchedEffects.length = 0;
       }
-      batchedEffects.length = 0;
-    }
-  };
+    };
+  }
+  callback();
+  return NO_OP;
 }
 
 export function effect(callback: Effect): Cleanup {
-  if (!HAS_PROCESS) {
-    return NO_OP;
-  }
+  if (HAS_PROCESS) {
+    const work: EffectWork = assign(createLinkedWork('subscriber', WORK_EFFECT), {
+      callback,
+      errorBoundary: ERROR_BOUNDARY,
+    });
 
-  const work: EffectWork = assign(createLinkedWork('subscriber', WORK_EFFECT), {
-    callback,
-    errorBoundary: ERROR_BOUNDARY,
-  });
-
-  if (BATCH_EFFECTS) {
-    BATCH_EFFECTS.push(work);
-  } else {
-    evaluateSubscriberWork(work);
-  }
-
-  return onCleanup(() => {
-    if (!work.alive) {
-      return;
+    if (BATCH_EFFECTS) {
+      BATCH_EFFECTS.push(work);
+    } else {
+      evaluateSubscriberWork(work);
     }
-    cleanProcess(work);
-    work.callback = undefined;
-    destroyLinkedWork(work);
-  });
+
+    return onCleanup(() => {
+      if (!work.alive) {
+        return;
+      }
+      cleanProcess(work);
+      work.callback = undefined;
+      destroyLinkedWork(work);
+    });
+  }
+  return NO_OP;
 }
 
 interface WatchWork<T> extends ProcessWork {
@@ -464,31 +466,30 @@ export function watch<T>(
   listen: (next: T, prev?: T) => void,
   isEqual: (next: T, prev: T) => boolean = is,
 ): () => void {
-  if (!HAS_PROCESS) {
-    listen(source());
-    return NO_OP;
+  if (HAS_PROCESS) {
+    const work: WatchWork<T> = assign(createLinkedWork('subscriber', WORK_WATCH), {
+      source,
+      listen,
+      errorBoundary: ERROR_BOUNDARY,
+      isEqual,
+    });
+
+    evaluateSubscriberWork(work);
+
+    return onCleanup(() => {
+      if (!work.alive) {
+        return;
+      }
+      cleanProcess(work);
+      work.source = undefined;
+      work.listen = undefined;
+      work.current = undefined;
+      work.isEqual = undefined;
+      destroyLinkedWork(work);
+    });
   }
-
-  const work: WatchWork<T> = assign(createLinkedWork('subscriber', WORK_WATCH), {
-    source,
-    listen,
-    errorBoundary: ERROR_BOUNDARY,
-    isEqual,
-  });
-
-  evaluateSubscriberWork(work);
-
-  return onCleanup(() => {
-    if (!work.alive) {
-      return;
-    }
-    cleanProcess(work);
-    work.source = undefined;
-    work.listen = undefined;
-    work.current = undefined;
-    work.isEqual = undefined;
-    destroyLinkedWork(work);
-  });
+  listen(source());
+  return NO_OP;
 }
 
 const REF = Symbol('COMPOSTATE_REF');
@@ -546,40 +547,47 @@ export function computed<T>(
   compute: () => T,
   isEqual: (next: T, prev: T) => boolean = is,
 ): Readonly<Ref<T>> {
-  const instance = createReactiveAtom();
+  if (HAS_PROCESS) {
+    const instance = createReactiveAtom();
 
-  onCleanup(() => {
-    destroyLinkedWork(instance);
-  });
+    onCleanup(() => {
+      destroyLinkedWork(instance);
+    });
 
-  let value: T;
-  let initial = true;
+    let value: T;
+    let initial = true;
 
-  watch(compute, (current) => {
-    value = current;
-    if (initial) {
-      initial = false;
-    } else {
-      notifyReactiveAtom(instance);
-    }
-  }, isEqual);
-
-  const node: Ref<T> & WithRef & WithReadonly = {
-    [REF]: true,
-    [READONLY]: true,
-    get value(): T {
-      if (TRACKING) {
-        trackReactiveAtom(instance);
+    watch(compute, (current) => {
+      value = current;
+      if (initial) {
+        initial = false;
+      } else {
+        notifyReactiveAtom(instance);
       }
-      return value;
+    }, isEqual);
+
+    const node: Ref<T> & WithRef & WithReadonly = {
+      [REF]: true,
+      [READONLY]: true,
+      get value(): T {
+        if (TRACKING) {
+          trackReactiveAtom(instance);
+        }
+        return value;
+      },
+    };
+
+    return node;
+  }
+  return {
+    get value() {
+      return compute();
     },
   };
-
-  return node;
 }
 
 export function track<T>(source: T): T {
-  if (TRACKING) {
+  if (HAS_PROCESS && TRACKING) {
     const instance = getTrackableAtom(source);
     if (instance) {
       trackReactiveAtom(instance);
@@ -627,11 +635,23 @@ export function ref<T>(
   value: T,
   isEqual: (next: T, prev: T) => boolean = is,
 ): Ref<T> {
-  const instance = createReactiveAtom();
-  onCleanup(() => {
-    destroyLinkedWork(instance);
-  });
-  return new RefNode(value, instance, isEqual);
+  if (HAS_PROCESS) {
+    const instance = createReactiveAtom();
+    onCleanup(() => {
+      destroyLinkedWork(instance);
+    });
+    return new RefNode(value, instance, isEqual);
+  }
+  return {
+    get value() {
+      return value;
+    },
+    set value(next) {
+      if (!isEqual(next, value)) {
+        value = next;
+      }
+    },
+  };
 }
 
 export type Signal<T> = [
@@ -643,21 +663,31 @@ export function signal<T>(
   value: T,
   isEqual: (next: T, prev: T) => boolean = is,
 ): Signal<T> {
-  const instance = createReactiveAtom();
-  onCleanup(() => {
-    destroyLinkedWork(instance);
-  });
+  if (HAS_PROCESS) {
+    const instance = createReactiveAtom();
+    onCleanup(() => {
+      destroyLinkedWork(instance);
+    });
+    return [
+      () => {
+        if (TRACKING) {
+          trackReactiveAtom(instance);
+        }
+        return value;
+      },
+      (next) => {
+        if (!isEqual(next, value)) {
+          value = next;
+          notifyReactiveAtom(instance);
+        }
+      },
+    ];
+  }
   return [
-    () => {
-      if (TRACKING) {
-        trackReactiveAtom(instance);
-      }
-      return value;
-    },
+    () => value,
     (next) => {
       if (!isEqual(next, value)) {
         value = next;
-        notifyReactiveAtom(instance);
       }
     },
   ];
@@ -669,19 +699,30 @@ export interface Atom<T> {
 }
 
 export function atom<T>(value: T, isEqual: (next: T, prev: T) => boolean = is): Atom<T> {
-  const instance = createReactiveAtom();
-  onCleanup(() => {
-    destroyLinkedWork(instance);
-  });
+  if (HAS_PROCESS) {
+    const instance = createReactiveAtom();
+    onCleanup(() => {
+      destroyLinkedWork(instance);
+    });
+    return (...args: [] | [T]) => {
+      if (args.length === 1) {
+        const next = args[0];
+        if (!isEqual(next, value)) {
+          value = next;
+          notifyReactiveAtom(instance);
+        }
+      } else if (TRACKING) {
+        trackReactiveAtom(instance);
+      }
+      return value;
+    };
+  }
   return (...args: [] | [T]) => {
     if (args.length === 1) {
       const next = args[0];
       if (!isEqual(next, value)) {
         value = next;
-        notifyReactiveAtom(instance);
       }
-    } else if (TRACKING) {
-      trackReactiveAtom(instance);
     }
     return value;
   };
@@ -691,30 +732,33 @@ export function computedAtom<T>(
   compute: () => T,
   isEqual: (next: T, prev: T) => boolean = is,
 ): () => T {
-  const instance = createReactiveAtom();
+  if (HAS_PROCESS) {
+    const instance = createReactiveAtom();
 
-  onCleanup(() => {
-    destroyLinkedWork(instance);
-  });
+    onCleanup(() => {
+      destroyLinkedWork(instance);
+    });
 
-  let value: T;
-  let initial = true;
+    let value: T;
+    let initial = true;
 
-  watch(compute, (current) => {
-    value = current;
-    if (initial) {
-      initial = false;
-    } else {
-      notifyReactiveAtom(instance);
-    }
-  }, isEqual);
+    watch(compute, (current) => {
+      value = current;
+      if (initial) {
+        initial = false;
+      } else {
+        notifyReactiveAtom(instance);
+      }
+    }, isEqual);
 
-  return () => {
-    if (TRACKING) {
-      trackReactiveAtom(instance);
-    }
-    return value;
-  };
+    return () => {
+      if (TRACKING) {
+        trackReactiveAtom(instance);
+      }
+      return value;
+    };
+  }
+  return compute;
 }
 
 interface ProcessWork extends LinkedWork {
@@ -877,50 +921,48 @@ export function selector<T, U extends T>(
   source: () => T,
   fn: (a: U, b: T) => boolean = is,
 ): (item: U) => boolean {
-  if (!HAS_PROCESS) {
-    const result = source();
-    return (key: U) => fn(key, result);
-  }
-
-  const subs = new Map<U, Set<LinkedWork>>();
-  let v: T;
-  watch(source, (current, prev) => {
-    for (const key of subs.keys()) {
-      if (fn(key, current) || (prev !== undefined && fn(key, prev))) {
-        const listeners = subs.get(key);
-        if (listeners?.size) {
-          for (const listener of listeners) {
-            if (listener.alive) {
-              enqueueSubscriberWork(listener, BATCH_UPDATES!);
+  if (HAS_PROCESS) {
+    const subs = new Map<U, Set<LinkedWork>>();
+    let v: T;
+    watch(source, (current, prev) => {
+      for (const key of subs.keys()) {
+        if (fn(key, current) || (prev !== undefined && fn(key, prev))) {
+          const listeners = subs.get(key);
+          if (listeners?.size) {
+            for (const listener of listeners) {
+              if (listener.alive) {
+                enqueueSubscriberWork(listener, BATCH_UPDATES!);
+              }
             }
           }
         }
       }
-    }
-
-    v = current;
-  });
-  return (key: U) => {
-    const current = TRACKING;
-    if (current) {
-      let listeners: Set<LinkedWork>;
-      const currentListeners = subs.get(key);
-      if (currentListeners) {
-        listeners = currentListeners;
-      } else {
-        listeners = new Set([current]);
-        subs.set(key, listeners);
-      }
-      onCleanup(() => {
-        if (listeners.size > 1) {
-          listeners.delete(current);
+      v = current;
+    });
+    return (key: U) => {
+      const current = TRACKING;
+      if (current) {
+        let listeners: Set<LinkedWork>;
+        const currentListeners = subs.get(key);
+        if (currentListeners) {
+          listeners = currentListeners;
         } else {
-          subs.delete(key);
+          listeners = new Set([current]);
+          subs.set(key, listeners);
         }
-      });
-    }
-    return fn(key, v);
-  };
+        onCleanup(() => {
+          if (listeners.size > 1) {
+            listeners.delete(current);
+          } else {
+            subs.delete(key);
+          }
+        });
+      }
+      return fn(key, v);
+    };
+  }
+  const result = source();
+  return (key: U) => fn(key, result);
 }
 
 export function disableProcess<T>(callback: () => T): T {
@@ -965,13 +1007,17 @@ function scheduleTransition() {
 }
 
 export function startTransition(callback: () => void): void {
-  const parent = BATCH_UPDATES;
-  BATCH_UPDATES = TRANSITIONS;
-  const result = pcall(callback);
-  BATCH_UPDATES = parent;
-  unwrap(result);
+  if (HAS_PROCESS) {
+    const parent = BATCH_UPDATES;
+    BATCH_UPDATES = TRANSITIONS;
+    const result = pcall(callback);
+    BATCH_UPDATES = parent;
+    unwrap(result);
 
-  scheduleTransition();
+    scheduleTransition();
+  } else {
+    callback();
+  }
 }
 
 export function isTransitionPending(): boolean {
@@ -979,13 +1025,16 @@ export function isTransitionPending(): boolean {
 }
 
 export function deferredAtom<T>(callback: () => T): () => T {
-  const [read, write] = signal(untrack(callback));
-  effect(() => {
-    startTransition(() => {
-      write(callback());
+  if (HAS_PROCESS) {
+    const [read, write] = signal(untrack(callback));
+    effect(() => {
+      startTransition(() => {
+        write(callback());
+      });
     });
-  });
-  return read;
+    return read;
+  }
+  return callback;
 }
 
 export function deferred<T>(callback: () => T): Readonly<Ref<T>> {
