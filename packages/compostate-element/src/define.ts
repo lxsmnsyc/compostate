@@ -62,7 +62,7 @@ export default function define<RenderResult, Props extends string>(
 
       // Create a shallow object of state from
       // the defined properties.
-      this.props = reactive({});
+      this.props = createRoot(() => reactive({}));
 
       this.root = this.attachShadow({
         mode: 'closed',
