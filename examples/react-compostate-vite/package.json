@@ -1,15 +1,15 @@
 {
   "name": "react-compostate-vite",
-  "version": "0.2.1-beta.6",
+  "version": "0.2.1-beta.8",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "serve": "vite preview"
   },
   "dependencies": {
-    "compostate": "0.2.1-beta.6",
+    "compostate": "0.2.1-beta.8",
     "react": "^17.0.0",
-    "react-compostate": "0.2.1-beta.6",
+    "react-compostate": "0.2.1-beta.8",
     "react-dom": "^17.0.0"
   },
   "devDependencies": {

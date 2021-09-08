@@ -1,6 +1,6 @@
 {
   "description": "compostate with a Fine-Grained Renderer",
-  "version": "0.2.1-beta.7",
+  "version": "0.2.1-beta.8",
   "types": "dist/types/index.d.ts",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -23,7 +23,7 @@
   "devDependencies": {
     "@types/jest": "^27.0.0",
     "@types/node": "^16.7.13",
-    "compostate": "0.2.1-beta.6",
+    "compostate": "0.2.1-beta.8",
     "eslint": "^7.32.0",
     "eslint-config-lxsmnsyc": "^0.2.3",
     "pridepack": "^0.12.2",
