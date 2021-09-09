@@ -212,7 +212,7 @@ export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanu
     if (alive) {
       alive = false;
       const len = cleanups.length;
-      if (cleanups.length) {
+      if (len) {
         const parent = TRACKING;
         TRACKING = undefined;
         const internal = pcall(exhaustCleanup, [cleanups, len]);
