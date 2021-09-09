@@ -15,7 +15,7 @@ export type Result<T> = Success<T> | Failure;
 
 export function pcall<T, F extends any[]>(
   cb: (...arg: F) => T,
-  ...args: F
+  args: F,
 ): Result<T> {
   try {
     return { status: Success, value: cb(...args) };

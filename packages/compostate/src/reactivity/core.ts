@@ -68,7 +68,7 @@ let CLEANUP: Cleanup[] | undefined;
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
   BATCH_UPDATES = undefined;
-  const result = pcall(callback);
+  const result = pcall(callback, []);
   BATCH_UPDATES = parent;
   return unwrap(result);
 }
@@ -76,7 +76,7 @@ export function unbatch<T>(callback: () => T): T {
 export function unbatchCleanup<T>(callback: () => T): T {
   const parent = CLEANUP;
   CLEANUP = undefined;
-  const result = pcall(callback);
+  const result = pcall(callback, []);
   CLEANUP = parent;
   return unwrap(result);
 }
@@ -84,7 +84,7 @@ export function unbatchCleanup<T>(callback: () => T): T {
 export function unbatchEffects<T>(callback: () => T): T {
   const parent = BATCH_EFFECTS;
   BATCH_EFFECTS = undefined;
-  const result = pcall(callback);
+  const result = pcall(callback, []);
   BATCH_EFFECTS = parent;
   return unwrap(result);
 }
@@ -92,7 +92,7 @@ export function unbatchEffects<T>(callback: () => T): T {
 export function untrack<T>(callback: () => T): T {
   const parent = TRACKING;
   TRACKING = undefined;
-  const result = pcall(callback);
+  const result = pcall(callback, []);
   TRACKING = parent;
   return unwrap(result);
 }
@@ -106,7 +106,7 @@ export function createRoot<T>(callback: () => T): T {
   BATCH_EFFECTS = undefined;
   TRACKING = undefined;
   CLEANUP = undefined;
-  const result = pcall(callback);
+  const result = pcall(callback, []);
   CLEANUP = parentCleanup;
   TRACKING = parentTracking;
   BATCH_EFFECTS = parentBatchEffects;
@@ -121,7 +121,7 @@ export function capturedBatchCleanup<T extends any[], R>(
   return (...args) => {
     const parent = CLEANUP;
     CLEANUP = current;
-    const result = pcall(callback, ...args);
+    const result = pcall(callback, args);
     CLEANUP = parent;
     return unwrap(result);
   };
@@ -134,7 +134,7 @@ export function capturedErrorBoundary<T extends any[], R>(
   return (...args) => {
     const parent = ERROR_BOUNDARY;
     ERROR_BOUNDARY = current;
-    const result = pcall(callback, ...args);
+    const result = pcall(callback, args);
     ERROR_BOUNDARY = parent;
     return unwrap(result);
   };
@@ -147,7 +147,7 @@ export function capturedContext<T extends any[], R>(
   return (...args) => {
     const parent = CONTEXT;
     CONTEXT = current;
-    const result = pcall(callback, ...args);
+    const result = pcall(callback, args);
     CONTEXT = parent;
     return unwrap(result);
   };
@@ -166,7 +166,7 @@ export function captured<T extends any[], R>(
     ERROR_BOUNDARY = currentErrorBoundary;
     CLEANUP = currentCleanup;
     CONTEXT = currentContext;
-    const result = pcall(callback, ...args);
+    const result = pcall(callback, args);
     CONTEXT = parentContext;
     CLEANUP = parentCleanup;
     ERROR_BOUNDARY = parentErrorBoundary;
@@ -203,7 +203,7 @@ export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanu
   const cleanups: Cleanup[] = [];
   const parentCleanup = CLEANUP;
   CLEANUP = cleanups;
-  const result = pcall(runBatchCleanupCallback, cleanups, callback);
+  const result = pcall(runBatchCleanupCallback, [cleanups, callback]);
   CLEANUP = parentCleanup;
   unwrap(result);
   let alive = true;
@@ -215,7 +215,7 @@ export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanu
       if (cleanups.length) {
         const parent = TRACKING;
         TRACKING = undefined;
-        const internal = pcall(exhaustCleanup, cleanups, len);
+        const internal = pcall(exhaustCleanup, [cleanups, len]);
         TRACKING = parent;
         unwrap(internal);
       }
@@ -245,7 +245,7 @@ function handleError(instance: ErrorBoundary | undefined, error: Error): void {
     if (calls?.size) {
       const parentTracking = TRACKING;
       TRACKING = undefined;
-      const result = pcall(runErrorHandlers, calls.keys(), error);
+      const result = pcall(runErrorHandlers, [calls.keys(), error]);
       TRACKING = parentTracking;
       if (result.status === Failure) {
         handleError(parent, error);
@@ -286,7 +286,7 @@ export function onError(errorCapture: ErrorCapture): Cleanup {
 export function errorBoundary<T>(callback: () => T): T {
   const parentInstance = ERROR_BOUNDARY;
   ERROR_BOUNDARY = createErrorBoundary(parentInstance);
-  const result = pcall(callback);
+  const result = pcall(callback, []);
   ERROR_BOUNDARY = parentInstance;
   return unwrap(result);
 }
@@ -329,7 +329,7 @@ function exhaustUpdates(instance: Set<LinkedWork>): void {
 
 function runUpdates(instance: Set<LinkedWork>) {
   BATCH_UPDATES = instance;
-  const result = pcall(exhaustUpdates, instance);
+  const result = pcall(exhaustUpdates, [instance]);
   BATCH_UPDATES = undefined;
   unwrap(result);
 }
@@ -355,7 +355,7 @@ export function batch<T extends any[]>(
   } else {
     const instance = new Set<LinkedWork>();
     BATCH_UPDATES = instance;
-    const result = pcall(callback, ...args);
+    const result = pcall(callback, args);
     BATCH_UPDATES = undefined;
     unwrap(result);
     runUpdates(instance);
@@ -405,7 +405,7 @@ export function batchEffects(callback: () => void): () => void {
   const batchedEffects: EffectWork[] = [];
   const parent = BATCH_EFFECTS;
   BATCH_EFFECTS = batchedEffects;
-  const result = pcall(callback);
+  const result = pcall(callback, []);
   BATCH_EFFECTS = parent;
   unwrap(result);
   let alive = true;
@@ -796,7 +796,7 @@ function runProcess(target: ProcessWork) {
   BATCH_EFFECTS = undefined;
   TRACKING = target;
   CONTEXT = target.context;
-  const result = pcall(runProcessInternal, target);
+  const result = pcall(runProcessInternal, [target]);
   CONTEXT = parentContext;
   TRACKING = parentTracking;
   BATCH_EFFECTS = parentBatchEffects;
@@ -819,7 +819,7 @@ export function contextual<T>(callback: () => T): T {
     parent,
     data: {},
   };
-  const result = pcall(callback);
+  const result = pcall(callback, []);
   CONTEXT = parent;
   return unwrap(result);
 }
@@ -935,7 +935,7 @@ function scheduleTransition() {
 export function startTransition(callback: () => void): void {
   const parent = BATCH_UPDATES;
   BATCH_UPDATES = TRANSITIONS;
-  const result = pcall(callback);
+  const result = pcall(callback, []);
   BATCH_UPDATES = parent;
   unwrap(result);
 
