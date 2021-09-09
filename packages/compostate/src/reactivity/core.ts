@@ -63,7 +63,7 @@ let BATCH_UPDATES: Set<LinkedWork> | undefined;
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
 let BATCH_EFFECTS: EffectWork[] | undefined;
 let CONTEXT: ContextTree | undefined;
-let CLEANUP: Cleanup[] | undefined;
+let CLEANUP: Set<Cleanup> | undefined;
 
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
@@ -175,32 +175,31 @@ export function captured<T extends any[], R>(
 }
 
 export function onCleanup(cleanup: Cleanup): Cleanup {
-  CLEANUP?.push(cleanup);
+  CLEANUP?.add(cleanup);
   return cleanup;
 }
 
 function runBatchCleanupCallback(
-  cleanups: Cleanup[],
+  cleanups: Set<Cleanup>,
   callback: () => void | undefined | Cleanup,
 ): void {
   const cleanup = callback();
   // Add the returned cleanup as well
   if (cleanup) {
-    cleanups.push(cleanup);
+    cleanups.add(cleanup);
   }
 }
 
 function exhaustCleanup(
-  cleanups: Cleanup[],
-  len: number,
+  cleanups: Set<Cleanup>,
 ): void {
-  for (let i = 0; i < len; i++) {
-    cleanups[i]();
+  for (const cleanup of cleanups) {
+    cleanup();
   }
 }
 
 export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanup {
-  const cleanups: Cleanup[] = [];
+  const cleanups = new Set<Cleanup>();
   const parentCleanup = CLEANUP;
   CLEANUP = cleanups;
   const result = pcall(runBatchCleanupCallback, [cleanups, callback]);
@@ -211,11 +210,10 @@ export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanu
   return onCleanup(() => {
     if (alive) {
       alive = false;
-      const len = cleanups.length;
-      if (len) {
+      if (cleanups.size) {
         const parent = TRACKING;
         TRACKING = undefined;
-        const internal = pcall(exhaustCleanup, [cleanups, len]);
+        const internal = pcall(exhaustCleanup, [cleanups]);
         TRACKING = parent;
         unwrap(internal);
       }
