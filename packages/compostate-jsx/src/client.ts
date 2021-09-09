@@ -197,7 +197,7 @@ export function classList(node, value, prev = {}) {
 
 export function style(node, value, prev = {}) {
   const nodeStyle = node.style;
-  if (typeof value === 'string') {
+  if (value == null || typeof value === 'string') {
     nodeStyle.cssText = value;
     return value;
   }
