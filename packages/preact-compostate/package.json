@@ -1,5 +1,5 @@
 {
-  "version": "0.2.1-beta.9",
+  "version": "0.2.1-beta.10",
   "types": "dist/types/index.d.ts",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -24,7 +24,7 @@
     "@testing-library/preact": "^2.0.1",
     "@types/jest": "^26.0.23",
     "@types/node": "^16.7.13",
-    "compostate": "0.2.1-beta.9",
+    "compostate": "0.2.1-beta.10",
     "eslint": "^7.32.0",
     "eslint-config-lxsmnsyc": "^0.2.1",
     "preact": "^10.5.13",

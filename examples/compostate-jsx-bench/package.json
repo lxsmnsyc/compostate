@@ -1,5 +1,5 @@
 {
-  "version": "0.2.1-beta.9",
+  "version": "0.2.1-beta.10",
   "name": "compostate-jsx-bench",
   "license": "MIT",
   "scripts": {
@@ -7,8 +7,8 @@
     "build": "parcel build ./index.html"
   },
   "dependencies": {
-    "compostate": "0.2.1-beta.9",
-    "compostate-jsx": "0.2.1-beta.9"
+    "compostate": "0.2.1-beta.10",
+    "compostate-jsx": "0.2.1-beta.10"
   },
   "browserslist": "last 2 Chrome versions",
   "devDependencies": {
