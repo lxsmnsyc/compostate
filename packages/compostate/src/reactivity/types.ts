@@ -38,7 +38,7 @@ export type ReactiveCollection =
 export type ReactiveBaseObject = ReactiveObject | ReactiveCollection;
 
 export type Cleanup = () => void;
-export type Effect = () => Cleanup | undefined | void;
+export type Effect = () => void;
 
 export type ErrorCapture = (error: Error) => void;
 

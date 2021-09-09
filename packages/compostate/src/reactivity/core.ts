@@ -179,17 +179,6 @@ export function onCleanup(cleanup: Cleanup): Cleanup {
   return cleanup;
 }
 
-function runBatchCleanupCallback(
-  cleanups: Set<Cleanup>,
-  callback: () => void | undefined | Cleanup,
-): void {
-  const cleanup = callback();
-  // Add the returned cleanup as well
-  if (cleanup) {
-    cleanups.add(cleanup);
-  }
-}
-
 function exhaustCleanup(
   cleanups: Set<Cleanup>,
 ): void {
@@ -198,11 +187,11 @@ function exhaustCleanup(
   }
 }
 
-export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanup {
+export function batchCleanup(callback: () => void): Cleanup {
   const cleanups = new Set<Cleanup>();
   const parentCleanup = CLEANUP;
   CLEANUP = cleanups;
-  const result = pcall(runBatchCleanupCallback, [cleanups, callback]);
+  const result = pcall(callback, []);
   CLEANUP = parentCleanup;
   unwrap(result);
   let alive = true;
