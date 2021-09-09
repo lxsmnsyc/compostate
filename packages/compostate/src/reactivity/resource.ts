@@ -1,3 +1,4 @@
+import { onCleanup } from './core';
 import { batch, effect } from './core';
 import reactive from './reactive';
 
@@ -51,12 +52,12 @@ export default function resource<T>(
           state.status = 'pending';
         }, options.timeoutMS);
 
-        return () => {
+        onCleanup(() => {
           clearTimeout(timeout);
-        };
+        });
+      } else {
+        state.status = 'pending';
       }
-      state.status = 'pending';
-      return undefined;
     });
 
     promise.then(
@@ -80,9 +81,9 @@ export default function resource<T>(
       },
     );
 
-    return () => {
+    onCleanup(() => {
       alive = false;
-    };
+    });
   });
 
   return state;

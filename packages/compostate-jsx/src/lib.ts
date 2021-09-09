@@ -16,6 +16,8 @@ import {
   reactive,
   atom,
   inject,
+  onCleanup,
+  effect,
 } from 'compostate';
 import { JSX } from './jsx';
 
@@ -33,12 +35,10 @@ export function root<T>(fn: (dispose: () => void) => T): T {
   });
 }
 
-export const effect = computation;
-
 // only updates when boolean expression changes
 export function memo<T>(fn: () => T, equal?: boolean): () => T {
   const o = ref(untrack(fn));
-  effect((prev) => {
+  computation((prev) => {
     const res = fn();
     if (!equal || Object.is(prev, res)) {
       o.value = res;
@@ -109,9 +109,9 @@ export function Suspense(props: SuspenseProps): JSX.Element {
       capture: <T>(data: Resource<T>) => {
         effect(() => {
           resources.add(track(data));
-          return () => {
+          onCleanup(() => {
             resources.delete(data);
-          };
+          });
         });
       },
     });

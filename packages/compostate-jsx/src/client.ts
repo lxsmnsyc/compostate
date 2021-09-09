@@ -3,6 +3,7 @@ import {
   Cleanup,
   computation,
   createRoot,
+  onCleanup,
 } from 'compostate';
 import {
   Properties,
@@ -585,9 +586,9 @@ export function render(
 ): Cleanup {
   return createRoot(() => batchCleanup(() => {
     insert(element, code(), element.firstChild ? null : undefined, init);
-    return () => {
+    onCleanup(() => {
       element.textContent = '';
-    };
+    });
   }));
 }
 
