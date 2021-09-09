@@ -1,10 +1,13 @@
+export const Success = 1;
+export const Failure = 2;
+
 export interface Success<T> {
-  status: 'success';
+  status: 1;
   value: T;
 }
 
 export interface Failure {
-  status: 'failure';
+  status: 2;
   value: any;
 }
 
@@ -15,14 +18,14 @@ export function pcall<T, F extends any[]>(
   ...args: F
 ): Result<T> {
   try {
-    return { status: 'success', value: cb(...args) };
+    return { status: Success, value: cb(...args) };
   } catch (error) {
-    return { status: 'failure', value: error };
+    return { status: Failure, value: error };
   }
 }
 
 export function unwrap<T>(result: Result<T>): T {
-  if (result.status === 'failure') {
+  if (result.status === Failure) {
     throw result.value;
   }
   return result.value;

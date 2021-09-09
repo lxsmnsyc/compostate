@@ -40,7 +40,7 @@ import {
   unlinkLinkedWorkPublishers,
 } from '../linked-work';
 import { cancelCallback, requestCallback, Task } from '../scheduler';
-import { pcall, unwrap } from '../utils/pcall';
+import { Failure, pcall, unwrap } from '../utils/pcall';
 import {
   Cleanup,
   Effect,
@@ -209,17 +209,16 @@ export function batchCleanup(callback: () => void | undefined | Cleanup): Cleanu
   let alive = true;
   // Create return cleanup
   return onCleanup(() => {
-    if (!alive) {
-      return;
-    }
-    alive = false;
-    const len = cleanups.length;
-    if (cleanups.length) {
-      const parent = TRACKING;
-      TRACKING = undefined;
-      const internal = pcall(exhaustCleanup, cleanups, len);
-      TRACKING = parent;
-      unwrap(internal);
+    if (alive) {
+      alive = false;
+      const len = cleanups.length;
+      if (cleanups.length) {
+        const parent = TRACKING;
+        TRACKING = undefined;
+        const internal = pcall(exhaustCleanup, cleanups, len);
+        TRACKING = parent;
+        unwrap(internal);
+      }
     }
   });
 }
@@ -248,7 +247,7 @@ function handleError(instance: ErrorBoundary | undefined, error: Error): void {
       TRACKING = undefined;
       const result = pcall(runErrorHandlers, calls.keys(), error);
       TRACKING = parentTracking;
-      if (result.status === 'failure') {
+      if (result.status === Failure) {
         handleError(parent, error);
         handleError(parent, result.value);
       }
@@ -802,7 +801,7 @@ function runProcess(target: ProcessWork) {
   TRACKING = parentTracking;
   BATCH_EFFECTS = parentBatchEffects;
   ERROR_BOUNDARY = parentErrorBoundary;
-  if (result.status === 'failure') {
+  if (result.status === Failure) {
     handleError(target.errorBoundary, result.value);
   }
 }
