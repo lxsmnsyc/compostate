@@ -66,15 +66,21 @@ export {
   // context
   contextual,
   createContext,
+  Context,
   provide,
   inject,
   // selector
   selector,
   // atoms
   atom,
+  Atom,
   computedAtom,
   // signal
   signal,
+  Signal,
+  // deferred
+  deferred,
+  deferredAtom,
 } from './reactivity/core';
 // Extensions
 export { map, index } from './reactivity/array';

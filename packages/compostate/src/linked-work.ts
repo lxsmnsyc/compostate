@@ -1,5 +1,11 @@
+export type LinkedWorkType =
+  | 1 // Subscriber
+  | 2; // Publisher
+
+export const Subscriber: LinkedWorkType = 1;
+export const Publisher: LinkedWorkType = 2;
 export interface LinkedWork {
-  type: 'subscriber' | 'publisher';
+  type: LinkedWorkType;
   tag: number;
   id: number;
   alive: boolean;
@@ -15,7 +21,7 @@ export function setRunner(work: (work: LinkedWork) => void): void {
 let STATE = 0;
 
 export function createLinkedWork(
-  type: 'publisher' | 'subscriber',
+  type: LinkedWorkType,
   tag: number,
 ): LinkedWork {
   return {
@@ -72,26 +78,10 @@ export function enqueuePublisherWork(
   }
 }
 
-function evaluatePublisherWork(target: LinkedWork): void {
+export function evaluatePublisherWork(target: LinkedWork): void {
   if (target.links?.size) {
     for (const item of target.links.keys()) {
       RUNNER(item);
-    }
-  }
-}
-
-export function runLinkedWork(target: LinkedWork, queue?: Set<LinkedWork>): void {
-  if (target.alive) {
-    if (target.type === 'publisher') {
-      if (queue) {
-        enqueuePublisherWork(target, queue);
-      } else {
-        evaluatePublisherWork(target);
-      }
-    } else if (queue) {
-      enqueueSubscriberWork(target, queue);
-    } else {
-      RUNNER(target);
     }
   }
 }
@@ -108,7 +98,7 @@ export function unlinkLinkedWorkPublishers(target: LinkedWork): void {
 export function destroyLinkedWork(target: LinkedWork): void {
   if (target.alive) {
     target.alive = false;
-    if (target.type === 'subscriber') {
+    if (target.type === Subscriber) {
       unlinkLinkedWorkPublishers(target);
     }
     target.links = undefined;
