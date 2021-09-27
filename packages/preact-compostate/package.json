@@ -26,7 +26,7 @@
     "@types/node": "^16.7.13",
     "compostate": "0.2.1-beta.10",
     "eslint": "^7.32.0",
-    "eslint-config-lxsmnsyc": "^0.2.1",
+    "eslint-config-lxsmnsyc": "^0.3.0",
     "preact": "^10.5.13",
     "pridepack": "^0.12.2",
     "tslib": "^2.3.1",
