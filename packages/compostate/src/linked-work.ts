@@ -1,15 +1,9 @@
-export type LinkedWorkType =
-  | 1 // Subscriber
-  | 2; // Publisher
-
-export const Subscriber: LinkedWorkType = 1;
-export const Publisher: LinkedWorkType = 2;
 export interface LinkedWork {
-  type: LinkedWorkType;
+  isSubscriber: boolean;
   tag: number;
   id: number;
   alive: boolean;
-  links?: Set<LinkedWork>
+  links?: Set<LinkedWork>;
 }
 
 let RUNNER: (work: LinkedWork) => void;
@@ -21,11 +15,11 @@ export function setRunner(work: (work: LinkedWork) => void): void {
 let STATE = 0;
 
 export function createLinkedWork(
-  type: LinkedWorkType,
+  isSubscriber: boolean,
   tag: number,
 ): LinkedWork {
   return {
-    type,
+    isSubscriber,
     tag,
     id: STATE++,
     alive: true,
@@ -98,7 +92,7 @@ export function unlinkLinkedWorkPublishers(target: LinkedWork): void {
 export function destroyLinkedWork(target: LinkedWork): void {
   if (target.alive) {
     target.alive = false;
-    if (target.type === Subscriber) {
+    if (target.isSubscriber) {
       unlinkLinkedWorkPublishers(target);
     }
     target.links = undefined;

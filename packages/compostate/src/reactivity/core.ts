@@ -33,14 +33,19 @@ import {
   evaluatePublisherWork,
   evaluateSubscriberWork,
   LinkedWork,
-  Publisher,
   publisherLinkSubscriber,
   setRunner,
-  Subscriber,
   unlinkLinkedWorkPublishers,
 } from '../linked-work';
 import { cancelCallback, requestCallback, Task } from '../scheduler';
-import { Failure, pcall, unwrap } from '../utils/pcall';
+import {
+  Failure,
+  pcall,
+  pcall0,
+  pcall1,
+  pcall2,
+  unwrap,
+} from '../utils/pcall';
 import {
   Cleanup,
   Effect,
@@ -68,7 +73,7 @@ let CLEANUP: Set<Cleanup> | undefined;
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
   BATCH_UPDATES = undefined;
-  const result = pcall(callback, []);
+  const result = pcall0(callback);
   BATCH_UPDATES = parent;
   return unwrap(result);
 }
@@ -76,7 +81,7 @@ export function unbatch<T>(callback: () => T): T {
 export function unbatchCleanup<T>(callback: () => T): T {
   const parent = CLEANUP;
   CLEANUP = undefined;
-  const result = pcall(callback, []);
+  const result = pcall0(callback);
   CLEANUP = parent;
   return unwrap(result);
 }
@@ -84,7 +89,7 @@ export function unbatchCleanup<T>(callback: () => T): T {
 export function unbatchEffects<T>(callback: () => T): T {
   const parent = BATCH_EFFECTS;
   BATCH_EFFECTS = undefined;
-  const result = pcall(callback, []);
+  const result = pcall0(callback);
   BATCH_EFFECTS = parent;
   return unwrap(result);
 }
@@ -92,7 +97,7 @@ export function unbatchEffects<T>(callback: () => T): T {
 export function untrack<T>(callback: () => T): T {
   const parent = TRACKING;
   TRACKING = undefined;
-  const result = pcall(callback, []);
+  const result = pcall0(callback);
   TRACKING = parent;
   return unwrap(result);
 }
@@ -106,7 +111,7 @@ export function createRoot<T>(callback: () => T): T {
   BATCH_EFFECTS = undefined;
   TRACKING = undefined;
   CLEANUP = undefined;
-  const result = pcall(callback, []);
+  const result = pcall0(callback);
   CLEANUP = parentCleanup;
   TRACKING = parentTracking;
   BATCH_EFFECTS = parentBatchEffects;
@@ -191,7 +196,7 @@ export function batchCleanup(callback: () => void): Cleanup {
   const cleanups = new Set<Cleanup>();
   const parentCleanup = CLEANUP;
   CLEANUP = cleanups;
-  const result = pcall(callback, []);
+  const result = pcall0(callback);
   CLEANUP = parentCleanup;
   unwrap(result);
   let alive = true;
@@ -202,7 +207,7 @@ export function batchCleanup(callback: () => void): Cleanup {
       if (cleanups.size) {
         const parent = TRACKING;
         TRACKING = undefined;
-        const internal = pcall(exhaustCleanup, [cleanups]);
+        const internal = pcall1(exhaustCleanup, cleanups);
         TRACKING = parent;
         unwrap(internal);
       }
@@ -232,7 +237,7 @@ function handleError(instance: ErrorBoundary | undefined, error: Error): void {
     if (calls?.size) {
       const parentTracking = TRACKING;
       TRACKING = undefined;
-      const result = pcall(runErrorHandlers, [calls.keys(), error]);
+      const result = pcall2(runErrorHandlers, calls.keys(), error);
       TRACKING = parentTracking;
       if (result.status === Failure) {
         handleError(parent, error);
@@ -273,7 +278,7 @@ export function onError(errorCapture: ErrorCapture): Cleanup {
 export function errorBoundary<T>(callback: () => T): T {
   const parentInstance = ERROR_BOUNDARY;
   ERROR_BOUNDARY = createErrorBoundary(parentInstance);
-  const result = pcall(callback, []);
+  const result = pcall0(callback);
   ERROR_BOUNDARY = parentInstance;
   return unwrap(result);
 }
@@ -291,7 +296,7 @@ export function captureError(): ErrorCapture {
 export type ReactiveAtom = LinkedWork;
 
 export function createReactiveAtom(): ReactiveAtom {
-  return createLinkedWork(Publisher, WORK_ATOM);
+  return createLinkedWork(false, WORK_ATOM);
 }
 
 export function destroyReactiveAtom(target: ReactiveAtom): void {
@@ -305,7 +310,7 @@ export function trackReactiveAtom(target: ReactiveAtom): void {
 function exhaustUpdates(instance: Set<LinkedWork>): void {
   for (const work of instance) {
     if (work.alive) {
-      if (work.type === Subscriber) {
+      if (work.isSubscriber) {
         evaluateSubscriberWork(work);
       } else {
         evaluatePublisherWork(work);
@@ -316,7 +321,7 @@ function exhaustUpdates(instance: Set<LinkedWork>): void {
 
 function runUpdates(instance: Set<LinkedWork>) {
   BATCH_UPDATES = instance;
-  const result = pcall(exhaustUpdates, [instance]);
+  const result = pcall1(exhaustUpdates, instance);
   BATCH_UPDATES = undefined;
   unwrap(result);
 }
@@ -364,7 +369,7 @@ interface ComputationWork<T> extends ProcessWork {
 }
 
 export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup {
-  const work: ComputationWork<T> = assign(createLinkedWork(Subscriber, WORK_COMPUTATION), {
+  const work: ComputationWork<T> = assign(createLinkedWork(true, WORK_COMPUTATION), {
     current: initial,
     process: callback,
     context: CONTEXT,
@@ -392,7 +397,7 @@ export function batchEffects(callback: () => void): () => void {
   const batchedEffects: EffectWork[] = [];
   const parent = BATCH_EFFECTS;
   BATCH_EFFECTS = batchedEffects;
-  const result = pcall(callback, []);
+  const result = pcall0(callback);
   BATCH_EFFECTS = parent;
   unwrap(result);
   let alive = true;
@@ -411,7 +416,7 @@ export function batchEffects(callback: () => void): () => void {
 }
 
 export function effect(callback: Effect): Cleanup {
-  const work: EffectWork = assign(createLinkedWork(Subscriber, WORK_EFFECT), {
+  const work: EffectWork = assign(createLinkedWork(true, WORK_EFFECT), {
     callback,
     context: CONTEXT,
     errorBoundary: ERROR_BOUNDARY,
@@ -445,7 +450,7 @@ export function watch<T>(
   listen: (next: T, prev?: T) => void,
   isEqual: (next: T, prev: T) => boolean = is,
 ): () => void {
-  const work: WatchWork<T> = assign(createLinkedWork(Subscriber, WORK_WATCH), {
+  const work: WatchWork<T> = assign(createLinkedWork(true, WORK_WATCH), {
     source,
     listen,
     context: CONTEXT,
@@ -783,7 +788,7 @@ function runProcess(target: ProcessWork) {
   BATCH_EFFECTS = undefined;
   TRACKING = target;
   CONTEXT = target.context;
-  const result = pcall(runProcessInternal, [target]);
+  const result = pcall1(runProcessInternal, target);
   CONTEXT = parentContext;
   TRACKING = parentTracking;
   BATCH_EFFECTS = parentBatchEffects;
@@ -806,7 +811,7 @@ export function contextual<T>(callback: () => T): T {
     parent,
     data: {},
   };
-  const result = pcall(callback, []);
+  const result = pcall0(callback);
   CONTEXT = parent;
   return unwrap(result);
 }
@@ -922,7 +927,7 @@ function scheduleTransition() {
 export function startTransition(callback: () => void): void {
   const parent = BATCH_UPDATES;
   BATCH_UPDATES = TRANSITIONS;
-  const result = pcall(callback, []);
+  const result = pcall0(callback);
   BATCH_UPDATES = parent;
   unwrap(result);
 
