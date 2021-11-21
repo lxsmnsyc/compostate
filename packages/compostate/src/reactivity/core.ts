@@ -37,9 +37,12 @@ import {
   setRunner,
   unlinkLinkedWorkPublishers,
 } from '../linked-work';
-import { cancelCallback, requestCallback, Task } from '../scheduler';
 import {
-  Failure,
+  cancelCallback,
+  requestCallback,
+  Task,
+} from '../scheduler';
+import {
   pcall,
   pcall0,
   pcall1,
@@ -239,7 +242,7 @@ function handleError(instance: ErrorBoundary | undefined, error: Error): void {
       TRACKING = undefined;
       const result = pcall2(runErrorHandlers, calls.keys(), error);
       TRACKING = parentTracking;
-      if (result.status === Failure) {
+      if (!result.isSuccess) {
         handleError(parent, error);
         handleError(parent, result.value);
       }
@@ -793,7 +796,7 @@ function runProcess(target: ProcessWork) {
   TRACKING = parentTracking;
   BATCH_EFFECTS = parentBatchEffects;
   ERROR_BOUNDARY = parentErrorBoundary;
-  if (result.status === Failure) {
+  if (!result.isSuccess) {
     handleError(target.errorBoundary, result.value);
   }
 }
