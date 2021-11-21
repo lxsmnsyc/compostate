@@ -21,6 +21,7 @@ module.exports = {
     "prefer-object-spread": "off",
     "@typescript-eslint/unbound-method": "off",
     "prefer-destructuring": "off",
-    "guard-for-in": "off"
+    "guard-for-in": "off",
+    "one-var": "off"
   },
 };

@@ -78,14 +78,14 @@ function eventHandler(e) {
   let node = (e.composedPath && e.composedPath()[0]) || e.target;
   // reverse Shadow DOM retargetting
   if (e.target !== node) {
-    defineProperty(e, 'target', {
+    Object.defineProperty(e, 'target', {
       configurable: true,
       value: node,
     });
   }
 
   // simulate currentTarget
-  defineProperty(e, 'currentTarget', {
+  Object.defineProperty(e, 'currentTarget', {
     configurable: true,
     get() {
       return node;
@@ -99,7 +99,7 @@ function eventHandler(e) {
       data !== undefined ? handler(data, e) : handler(e);
       if (e.cancelBubble) return;
     }
-    node = node.host && node.host !== node && node.host instanceof Node ? node.host : node.parentNode;
+    node =      node.host && node.host !== node && node.host instanceof Node ? node.host : node.parentNode;
   }
 }
 
@@ -146,14 +146,10 @@ export function addEventListener(
     if (Array.isArray(handler)) {
       node[`$$${name}`] = handler[0];
       node[`$$${name}Data`] = handler[1];
-    } else {
-      node[`$$${name}`] = handler;
-    }
+    } else node[`$$${name}`] = handler;
   } else if (Array.isArray(handler)) {
-    node.addEventListener(name, (e) => handler[0](handler[1], e));
-  } else {
-    node.addEventListener(name, handler);
-  }
+    node.addEventListener(name, e => handler[0](handler[1], e));
+  } else node.addEventListener(name, handler);
 }
 
 export function setAttribute(
@@ -182,15 +178,20 @@ export function setAttributeNS(
 }
 
 export function classList(node, value, prev = {}) {
-  for (const key in prev) {
-    if (!key || key === 'undefined' || key in value) continue;
+  const classKeys = Object.keys(value || {}),
+    prevKeys = Object.keys(prev);
+  let i, len;
+  for (i = 0, len = prevKeys.length; i < len; i++) {
+    const key = prevKeys[i];
+    if (!key || key === "undefined" || value[key]) continue;
     toggleClassKey(node, key, false);
     delete prev[key];
   }
-  for (const key in value) {
-    const classValue = !!value[key];
-    if (!key || key === 'undefined' || prev[key] === classValue) continue;
-    toggleClassKey(node, key, classValue);
+  for (i = 0, len = classKeys.length; i < len; i++) {
+    const key = classKeys[i],
+      classValue = !!value[key];
+    if (!key || key === "undefined" || prev[key] === classValue || !classValue) continue;
+    toggleClassKey(node, key, true);
     prev[key] = classValue;
   }
   return prev;
@@ -198,21 +199,15 @@ export function classList(node, value, prev = {}) {
 
 export function style(node, value, prev = {}) {
   const nodeStyle = node.style;
-  if (value == null || typeof value === 'string') {
-    nodeStyle.cssText = value;
-    return value;
-  }
-  if (typeof prev === 'string') {
-    prev = {};
-  }
-  for (const s in prev) {
-    if (value[s] == null) {
-      nodeStyle.removeProperty(s);
-    }
+  if (value == null || typeof value === "string") return (nodeStyle.cssText = value);
+  typeof prev === "string" && (prev = {});
+  let v, s;
+  for (s in prev) {
+    value[s] == null && nodeStyle.removeProperty(s);
     delete prev[s];
   }
-  for (const s in value) {
-    const v = value[s];
+  for (s in value) {
+    v = value[s];
     if (v !== prev[s]) {
       nodeStyle.setProperty(s, v);
       prev[s] = v;
@@ -224,7 +219,9 @@ export function style(node, value, prev = {}) {
 export function mergeProps(...sources) {
   const target = {};
   for (let i = 0; i < sources.length; i++) {
-    const descriptors = getOwnPropertyDescriptors(sources[i]);
+    let source = sources[i];
+    if (typeof source === "function") source = source();
+    const descriptors = getOwnPropertyDescriptors(source);
     defineProperties(target, descriptors);
   }
   return target;
@@ -248,9 +245,8 @@ function toPropertyName(name) {
 
 function toggleClassKey(node: Element, key: string, value: boolean) {
   const classNames = key.trim().split(/\s+/);
-  const list = node.classList;
   for (let i = 0, nameLen = classNames.length; i < nameLen; i++) {
-    list.toggle(classNames[i], value);
+    node.classList.toggle(classNames[i], value);
   }
 }
 
@@ -259,9 +255,7 @@ function appendNodes(
   array: Node[],
   marker: Node | null = null,
 ) {
-  for (let i = 0, len = array.length; i < len; i++) {
-    parent.insertBefore(array[i], marker);
-  }
+  for (let i = 0, len = array.length; i < len; i++) parent.insertBefore(array[i], marker);
 }
 
 function normalizeIncomingArray(
@@ -285,10 +279,7 @@ function normalizeIncomingArray(
     } else if (t === 'function') {
       if (unwrap) {
         while (typeof item === 'function') item = item();
-        dynamic = normalizeIncomingArray(
-          normalized,
-          Array.isArray(item) ? item : [item],
-        ) || dynamic;
+        dynamic = normalizeIncomingArray(normalized, Array.isArray(item) ? item : [item]) || dynamic;
       } else {
         normalized.push(item);
         dynamic = true;
@@ -301,17 +292,13 @@ function normalizeIncomingArray(
 function cleanChildren(parent, current, marker, replacement) {
   if (marker === undefined) return (parent.textContent = '');
   const node = replacement || document.createTextNode('');
-  let i = current.length
-  if (i) {
+  if (current.length) {
     let inserted = false;
-    i--;
-    for (; i >= 0; i--) {
+    for (let i = current.length - 1; i >= 0; i--) {
       const el = current[i];
       if (node !== el) {
         const isParent = el.parentNode === parent;
-        if (!inserted && !i)
-          isParent ? parent.replaceChild(node, el) : parent.insertBefore(node, marker);
-        else isParent && parent.removeChild(el);
+        if (!inserted && !i) { isParent ? parent.replaceChild(node, el) : parent.insertBefore(node, marker); } else isParent && parent.removeChild(el);
       } else inserted = true;
     }
   } else parent.insertBefore(node, marker);
@@ -327,8 +314,8 @@ function insertExpression(
 ): JSX.Element {
   while (typeof current === 'function') current = current();
   if (value === current) return current;
-  const t = typeof value;
-  const multi = marker !== undefined;
+  const t = typeof value,
+    multi = marker !== undefined;
   parent = (multi && current[0] && current[0].parentNode) || parent;
 
   if (t === 'string' || t === 'number') {
@@ -348,7 +335,7 @@ function insertExpression(
     if (sharedConfig.context) return current;
     current = cleanChildren(parent, current, marker);
   } else if (t === 'function') {
-    computation(() => {
+    effect(() => {
       let v = value();
       while (typeof v === 'function') v = v();
       current = insertExpression(parent, v, current, marker);
@@ -357,7 +344,7 @@ function insertExpression(
   } else if (Array.isArray(value)) {
     const array = [];
     if (normalizeIncomingArray(array, value, unwrapArray)) {
-      computation(() => (current = insertExpression(parent, array, current, marker, true)));
+      effect(() => (current = insertExpression(parent, array, current, marker, true)));
       return () => current;
     }
     if (sharedConfig.context && current && current.length) return current;
@@ -384,11 +371,41 @@ function insertExpression(
       parent.appendChild(value);
     } else parent.replaceChild(value, parent.firstChild);
     current = value;
-  } else if (process.env.NODE_ENV !== 'production') {
-    console.warn('Unrecognized value. Skipped inserting', value);
-  }
+  } else if ('_DX_DEV_') console.warn('Unrecognized value. Skipped inserting', value);
 
   return current;
+}
+
+
+function assignProp(node, prop, value, prev, isSVG) {
+  let isCE, isProp, isChildProp;
+  if (prop === 'style') return style(node, value, prev);
+  if (prop === 'classList') return classList(node, value, prev);
+  if (value === prev) return prev;
+  if (prop === 'ref') {
+    value(node);
+  } else if (prop.slice(0, 3) === 'on:') {
+    node.addEventListener(prop.slice(3), value);
+  } else if (prop.slice(0, 10) === 'oncapture:') {
+    node.addEventListener(prop.slice(10), value, true);
+  } else if (prop.slice(0, 2) === 'on') {
+    const name = prop.slice(2).toLowerCase();
+    const delegate = DelegatedEvents.has(name);
+    addEventListener(node, name, value, delegate);
+    delegate && delegateEvents([name]);
+  } else if (
+    (isChildProp = ChildProperties.has(prop))
+    || (!isSVG && (PropAliases[prop] || (isProp = Properties.has(prop))))
+    || (isCE = node.nodeName.includes('-'))
+  ) {
+    if (isCE && !isProp && !isChildProp) node[toPropertyName(prop)] = value;
+    else node[PropAliases[prop] || prop] = value;
+  } else {
+    const ns = isSVG && prop.indexOf(':') > -1 && SVGNamespace[prop.split(':')[0]];
+    if (ns) setAttributeNS(node, ns, prop, value);
+    else setAttribute(node, Aliases[prop] || prop, value);
+  }
+  return value;
 }
 
 export function assign(
@@ -398,44 +415,19 @@ export function assign(
   skipChildren?: boolean,
   prevProps = {},
 ): void {
-  let isCE;
-  let isProp;
-  let isChildProp;
+  for (const prop in prevProps) {
+    if (!(prop in props)) {
+      if (prop === 'children') continue;
+      assignProp(node, prop, null, prevProps[prop], isSVG);
+    }
+  }
   for (const prop in props) {
     if (prop === 'children') {
       if (!skipChildren) insertExpression(node, props.children);
       continue;
     }
     const value = props[prop];
-    if (value === prevProps[prop]) continue;
-    if (prop === 'style') {
-      style(node, value, prevProps[prop]);
-    } else if (prop === 'classList') {
-      classList(node, value, prevProps[prop]);
-    } else if (prop === 'ref') {
-      value(node);
-    } else if (prop.slice(0, 3) === 'on:') {
-      node.addEventListener(prop.slice(3), value);
-    } else if (prop.slice(0, 10) === 'oncapture:') {
-      node.addEventListener(prop.slice(10), value, true);
-    } else if (prop.slice(0, 2) === 'on') {
-      const name = prop.slice(2).toLowerCase();
-      const delegate = DelegatedEvents.has(name);
-      addEventListener(node, name, value, delegate);
-      delegate && delegateEvents([name]);
-    } else if (
-      (isChildProp = ChildProperties.has(prop)) ||
-      (!isSVG && (PropAliases[prop] || (isProp = Properties.has(prop)))) ||
-      (isCE = node.nodeName.includes('-'))
-    ) {
-      if (isCE && !isProp && !isChildProp) node[toPropertyName(prop)] = value;
-      else node[PropAliases[prop] || prop] = value;
-    } else {
-      const ns = isSVG && prop.indexOf(':') > -1 && SVGNamespace[prop.split(':')[0]];
-      if (ns) setAttributeNS(node, ns, prop, value);
-      else setAttribute(node, Aliases[prop] || prop, value);
-    }
-    prevProps[prop] = value;
+    prevProps[prop] = assignProp(node, prop, value, prevProps[prop], isSVG);
   }
 }
 
@@ -446,10 +438,8 @@ function spreadExpression(
   isSVG?: boolean,
   skipChildren?: boolean,
 ): any {
-  if (!skipChildren && 'children' in props) {
-    computation(() => {
-      prevProps.children = insertExpression(node, props.children, prevProps.children);
-    });
+  if (!skipChildren && "children" in props) {
+    computation(() => (prevProps.children = insertExpression(node, props.children, prevProps.children)));
   }
   computation(() => assign(node, props, isSVG, true, prevProps));
   return prevProps;
@@ -461,13 +451,9 @@ export function spread<T>(
   isSVG?: boolean,
   skipChildren?: boolean,
 ): void {
-  if (typeof accessor === 'function') {
-    computation(
-      (current) => spreadExpression(node, accessor(), current, isSVG, skipChildren),
-    );
-  } else {
-    spreadExpression(node, accessor, undefined, isSVG, skipChildren);
-  }
+  if (typeof accessor === "function") {
+    computation(current => spreadExpression(node, accessor(), current, isSVG, skipChildren));
+  } else spreadExpression(node, accessor, undefined, isSVG, skipChildren);
 }
 
 export function insert(
@@ -477,14 +463,8 @@ export function insert(
   initial: JSX.Element = null,
 ): void {
   if (marker !== undefined && !initial) initial = [];
-  if (typeof accessor === 'function') {
-    computation(
-      (current) => insertExpression(parent, accessor(), current, marker),
-      initial,
-    );
-  } else {
-    insertExpression(parent, accessor, initial, marker);
-  }
+  if (typeof accessor !== "function") return insertExpression(parent, accessor, initial, marker);
+  computation(current => insertExpression(parent, accessor(), current, marker), initial);
 }
 
 export function getHydrationKey() {
@@ -507,9 +487,9 @@ export function hydrate(code, element) {
   sharedConfig.completed = globalThis._$HYDRATION.completed;
   sharedConfig.events = globalThis._$HYDRATION.events;
   sharedConfig.context = {
-    id: '',
+    id: "",
     count: 0,
-    loadResource: globalThis._$HYDRATION.loadResource,
+    loadResource: globalThis._$HYDRATION.loadResource
   };
   sharedConfig.registry = new Map();
   gatherHydratable(element);
@@ -519,16 +499,15 @@ export function hydrate(code, element) {
 }
 
 export function gatherHydratable(element) {
-  const templates = element.querySelectorAll('*[data-hk]');
+  const templates = element.querySelectorAll(`*[data-hk]`);
   for (let i = 0; i < templates.length; i++) {
     const node = templates[i];
-    sharedConfig.registry.set(node.getAttribute('data-hk'), node);
+    sharedConfig.registry.set(node.getAttribute("data-hk"), node);
   }
 }
 
 export function getNextElement(template) {
-  let node; let
-    key;
+  let node, key;
   if (!sharedConfig.context || !(node = sharedConfig.registry.get((key = getHydrationKey())))) {
     return template.cloneNode(true);
   }
@@ -543,15 +522,15 @@ export function getNextMatch(el, nodeName) {
 }
 
 export function getNextMarker(start) {
-  let end = start;
-  let count = 0;
-  const current = [];
+  let end = start,
+    count = 0,
+    current = [];
   if (sharedConfig.context) {
     while (end) {
       if (end.nodeType === 8) {
         const v = end.nodeValue;
-        if (v === '#') count++;
-        else if (v === '/') {
+        if (v === "#") count++;
+        else if (v === "/") {
           if (count === 0) return [end, current];
           count--;
         }

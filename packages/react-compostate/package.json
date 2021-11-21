@@ -1,11 +1,39 @@
 {
   "version": "0.2.1-beta.10",
   "types": "dist/types/index.d.ts",
-  "main": "dist/cjs/index.js",
-  "module": "dist/esm/index.js",
+  "main": "dist/cjs/production/index.js",
+  "module": "dist/esm/production/index.js",
   "exports": {
-    "require": "./dist/cjs/index.js",
-    "import": "./dist/esm/index.js"
+    ".": {
+      "development": {
+        "require": "./dist/cjs/development/index.js",
+        "import": "./dist/esm/development/index.js"
+      },
+      "require": "./dist/cjs/production/index.js",
+      "import": "./dist/esm/production/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./dev": {
+      "production": {
+        "require": "./dist/cjs/production/index.js",
+        "import": "./dist/esm/production/index.js"
+      },
+      "require": "./dist/cjs/development/index.js",
+      "import": "./dist/esm/development/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./esm": {
+      "development": "./dist/esm/development/index.js",
+      "production": "./dist/esm/production/index.js",
+      "default": "./dist/esm/production/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./cjs": {
+      "development": "./dist/cjs/development/index.js",
+      "production": "./dist/cjs/production/index.js",
+      "default": "./dist/cjs/production/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
   },
   "files": [
     "dist",
@@ -20,20 +48,20 @@
   ],
   "name": "react-compostate",
   "devDependencies": {
-    "@testing-library/jest-dom": "^5.14.1",
-    "@testing-library/react": "^11.2.7",
-    "@types/jest": "^26.0.23",
-    "@types/node": "^16.7.13",
-    "@types/react": "^17.0.20",
+    "@testing-library/jest-dom": "^5.15.0",
+    "@testing-library/react": "^12.1.2",
+    "@types/jest": "^27.0.3",
+    "@types/node": "^16.11.9",
+    "@types/react": "^17.0.36",
     "compostate": "0.2.1-beta.10",
     "eslint": "^7.32.0",
     "eslint-config-lxsmnsyc": "^0.3.0",
-    "pridepack": "^0.12.2",
+    "pridepack": "^1.0.3",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-test-renderer": "^17.0.2",
     "tslib": "^2.3.1",
-    "typescript": "^4.4.2"
+    "typescript": "^4.4.4"
   },
   "peerDependencies": {
     "compostate": "^0.2.1-beta.0",
