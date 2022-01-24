@@ -3,6 +3,9 @@ export {
   memo,
   createComponent,
 } from './lib';
+export {
+  computation as effect,
+} from 'compostate';
 
 interface SharedConfigContext {
   id: string;

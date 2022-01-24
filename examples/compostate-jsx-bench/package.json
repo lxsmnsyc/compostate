@@ -2,9 +2,10 @@
   "version": "0.2.1-beta.10",
   "name": "compostate-jsx-bench",
   "license": "MIT",
+  "source": "./index.html",
   "scripts": {
-    "dev": "parcel ./index.html",
-    "build": "parcel build ./index.html"
+    "start": "parcel",
+    "build": "parcel build"
   },
   "dependencies": {
     "compostate": "0.2.1-beta.10",
@@ -12,11 +13,11 @@
   },
   "browserslist": "last 2 Chrome versions",
   "devDependencies": {
-    "@babel/core": "^7.15.0",
-    "babel-plugin-jsx-dom-expressions": "^0.29.15",
-    "eslint": "^7.29.0",
-    "eslint-config-lxsmnsyc": "^0.2.3",
-    "parcel-bundler": "^1.12.5"
+    "@babel/core": "^7.16.12",
+    "babel-plugin-jsx-dom-expressions": "^0.31.9",
+    "eslint": "^8.7.0",
+    "eslint-config-lxsmnsyc": "^0.4.0",
+    "parcel": "^2.2.1"
   },
   "private": true,
   "publishConfig": {
