@@ -3,7 +3,7 @@ export interface LinkedWork {
   tag: number;
   id: number;
   alive: boolean;
-  links?: Set<LinkedWork>;
+  links?: LinkedWork | Set<LinkedWork>;
 }
 
 let RUNNER: (work: LinkedWork) => void;
@@ -26,19 +26,29 @@ export function createLinkedWork(
   };
 }
 
+function registerLink(
+  left: LinkedWork,
+  right: LinkedWork,
+): void {
+  if (!left.links) {
+    left.links = right;
+  } else {
+    let currentLinks = left.links;
+    if (!(currentLinks instanceof Set)) {
+      currentLinks = new Set([currentLinks]);
+      left.links = currentLinks;
+    }
+    currentLinks.add(right);
+  }
+}
+
 export function publisherLinkSubscriber(
   publisher: LinkedWork,
   subscriber: LinkedWork,
 ): void {
   if (publisher.alive && subscriber.alive) {
-    if (!publisher.links) {
-      publisher.links = new Set();
-    }
-    publisher.links.add(subscriber);
-    if (!subscriber.links) {
-      subscriber.links = new Set();
-    }
-    subscriber.links.add(publisher);
+    registerLink(publisher, subscriber);
+    registerLink(subscriber, publisher);
   }
 }
 
@@ -65,27 +75,42 @@ export function enqueuePublisherWork(
   target: LinkedWork,
   queue: Set<LinkedWork>,
 ): void {
-  if (target.links?.size) {
-    for (const item of target.links.keys()) {
-      enqueueSubscriberWork(item, queue);
+  if (target.links) {
+    if (target.links instanceof Set) {
+      for (const item of target.links.keys()) {
+        enqueueSubscriberWork(item, queue);
+      }
+    } else {
+      enqueueSubscriberWork(target.links, queue);
     }
   }
 }
 
 export function evaluatePublisherWork(target: LinkedWork): void {
-  if (target.links?.size) {
-    for (const item of target.links.keys()) {
-      RUNNER(item);
+  if (target.links) {
+    if (target.links instanceof Set) {
+      for (const item of target.links.keys()) {
+        RUNNER(item);
+      }
+    } else {
+      RUNNER(target.links);
     }
   }
 }
 
 export function unlinkLinkedWorkPublishers(target: LinkedWork): void {
   if (target.links) {
-    for (const item of target.links.keys()) {
-      item.links?.delete(target);
+    if (target.links instanceof Set) {
+      for (const item of target.links.keys()) {
+        if (item.links instanceof Set) {
+          item.links.delete(target);
+        } else {
+          item.links = undefined;
+        }
+      }
+      target.links.clear();
     }
-    target.links.clear();
+    target.links = undefined;
   }
 }
 
