@@ -66,11 +66,18 @@ const WORK_EFFECT = 0b00000100;
 const WORK_WATCH = 0b00001000;
 
 // Execution contexts
+
+// Context for whether the scope is tracking for subscribers
 export let TRACKING: LinkedWork | undefined;
+// Context for whether the updates are being batched
 let BATCH_UPDATES: Set<LinkedWork> | undefined;
+// Context for whether or not there is an error boundary
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
+// Context for whether effects are being batched
 let BATCH_EFFECTS: EffectWork[] | undefined;
+// Context for whether there is a context instance
 let CONTEXT: ContextTree | undefined;
+// Context for whether there is a cleanup boundary
 let CLEANUP: Set<Cleanup> | undefined;
 
 export function unbatch<T>(callback: () => T): T {

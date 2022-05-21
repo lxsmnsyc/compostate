@@ -50,7 +50,7 @@
   "devDependencies": {
     "@types/node": "^17.0.31",
     "compostate": "0.2.1-beta.10",
-    "eslint": "^8.14.0",
+    "eslint": "^8.15.0",
     "eslint-config-lxsmnsyc": "^0.4.0",
     "preact": "^10.5.15",
     "pridepack": "^1.1.1",
