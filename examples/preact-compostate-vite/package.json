@@ -1,15 +1,15 @@
 {
   "name": "preact-compostate-vite",
-  "version": "0.2.1-beta.10",
+  "version": "0.3.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "serve": "vite preview"
   },
   "dependencies": {
-    "compostate": "0.2.1-beta.10",
+    "compostate": "0.3.0",
     "preact": "^10.7.2",
-    "preact-compostate": "0.2.1-beta.10"
+    "preact-compostate": "0.3.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.2.0",

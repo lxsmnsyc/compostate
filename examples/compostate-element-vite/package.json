@@ -1,5 +1,5 @@
 {
-  "version": "0.2.1-beta.10",
+  "version": "0.3.0",
   "name": "compostate-element-vite",
   "license": "MIT",
   "scripts": {
@@ -8,8 +8,8 @@
     "serve": "vite preview"
   },
   "dependencies": {
-    "compostate": "0.2.1-beta.10",
-    "compostate-element": "0.2.1-beta.10",
+    "compostate": "0.3.0",
+    "compostate-element": "0.3.0",
     "lit-html": "^1.4.1"
   },
   "devDependencies": {
