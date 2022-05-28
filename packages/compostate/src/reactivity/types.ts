@@ -40,7 +40,7 @@ export type ReactiveBaseObject = ReactiveObject | ReactiveCollection;
 export type Cleanup = () => void;
 export type Effect = () => void;
 
-export type ErrorCapture = (error: Error) => void;
+export type ErrorCapture = (error: unknown) => void;
 
 export interface Ref<T> {
   value: T;

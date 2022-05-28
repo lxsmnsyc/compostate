@@ -235,13 +235,13 @@ function createErrorBoundary(parent?: ErrorBoundary): ErrorBoundary {
   return { parent };
 }
 
-function runErrorHandlers(calls: IterableIterator<ErrorCapture>, error: Error): void {
+function runErrorHandlers(calls: IterableIterator<ErrorCapture>, error: unknown): void {
   for (const item of calls) {
     item(error);
   }
 }
 
-function handleError(instance: ErrorBoundary | undefined, error: Error): void {
+function handleError(instance: ErrorBoundary | undefined, error: unknown): void {
   if (instance) {
     const { calls, parent } = instance;
     if (calls?.size) {
@@ -540,9 +540,11 @@ export function computed<T>(
 ): Readonly<Ref<T>> {
   const instance = createReactiveAtom();
 
-  onCleanup(() => {
-    destroyLinkedWork(instance);
-  });
+  if (CLEANUP) {
+    CLEANUP.add(() => {
+      destroyLinkedWork(instance);
+    });
+  }
 
   let value: T;
   let initial = true;
@@ -620,9 +622,11 @@ export function ref<T>(
   isEqual: (next: T, prev: T) => boolean = is,
 ): Ref<T> {
   const instance = createReactiveAtom();
-  onCleanup(() => {
-    destroyLinkedWork(instance);
-  });
+  if (CLEANUP) {
+    CLEANUP.add(() => {
+      destroyLinkedWork(instance);
+    });
+  }
   return new RefNode(value, instance, isEqual);
 }
 
@@ -636,9 +640,11 @@ export function signal<T>(
   isEqual: (next: T, prev: T) => boolean = is,
 ): Signal<T> {
   const instance = createReactiveAtom();
-  onCleanup(() => {
-    destroyLinkedWork(instance);
-  });
+  if (CLEANUP) {
+    CLEANUP.add(() => {
+      destroyLinkedWork(instance);
+    });
+  }
   return [
     () => {
       if (TRACKING) {
@@ -662,9 +668,11 @@ export interface Atom<T> {
 
 export function atom<T>(value: T, isEqual: (next: T, prev: T) => boolean = is): Atom<T> {
   const instance = createReactiveAtom();
-  onCleanup(() => {
-    destroyLinkedWork(instance);
-  });
+  if (CLEANUP) {
+    CLEANUP.add(() => {
+      destroyLinkedWork(instance);
+    });
+  }
   return (...args: [] | [T]) => {
     if (args.length === 1) {
       const next = args[0];
@@ -685,9 +693,11 @@ export function computedAtom<T>(
 ): () => T {
   const instance = createReactiveAtom();
 
-  onCleanup(() => {
-    destroyLinkedWork(instance);
-  });
+  if (CLEANUP) {
+    CLEANUP.add(() => {
+      destroyLinkedWork(instance);
+    });
+  }
 
   let value: T;
   let initial = true;
@@ -847,9 +857,11 @@ export function provide<T>(context: Context<T>, value: T): void {
 
     // If provide is called in a linked work,
     // make sure to delete the written data.
-    onCleanup(() => {
-      parent.data[context.id] = undefined;
-    });
+    if (CLEANUP) {
+      CLEANUP.add(() => {
+        parent.data[context.id] = undefined;
+      });
+    }
   }
 }
 
