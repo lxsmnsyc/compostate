@@ -389,12 +389,11 @@ export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup 
   evaluateSubscriberWork(work);
 
   return onCleanup(() => {
-    if (!work.alive) {
-      return;
+    if (work.alive) {
+      cleanProcess(work);
+      work.process = undefined;
+      destroyLinkedWork(work);
     }
-    cleanProcess(work);
-    work.process = undefined;
-    destroyLinkedWork(work);
   });
 }
 
@@ -439,12 +438,11 @@ export function effect(callback: Effect): Cleanup {
   }
 
   return onCleanup(() => {
-    if (!work.alive) {
-      return;
+    if (work.alive) {
+      cleanProcess(work);
+      work.callback = undefined;
+      destroyLinkedWork(work);
     }
-    cleanProcess(work);
-    work.callback = undefined;
-    destroyLinkedWork(work);
   });
 }
 
@@ -471,15 +469,14 @@ export function watch<T>(
   evaluateSubscriberWork(work);
 
   return onCleanup(() => {
-    if (!work.alive) {
-      return;
+    if (work.alive) {
+      cleanProcess(work);
+      work.source = undefined;
+      work.listen = undefined;
+      work.current = undefined;
+      work.isEqual = undefined;
+      destroyLinkedWork(work);
     }
-    cleanProcess(work);
-    work.source = undefined;
-    work.listen = undefined;
-    work.current = undefined;
-    work.isEqual = undefined;
-    destroyLinkedWork(work);
   });
 }
 
@@ -909,13 +906,15 @@ export function selector<T, U extends T>(
         listeners = new Set([current]);
         subs.set(key, listeners);
       }
-      onCleanup(() => {
-        if (listeners.size > 1) {
-          listeners.delete(current);
-        } else {
-          subs.delete(key);
-        }
-      });
+      if (CLEANUP) {
+        CLEANUP.add(() => {
+          if (listeners.size > 1) {
+            listeners.delete(current);
+          } else {
+            subs.delete(key);
+          }
+        });
+      }
     }
     return fn(key, v);
   };
