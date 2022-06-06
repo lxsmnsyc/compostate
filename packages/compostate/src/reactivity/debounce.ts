@@ -1,46 +1,75 @@
 import {
+  captureReactiveAtomForCleanup,
+  createReactiveAtom,
+  notifyReactiveAtom,
   onCleanup,
-  ref,
-  signal,
+  TRACKING,
+  trackReactiveAtom,
   untrack,
   watch,
 } from './core';
+import { readonly } from './readonly';
+import { REF, WithRef } from './refs';
+import { WithTrackable, TRACKABLE } from './trackable';
 import { Ref } from './types';
+
+const { is } = Object;
 
 export function debounce<T>(
   computation: () => T,
   timeoutMS: number,
+  isEqual: (next: T, prev: T) => boolean = is,
 ): Ref<T> {
-  const state = ref(untrack(computation));
+  const instance = createReactiveAtom();
+  captureReactiveAtomForCleanup(instance);
+
+  let value = untrack(computation);
 
   watch(computation, (next) => {
     const timeout = setTimeout(() => {
-      state.value = next;
+      value = next;
+      notifyReactiveAtom(instance);
     }, timeoutMS);
 
     onCleanup(() => {
       clearTimeout(timeout);
     });
+  }, isEqual);
+
+  const node: Ref<T> & WithRef & WithTrackable = readonly({
+    [REF]: true,
+    [TRACKABLE]: instance,
+    get value(): T {
+      if (TRACKING) {
+        trackReactiveAtom(instance);
+      }
+      return value;
+    },
   });
 
-  return state;
+  return node;
 }
 
 export function debouncedAtom<T>(
   computation: () => T,
   timeoutMS: number,
+  isEqual: (next: T, prev: T) => boolean = is,
 ): () => T {
-  const [read, write] = signal(untrack(computation));
+  const instance = createReactiveAtom();
+  captureReactiveAtomForCleanup(instance);
+
+  let value = untrack(computation);
 
   watch(computation, (next) => {
     const timeout = setTimeout(() => {
-      write(next);
+      value = next;
+      notifyReactiveAtom(instance);
     }, timeoutMS);
 
     onCleanup(() => {
       clearTimeout(timeout);
     });
-  });
+  }, isEqual);
 
-  return read;
+  return () => value;
 }

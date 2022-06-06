@@ -53,7 +53,6 @@ import {
   Cleanup,
   Effect,
   ErrorCapture,
-  ReactiveBaseObject,
   Ref,
 } from './types';
 
@@ -78,7 +77,7 @@ let BATCH_EFFECTS: EffectWork[] | undefined;
 // Context for whether there is a context instance
 let CONTEXT: ContextTree | undefined;
 // Context for whether there is a cleanup boundary
-let CLEANUP: Set<Cleanup> | undefined;
+export let CLEANUP: Set<Cleanup> | undefined;
 
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
@@ -313,6 +312,12 @@ export function destroyReactiveAtom(target: ReactiveAtom): void {
   destroyLinkedWork(target);
 }
 
+export function captureReactiveAtomForCleanup(instance: ReactiveAtom): void {
+  if (CLEANUP) {
+    CLEANUP.add(() => destroyLinkedWork(instance));
+  }
+}
+
 export function trackReactiveAtom(target: ReactiveAtom): void {
   publisherLinkSubscriber(target, TRACKING!);
 }
@@ -480,153 +485,6 @@ export function watch<T>(
   });
 }
 
-const REF = Symbol('COMPOSTATE_REF');
-const READONLY = Symbol('COMPOSTATE_READONLY');
-const TRACKABLE = Symbol('COMPOSTATE_TRACKABLE');
-
-type WithRef = Record<typeof REF, boolean>;
-type WithReadonly = Record<typeof READONLY, boolean>;
-type WithTrackable = Record<typeof TRACKABLE, ReactiveAtom | undefined>;
-
-export function registerTrackable<T>(
-  instance: ReactiveAtom,
-  trackable: T,
-): T {
-  (trackable as unknown as WithTrackable)[TRACKABLE] = instance;
-  return trackable;
-}
-
-export function isTrackable<T>(
-  trackable: T,
-): boolean {
-  return trackable && typeof trackable === 'object' && TRACKABLE in trackable;
-}
-
-export function getTrackableAtom<T>(
-  trackable: T,
-): ReactiveAtom | undefined {
-  return (trackable as unknown as WithTrackable)[TRACKABLE];
-}
-
-export function isReadonly<T extends ReactiveBaseObject>(object: T): object is Readonly<T> {
-  return object && typeof object === 'object' && READONLY in object;
-}
-
-const HANDLER = {
-  set() {
-    return true;
-  },
-};
-
-export function readonly<T extends ReactiveBaseObject>(object: T): T {
-  if (isReadonly(object)) {
-    return object;
-  }
-  const newReadonly = new Proxy(object, HANDLER);
-  (newReadonly as WithReadonly)[READONLY] = true;
-  return newReadonly;
-}
-
-export function isRef<T>(object: any): object is Ref<T> {
-  return object && typeof object === 'object' && REF in object;
-}
-
-export function computed<T>(
-  compute: () => T,
-  isEqual: (next: T, prev: T) => boolean = is,
-): Readonly<Ref<T>> {
-  const instance = createReactiveAtom();
-
-  if (CLEANUP) {
-    CLEANUP.add(() => {
-      destroyLinkedWork(instance);
-    });
-  }
-
-  let value: T;
-  let initial = true;
-
-  watch(compute, (current) => {
-    value = current;
-    if (initial) {
-      initial = false;
-    } else {
-      notifyReactiveAtom(instance);
-    }
-  }, isEqual);
-
-  const node: Ref<T> & WithRef & WithReadonly = {
-    [REF]: true,
-    [READONLY]: true,
-    get value(): T {
-      if (TRACKING) {
-        trackReactiveAtom(instance);
-      }
-      return value;
-    },
-  };
-
-  return node;
-}
-
-export function track<T>(source: T): T {
-  if (TRACKING) {
-    const instance = getTrackableAtom(source);
-    if (instance) {
-      trackReactiveAtom(instance);
-    }
-  }
-  return source;
-}
-
-class RefNode<T> implements WithRef {
-  private val: T;
-
-  private instance: ReactiveAtom;
-
-  private isEqual: (next: T, prev: T) => boolean;
-
-  [REF]: boolean;
-
-  constructor(
-    value: T,
-    instance: ReactiveAtom,
-    isEqual: (next: T, prev: T) => boolean,
-  ) {
-    this.val = value;
-    this.instance = instance;
-    this.isEqual = isEqual;
-    this[REF] = true;
-  }
-
-  get value() {
-    if (TRACKING) {
-      trackReactiveAtom(this.instance);
-    }
-    return this.val;
-  }
-
-  set value(next: T) {
-    if (!this.isEqual(next, this.val)) {
-      this.val = next;
-      notifyReactiveAtom(this.instance);
-    }
-  }
-}
-
-export function ref<T>(
-  value: T,
-  isEqual: (next: T, prev: T) => boolean = is,
-): Ref<T> {
-  const instance = createReactiveAtom();
-  if (CLEANUP) {
-    CLEANUP.add(() => {
-      destroyLinkedWork(instance);
-    });
-  }
-  return new RefNode(value, instance, isEqual);
-}
-
 export type Signal<T> = [
   () => T,
   (value: T) => void,
@@ -637,11 +495,7 @@ export function signal<T>(
   isEqual: (next: T, prev: T) => boolean = is,
 ): Signal<T> {
   const instance = createReactiveAtom();
-  if (CLEANUP) {
-    CLEANUP.add(() => {
-      destroyLinkedWork(instance);
-    });
-  }
+  captureReactiveAtomForCleanup(instance);
   return [
     () => {
       if (TRACKING) {
@@ -665,11 +519,7 @@ export interface Atom<T> {
 
 export function atom<T>(value: T, isEqual: (next: T, prev: T) => boolean = is): Atom<T> {
   const instance = createReactiveAtom();
-  if (CLEANUP) {
-    CLEANUP.add(() => {
-      destroyLinkedWork(instance);
-    });
-  }
+  captureReactiveAtomForCleanup(instance);
   return (...args: [] | [T]) => {
     if (args.length === 1) {
       const next = args[0];
@@ -689,12 +539,7 @@ export function computedAtom<T>(
   isEqual: (next: T, prev: T) => boolean = is,
 ): () => T {
   const instance = createReactiveAtom();
-
-  if (CLEANUP) {
-    CLEANUP.add(() => {
-      destroyLinkedWork(instance);
-    });
-  }
+  captureReactiveAtomForCleanup(instance);
 
   let value: T;
   let initial = true;
@@ -847,7 +692,7 @@ export function createContext<T>(defaultValue: T): Context<T> {
   };
 }
 
-export function provide<T>(context: Context<T>, value: T): void {
+export function writeContext<T>(context: Context<T>, value: T): void {
   const parent = CONTEXT;
   if (parent) {
     parent.data[context.id] = { value };
@@ -862,7 +707,7 @@ export function provide<T>(context: Context<T>, value: T): void {
   }
 }
 
-export function inject<T>(context: Context<T>): T {
+export function readContext<T>(context: Context<T>): T {
   let current = CONTEXT;
   while (current) {
     const currentData = current.data[context.id];
@@ -876,13 +721,13 @@ export function inject<T>(context: Context<T>): T {
 
 export function selector<T, U extends T>(
   source: () => T,
-  fn: (a: U, b: T) => boolean = is,
+  isEqual: (a: U, b: T) => boolean = is,
 ): (item: U) => boolean {
   const subs = new Map<U, Set<LinkedWork>>();
   let v: T;
   watch(source, (current, prev) => {
     for (const key of subs.keys()) {
-      if (fn(key, current) || (prev !== undefined && fn(key, prev))) {
+      if (isEqual(key, current) || (prev !== undefined && isEqual(key, prev))) {
         const listeners = subs.get(key);
         if (listeners?.size) {
           for (const listener of listeners) {
@@ -916,7 +761,7 @@ export function selector<T, U extends T>(
         });
       }
     }
-    return fn(key, v);
+    return isEqual(key, v);
   };
 }
 
@@ -959,16 +804,29 @@ export function isTransitionPending(): boolean {
   return readTransitionPending();
 }
 
-export function deferredAtom<T>(callback: () => T): () => T {
-  const [read, write] = signal(untrack(callback));
+export function deferredAtom<T>(
+  callback: () => T,
+  isEqual: (next: T, prev: T) => boolean = is,
+): () => T {
+  const instance = createReactiveAtom();
+  captureReactiveAtomForCleanup(instance);
+
+  let value = untrack(callback);
+
   effect(() => {
     startTransition(() => {
-      write(callback());
+      const next = callback();
+      if (!isEqual(value, next)) {
+        value = next;
+        notifyReactiveAtom(instance);
+      }
     });
   });
-  return read;
-}
 
-export function deferred<T>(callback: () => T): Readonly<Ref<T>> {
-  return computed(deferredAtom(callback));
+  return () => {
+    if (TRACKING) {
+      trackReactiveAtom(instance);
+    }
+    return value;
+  };
 }

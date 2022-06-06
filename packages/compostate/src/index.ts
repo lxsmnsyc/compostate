@@ -51,24 +51,17 @@ export {
   batchEffects,
   unbatchEffects,
   // computed
-  ref,
-  computed,
-  readonly,
   // subscription
   untrack,
-  track,
   watch,
-  // checks
-  isTrackable as isReactive,
-  isTrackable,
-  isRef,
-  isReadonly,
   // context
   contextual,
   createContext,
   Context,
-  provide,
-  inject,
+  writeContext as provide,
+  readContext as inject,
+  writeContext,
+  readContext,
   // selector
   selector,
   // atoms
@@ -79,15 +72,44 @@ export {
   signal,
   Signal,
   // deferred
-  deferred,
   deferredAtom,
 } from './reactivity/core';
 // Extensions
-export { map, index } from './reactivity/array';
-export { debounce, debouncedAtom } from './reactivity/debounce';
-export { default as reactive } from './reactivity/reactive';
-export { default as resource, Resource, ResourceOptions } from './reactivity/resource';
-export { spread, destructure, Spread } from './reactivity/spread';
+export {
+  ref,
+  isRef,
+  computed,
+  deferred,
+} from './reactivity/refs';
+export {
+  readonly,
+  isReadonly,
+} from './reactivity/readonly';
+export {
+  isTrackable,
+  track,
+} from './reactivity/trackable';
+export {
+  map,
+  index,
+} from './reactivity/array';
+export {
+  debounce,
+  debouncedAtom,
+} from './reactivity/debounce';
+export {
+  default as reactive,
+} from './reactivity/reactive';
+export {
+  default as resource,
+  Resource,
+  ResourceOptions,
+} from './reactivity/resource';
+export {
+  spread,
+  destructure,
+  Spread,
+} from './reactivity/spread';
 export {
   template,
   templateAtom,
