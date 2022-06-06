@@ -2,9 +2,9 @@ import {
   batchCleanup,
   createRoot,
   onCleanup,
-  ref,
   untrack,
 } from './core';
+import { ref } from './refs';
 import { Cleanup, Ref } from './types';
 
 function dispose(d: Cleanup[]) {

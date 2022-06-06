@@ -1,5 +1,4 @@
-import { onCleanup } from './core';
-import { batch, effect } from './core';
+import { onCleanup, batch, effect } from './core';
 import reactive from './reactive';
 
 export interface ResourcePending {

@@ -1,4 +1,5 @@
-import { computed, computedAtom, isRef } from './core';
+import { computedAtom } from './core';
+import { computed, isRef } from './refs';
 import { Ref } from './types';
 
 function isLazy<T>(value: any): value is () => T {

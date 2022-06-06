@@ -30,7 +30,6 @@ import {
   destroyReactiveAtom,
   notifyReactiveAtom,
   onCleanup,
-  registerTrackable,
   TRACKING,
 } from './core';
 import {
@@ -39,6 +38,7 @@ import {
   ReactiveWeakKeys,
   trackReactiveWeakKeys,
 } from './nodes/reactive-weak-keys';
+import { registerTrackable } from './trackable';
 
 export default class ReactiveWeakSet<V extends object> implements WeakSet<V> {
   private atom = createReactiveAtom();

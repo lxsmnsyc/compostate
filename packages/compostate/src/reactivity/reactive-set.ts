@@ -30,7 +30,6 @@ import {
   destroyReactiveAtom,
   notifyReactiveAtom,
   onCleanup,
-  registerTrackable,
   TRACKING,
 } from './core';
 import {
@@ -41,6 +40,7 @@ import {
   ReactiveKeys,
   trackReactiveKeys,
 } from './nodes/reactive-keys';
+import { registerTrackable } from './trackable';
 
 export default class ReactiveSet<V> implements Set<V> {
   private collection?: ReactiveKeys<V>;

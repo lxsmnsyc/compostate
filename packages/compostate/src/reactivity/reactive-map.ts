@@ -27,7 +27,6 @@
  */
 import {
   createReactiveAtom,
-  registerTrackable,
   notifyReactiveAtom,
   destroyReactiveAtom,
   onCleanup,
@@ -41,6 +40,7 @@ import {
   ReactiveKeys,
   trackReactiveKeys,
 } from './nodes/reactive-keys';
+import { registerTrackable } from './trackable';
 
 export default class ReactiveMap<K, V> implements Map<K, V> {
   private source: Map<K, V>;

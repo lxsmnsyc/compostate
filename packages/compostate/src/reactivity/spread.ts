@@ -1,4 +1,4 @@
-import { computed } from './core';
+import { computed } from './refs';
 import { ReactiveObject, Ref } from './types';
 
 export type Spread<T extends ReactiveObject> = {

@@ -30,7 +30,6 @@ import {
   destroyReactiveAtom,
   notifyReactiveAtom,
   onCleanup,
-  registerTrackable,
   TRACKING,
 } from './core';
 import {
@@ -40,6 +39,7 @@ import {
   ReactiveKeys,
   trackReactiveKeys,
 } from './nodes/reactive-keys';
+import { registerTrackable } from './trackable';
 import { ReactiveObject } from './types';
 
 class ReactiveObjectHandler<T extends ReactiveObject> {

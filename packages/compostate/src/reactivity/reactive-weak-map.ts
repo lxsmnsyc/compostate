@@ -30,7 +30,6 @@ import {
   destroyReactiveAtom,
   notifyReactiveAtom,
   onCleanup,
-  registerTrackable,
   TRACKING,
 } from './core';
 import {
@@ -39,6 +38,7 @@ import {
   ReactiveWeakKeys,
   trackReactiveWeakKeys,
 } from './nodes/reactive-weak-keys';
+import { registerTrackable } from './trackable';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export default class ReactiveWeakMap<K extends object, V> implements WeakMap<K, V> {
