@@ -48,8 +48,6 @@ export {
   computation,
   // effects
   effect,
-  batchEffects,
-  unbatchEffects,
   // computed
   // subscription
   untrack,

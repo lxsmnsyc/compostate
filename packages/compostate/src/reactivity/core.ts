@@ -72,8 +72,6 @@ export let TRACKING: LinkedWork | undefined;
 let BATCH_UPDATES: Set<LinkedWork> | undefined;
 // Context for whether or not there is an error boundary
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
-// Context for whether effects are being batched
-let BATCH_EFFECTS: EffectWork[] | undefined;
 // Context for whether there is a context instance
 let CONTEXT: ContextTree | undefined;
 // Context for whether there is a cleanup boundary
@@ -95,14 +93,6 @@ export function unbatchCleanup<T>(callback: () => T): T {
   return unwrap(result);
 }
 
-export function unbatchEffects<T>(callback: () => T): T {
-  const parent = BATCH_EFFECTS;
-  BATCH_EFFECTS = undefined;
-  const result = pcall0(callback);
-  BATCH_EFFECTS = parent;
-  return unwrap(result);
-}
-
 export function untrack<T>(callback: () => T): T {
   const parent = TRACKING;
   TRACKING = undefined;
@@ -113,17 +103,14 @@ export function untrack<T>(callback: () => T): T {
 
 export function createRoot<T>(callback: () => T): T {
   const parentBatchUpdates = BATCH_UPDATES;
-  const parentBatchEffects = BATCH_EFFECTS;
   const parentTracking = TRACKING;
   const parentCleanup = CLEANUP;
   BATCH_UPDATES = undefined;
-  BATCH_EFFECTS = undefined;
   TRACKING = undefined;
   CLEANUP = undefined;
   const result = pcall0(callback);
   CLEANUP = parentCleanup;
   TRACKING = parentTracking;
-  BATCH_EFFECTS = parentBatchEffects;
   BATCH_UPDATES = parentBatchUpdates;
   return unwrap(result);
 }
@@ -407,28 +394,6 @@ interface EffectWork extends ProcessWork {
   cleanup?: Cleanup;
 }
 
-export function batchEffects(callback: () => void): () => void {
-  const batchedEffects: EffectWork[] = [];
-  const parent = BATCH_EFFECTS;
-  BATCH_EFFECTS = batchedEffects;
-  const result = pcall0(callback);
-  BATCH_EFFECTS = parent;
-  unwrap(result);
-  let alive = true;
-  return () => {
-    if (alive) {
-      alive = false;
-      for (let i = 0, len = batchedEffects.length; i < len; i++) {
-        const item = batchedEffects[i];
-        if (item.alive) {
-          evaluateSubscriberWork(item);
-        }
-      }
-      batchedEffects.length = 0;
-    }
-  };
-}
-
 export function effect(callback: Effect): Cleanup {
   const work: EffectWork = assign(createLinkedWork(true, WORK_EFFECT), {
     callback,
@@ -436,11 +401,7 @@ export function effect(callback: Effect): Cleanup {
     errorBoundary: ERROR_BOUNDARY,
   });
 
-  if (BATCH_EFFECTS) {
-    BATCH_EFFECTS.push(work);
-  } else {
-    evaluateSubscriberWork(work);
-  }
+  evaluateSubscriberWork(work);
 
   return onCleanup(() => {
     if (work.alive) {
@@ -644,16 +605,13 @@ function runProcess(target: ProcessWork) {
   unlinkLinkedWorkPublishers(target);
   const parentContext = CONTEXT;
   const parentTracking = TRACKING;
-  const parentBatchEffects = BATCH_EFFECTS;
   const parentErrorBoundary = ERROR_BOUNDARY;
   ERROR_BOUNDARY = target.errorBoundary;
-  BATCH_EFFECTS = undefined;
   TRACKING = target;
   CONTEXT = target.context;
   const result = pcall1(runProcessInternal, target);
   CONTEXT = parentContext;
   TRACKING = parentTracking;
-  BATCH_EFFECTS = parentBatchEffects;
   ERROR_BOUNDARY = parentErrorBoundary;
   if (!result.isSuccess) {
     handleError(target.errorBoundary, result.value);
