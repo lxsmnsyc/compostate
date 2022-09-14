@@ -5,10 +5,10 @@ import {
   TRACKING,
   trackReactiveAtom,
   ReactiveAtom,
-  effect,
   startTransition,
   untrack,
   captureReactiveAtomForCleanup,
+  syncEffect,
 } from './core';
 import {
   readonly,
@@ -119,7 +119,7 @@ export function deferred<T>(
 
   let value = untrack(callback);
 
-  effect(() => {
+  syncEffect(() => {
     startTransition(() => {
       const next = callback();
       if (!isEqual(value, next)) {

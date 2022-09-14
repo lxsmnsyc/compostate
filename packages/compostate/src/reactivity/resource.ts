@@ -1,4 +1,6 @@
-import { onCleanup, batch, effect } from './core';
+import {
+  onCleanup, batch, effect, syncEffect,
+} from './core';
 import reactive from './reactive';
 
 export interface ResourcePending {
@@ -41,7 +43,7 @@ export default function resource<T>(
 
     const promise = fetcher();
 
-    const stop = effect(() => {
+    const stop = syncEffect(() => {
       // If there's a transition timeout,
       // do not fallback to pending state.
       if (options.timeoutMS) {

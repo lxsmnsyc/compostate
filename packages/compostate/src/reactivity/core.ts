@@ -813,7 +813,7 @@ export function deferredAtom<T>(
 
   let value = untrack(callback);
 
-  effect(() => {
+  syncEffect(() => {
     startTransition(() => {
       const next = callback();
       if (!isEqual(value, next)) {
