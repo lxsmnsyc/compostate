@@ -1,3 +1,5 @@
+// From: https://github.com/solidjs/solid/blob/main/packages/solid/src/reactive/scheduler.ts
+
 // Basic port modification of Reacts Scheduler: https://github.com/facebook/react/tree/master/packages/scheduler
 export interface Task {
   id: number;
@@ -49,7 +51,7 @@ function setupScheduler() {
   };
 
   if (
-    navigator
+    typeof navigator !== 'undefined'
     && (navigator as NavigatorScheduling).scheduling
     && (navigator as NavigatorScheduling).scheduling.isInputPending
   ) {
@@ -153,7 +155,9 @@ export function requestCallback(fn: () => void, options?: { timeout?: number }):
   if (!isCallbackScheduled && !isPerformingWork) {
     isCallbackScheduled = true;
     scheduledCallback = flushWork;
-    scheduleCallback?.();
+    if (scheduleCallback) {
+      scheduleCallback();
+    }
   }
 
   return newTask;

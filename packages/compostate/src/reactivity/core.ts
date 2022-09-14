@@ -177,7 +177,9 @@ export function captured<T extends any[], R>(
 }
 
 export function onCleanup(cleanup: Cleanup): Cleanup {
-  CLEANUP?.add(cleanup);
+  if (CLEANUP) {
+    CLEANUP.add(cleanup);
+  }
   return cleanup;
 }
 
@@ -231,7 +233,7 @@ function runErrorHandlers(calls: IterableIterator<ErrorCapture>, error: unknown)
 function handleError(instance: ErrorBoundary | undefined, error: unknown): void {
   if (instance) {
     const { calls, parent } = instance;
-    if (calls?.size) {
+    if (calls && calls.size) {
       const parentTracking = TRACKING;
       TRACKING = undefined;
       const result = pcall2(runErrorHandlers, calls.keys(), error);
@@ -257,7 +259,9 @@ function registerErrorCapture(
   }
   instance.calls.add(capture);
   return () => {
-    instance.calls?.delete(capture);
+    if (instance.calls) {
+      instance.calls.delete(capture);
+    }
   };
 }
 
@@ -577,7 +581,9 @@ function runComputationProcessInternal<T>(
   target: ComputationWork<T>,
   process: (prev?: T) => T,
 ) {
-  target.cleanup?.();
+  if (target.cleanup) {
+    target.cleanup();
+  }
   target.cleanup = batchCleanup(() => {
     target.current = process(target.current);
   });
@@ -600,7 +606,9 @@ function runWatchProcessInternal<T>(
   const prev = target.current;
   const compare = target.isEqual ?? is;
   if ((hasCurrent && !compare(next, prev)) || !hasCurrent) {
-    target.cleanup?.();
+    if (target.cleanup) {
+      target.cleanup();
+    }
     target.cleanup = batchCleanup(() => {
       target.current = next;
       listen(next, prev);
@@ -619,7 +627,9 @@ function runSyncEffectProcessInternal(
   target: SyncEffectWork,
   callback: Effect,
 ) {
-  target.cleanup?.();
+  if (target.cleanup) {
+    target.cleanup();
+  }
   target.cleanup = batchCleanup(callback);
 }
 
@@ -714,7 +724,11 @@ export function readContext<T>(context: Context<T>): T {
     if (currentData) {
       return currentData.value;
     }
-    current = CONTEXT?.parent;
+    if (CONTEXT) {
+      current = CONTEXT.parent;
+    } else {
+      break;
+    }
   }
   return context.defaultValue;
 }
@@ -729,7 +743,7 @@ export function selector<T, U extends T>(
     for (const key of subs.keys()) {
       if (isEqual(key, current) || (prev !== undefined && isEqual(key, prev))) {
         const listeners = subs.get(key);
-        if (listeners?.size) {
+        if (listeners && listeners.size) {
           for (const listener of listeners) {
             if (listener.alive) {
               enqueueSubscriberWork(listener, BATCH_UPDATES!);
