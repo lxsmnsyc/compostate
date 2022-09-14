@@ -3,6 +3,7 @@ import {
   createReactiveAtom,
   notifyReactiveAtom,
   onCleanup,
+  syncEffect,
   TRACKING,
   trackReactiveAtom,
   untrack,
@@ -25,16 +26,18 @@ export function debounce<T>(
 
   let value = untrack(computation);
 
-  watch(computation, (next) => {
-    const timeout = setTimeout(() => {
-      value = next;
-      notifyReactiveAtom(instance);
-    }, timeoutMS);
+  syncEffect(
+    watch(computation, (next) => {
+      const timeout = setTimeout(() => {
+        value = next;
+        notifyReactiveAtom(instance);
+      }, timeoutMS);
 
-    onCleanup(() => {
-      clearTimeout(timeout);
-    });
-  }, isEqual);
+      onCleanup(() => {
+        clearTimeout(timeout);
+      });
+    }, isEqual),
+  );
 
   const node: Ref<T> & WithRef & WithTrackable = readonly({
     [REF]: true,
@@ -60,16 +63,18 @@ export function debouncedAtom<T>(
 
   let value = untrack(computation);
 
-  watch(computation, (next) => {
-    const timeout = setTimeout(() => {
-      value = next;
-      notifyReactiveAtom(instance);
-    }, timeoutMS);
+  syncEffect(
+    watch(computation, (next) => {
+      const timeout = setTimeout(() => {
+        value = next;
+        notifyReactiveAtom(instance);
+      }, timeoutMS);
 
-    onCleanup(() => {
-      clearTimeout(timeout);
-    });
-  }, isEqual);
+      onCleanup(() => {
+        clearTimeout(timeout);
+      });
+    }, isEqual),
+  );
 
   return () => value;
 }

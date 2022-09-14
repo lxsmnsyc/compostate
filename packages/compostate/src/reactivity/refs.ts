@@ -9,6 +9,7 @@ import {
   untrack,
   captureReactiveAtomForCleanup,
   syncEffect,
+  captured,
 } from './core';
 import {
   readonly,
@@ -42,20 +43,29 @@ export function computed<T>(
 
   let value: T;
   let initial = true;
+  let doSetup = true;
 
-  watch(compute, (current) => {
-    value = current;
-    if (initial) {
-      initial = false;
-    } else {
-      notifyReactiveAtom(instance);
-    }
-  }, isEqual);
+  const setup = captured(() => {
+    syncEffect(
+      watch(compute, (current) => {
+        value = current;
+        if (initial) {
+          initial = false;
+        } else {
+          notifyReactiveAtom(instance);
+        }
+      }, isEqual),
+    );
+  });
 
   const node: Ref<T> & WithRef & WithTrackable = readonly({
     [REF]: true,
     [TRACKABLE]: instance,
     get value(): T {
+      if (doSetup) {
+        setup();
+        doSetup = false;
+      }
       if (TRACKING) {
         trackReactiveAtom(instance);
       }

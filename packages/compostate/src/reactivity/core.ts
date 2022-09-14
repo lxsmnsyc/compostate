@@ -62,8 +62,7 @@ const { is, assign } = Object;
 const WORK_ATOM = 0b00000001;
 const WORK_COMPUTATION = 0b00000010;
 const WORK_EFFECT = 0b00000100;
-const WORK_WATCH = 0b00001000;
-const WORK_SYNC_EFFECT = 0b00010000;
+const WORK_SYNC_EFFECT = 0b00001000;
 
 // Execution contexts
 
@@ -444,38 +443,36 @@ export function effect(callback: Effect): Cleanup {
   });
 }
 
-interface WatchWork<T> extends ProcessWork {
-  source?: () => T,
-  listen?: (next: T, prev?: T) => void,
-  current?: T;
-  isEqual?: (next: T, prev: T) => boolean,
+interface WatchRef<T> {
+  current: T;
 }
 
-export function watch<T>(
+export function watch<T, R>(
   source: () => T,
-  listen: (next: T, prev?: T) => void,
+  listen: (next: T, prev?: T) => R,
   isEqual: (next: T, prev: T) => boolean = is,
-): () => void {
-  const work: WatchWork<T> = assign(createLinkedWork(true, WORK_WATCH), {
-    source,
-    listen,
-    context: CONTEXT,
-    errorBoundary: ERROR_BOUNDARY,
-    isEqual,
-  });
+): () => R {
+  let ref: WatchRef<T> | undefined;
+  let result: WatchRef<R> | undefined;
+  let cleanup: Cleanup | undefined;
 
-  evaluateSubscriberWork(work);
-
-  return onCleanup(() => {
-    if (work.alive) {
-      cleanProcess(work);
-      work.source = undefined;
-      work.listen = undefined;
-      work.current = undefined;
-      work.isEqual = undefined;
-      destroyLinkedWork(work);
+  return () => {
+    const next = source();
+    const prev = ref?.current;
+    if ((ref && !isEqual(next, ref.current)) || !ref) {
+      if (cleanup) {
+        cleanup();
+      }
+      cleanup = batchCleanup(() => {
+        ref = { current: next };
+        result = { current: listen(next, prev) };
+      });
     }
-  });
+    if (!result) {
+      throw new Error('Unexpected missing result');
+    }
+    return result.current;
+  };
 }
 
 export type Signal<T> = [
@@ -536,17 +533,26 @@ export function computedAtom<T>(
 
   let value: T;
   let initial = true;
+  let doSetup = true;
 
-  watch(compute, (current) => {
-    value = current;
-    if (initial) {
-      initial = false;
-    } else {
-      notifyReactiveAtom(instance);
-    }
-  }, isEqual);
+  const setup = captured(() => {
+    syncEffect(
+      watch(compute, (current) => {
+        value = current;
+        if (initial) {
+          initial = false;
+        } else {
+          notifyReactiveAtom(instance);
+        }
+      }, isEqual),
+    );
+  });
 
   return () => {
+    if (doSetup) {
+      setup();
+      doSetup = false;
+    }
     if (TRACKING) {
       trackReactiveAtom(instance);
     }
@@ -596,33 +602,6 @@ function runComputationProcess(target: ComputationWork<any>) {
   }
 }
 
-function runWatchProcessInternal<T>(
-  target: WatchWork<T>,
-  source: () => T,
-  listen: (next: T, prev?: T) => void,
-) {
-  const hasCurrent = 'current' in target;
-  const next = source();
-  const prev = target.current;
-  const compare = target.isEqual ?? is;
-  if ((hasCurrent && !compare(next, prev)) || !hasCurrent) {
-    if (target.cleanup) {
-      target.cleanup();
-    }
-    target.cleanup = batchCleanup(() => {
-      target.current = next;
-      listen(next, prev);
-    });
-  }
-}
-
-function runWatchProcess(target: WatchWork<any>) {
-  const { source, listen } = target;
-  if (source && listen) {
-    batch(runWatchProcessInternal, target, source, listen);
-  }
-}
-
 function runSyncEffectProcessInternal(
   target: SyncEffectWork,
   callback: Effect,
@@ -655,9 +634,6 @@ function runProcess(target: ProcessWork) {
   switch (target.tag) {
     case WORK_COMPUTATION:
       processWork(target, runComputationProcess);
-      break;
-    case WORK_WATCH:
-      processWork(target, runWatchProcess);
       break;
     case WORK_EFFECT:
       runEffectProcess(target as EffectWork);
@@ -739,21 +715,23 @@ export function selector<T, U extends T>(
 ): (item: U) => boolean {
   const subs = new Map<U, Set<LinkedWork>>();
   let v: T;
-  watch(source, (current, prev) => {
-    for (const key of subs.keys()) {
-      if (isEqual(key, current) || (prev !== undefined && isEqual(key, prev))) {
-        const listeners = subs.get(key);
-        if (listeners && listeners.size) {
-          for (const listener of listeners) {
-            if (listener.alive) {
-              enqueueSubscriberWork(listener, BATCH_UPDATES!);
+  syncEffect(
+    watch(source, (current, prev) => {
+      for (const key of subs.keys()) {
+        if (isEqual(key, current) || (prev !== undefined && isEqual(key, prev))) {
+          const listeners = subs.get(key);
+          if (listeners && listeners.size) {
+            for (const listener of listeners) {
+              if (listener.alive) {
+                enqueueSubscriberWork(listener, BATCH_UPDATES!);
+              }
             }
           }
         }
       }
-    }
-    v = current;
-  });
+      v = current;
+    }),
+  );
   return (key: U) => {
     const current = TRACKING;
     if (current) {
