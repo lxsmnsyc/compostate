@@ -81,7 +81,6 @@ or the setup returned a value that's not a function.
         runCompositionContext(
           currentState.context,
           'effect',
-          [],
         );
       })
     ))
@@ -91,13 +90,11 @@ or the setup returned a value that's not a function.
     runCompositionContext(
       currentState.context,
       'mounted',
-      [],
     );
     return () => {
       runCompositionContext(
         currentState.context,
         'unmounted',
-        [],
       );
     };
   }, [currentState]);
@@ -111,15 +108,15 @@ or the setup returned a value that's not a function.
       runCompositionContext(
         currentState.context,
         'updated',
-        [],
       );
     }
   });
 
   useEffect(() => {
-    Object.entries(props).forEach(([key, value]) => {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const [key, value] of Object.entries(props)) {
       currentState.propObject[key as keyof Props] = value;
-    });
+    }
   }, [props, currentState]);
 
   useDebugValue(result.current);

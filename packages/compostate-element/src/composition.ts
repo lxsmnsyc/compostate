@@ -35,11 +35,11 @@ export function createDOMContext<T>(cb: () => T): T {
 export function runContext<K extends DOMContextKeys>(
   context: DOMContext,
   key: K,
-  value?: Parameters<DOMContextMethods[K]>,
 ): void {
-  context[key].forEach((callback) => {
-    callback.apply(null, value as any);
-  });
+  const method = context[key];
+  for (let i = 0, len = method.length; i < len; i += 1) {
+    method[i]();
+  }
 }
 
 export function getDOMContext(): DOMContext {

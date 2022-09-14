@@ -45,11 +45,11 @@ export function getCompositionContext(): CompositionContext {
 export function runCompositionContext<K extends CompositionContextKeys>(
   context: CompositionContext,
   key: K,
-  value: Parameters<CompositionContextMethods[K]>,
 ): void {
-  context[key].forEach((callback) => {
-    callback(...value);
-  });
+  const method = context[key];
+  for (let i = 0, len = method.length; i < len; i += 1) {
+    method[i]();
+  }
 }
 
 export function onEffect(callback: Effect): void {
