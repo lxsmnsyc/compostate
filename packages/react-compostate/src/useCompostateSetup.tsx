@@ -1,6 +1,6 @@
 import { useDebugValue, useEffect, useRef } from 'react';
 import {
-  effect,
+  syncEffect,
   reactive,
   untrack,
 } from 'compostate';
@@ -36,7 +36,7 @@ export default function useCompostateSetup<Props extends Record<string, any>, T>
       let result: (() => T) | undefined;
 
       const lc = untrack(() => (
-        effect(() => {
+        syncEffect(() => {
           result = setup(propObject);
         })
       ));
@@ -69,7 +69,7 @@ or the setup returned a value that's not a function.
 
   useEffect(() => (
     untrack(() => (
-      effect(() => {
+      syncEffect(() => {
         result.current = currentState.render();
       })
     ))
@@ -77,7 +77,7 @@ or the setup returned a value that's not a function.
 
   useEffect(() => (
     untrack(() => (
-      effect(() => {
+      syncEffect(() => {
         runCompositionContext(
           currentState.context,
           'effect',

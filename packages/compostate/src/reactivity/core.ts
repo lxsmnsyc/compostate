@@ -63,6 +63,7 @@ const WORK_ATOM = 0b00000001;
 const WORK_COMPUTATION = 0b00000010;
 const WORK_EFFECT = 0b00000100;
 const WORK_WATCH = 0b00001000;
+const WORK_SYNC_EFFECT = 0b00010000;
 
 // Execution contexts
 
@@ -389,9 +390,32 @@ export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup 
   });
 }
 
+interface SyncEffectWork extends ProcessWork {
+  callback?: Effect;
+  cleanup?: Cleanup;
+}
+
+export function syncEffect(callback: Effect): Cleanup {
+  const work: SyncEffectWork = assign(createLinkedWork(true, WORK_SYNC_EFFECT), {
+    callback,
+    context: CONTEXT,
+    errorBoundary: ERROR_BOUNDARY,
+  });
+
+  evaluateSubscriberWork(work);
+
+  return onCleanup(() => {
+    if (work.alive) {
+      cleanProcess(work);
+      work.callback = undefined;
+      destroyLinkedWork(work);
+    }
+  });
+}
 interface EffectWork extends ProcessWork {
   callback?: Effect;
   cleanup?: Cleanup;
+  timeout?: ReturnType<typeof requestCallback>;
 }
 
 export function effect(callback: Effect): Cleanup {
@@ -406,6 +430,10 @@ export function effect(callback: Effect): Cleanup {
   return onCleanup(() => {
     if (work.alive) {
       cleanProcess(work);
+      if (work.timeout) {
+        cancelCallback(work.timeout);
+      }
+      work.timeout = undefined;
       work.callback = undefined;
       destroyLinkedWork(work);
     }
@@ -522,6 +550,23 @@ export function computedAtom<T>(
   };
 }
 
+function processWork(target: ProcessWork, work: (target: ProcessWork) => void) {
+  unlinkLinkedWorkPublishers(target);
+  const parentContext = CONTEXT;
+  const parentTracking = TRACKING;
+  const parentErrorBoundary = ERROR_BOUNDARY;
+  ERROR_BOUNDARY = target.errorBoundary;
+  TRACKING = target;
+  CONTEXT = target.context;
+  const result = pcall1(work, target);
+  CONTEXT = parentContext;
+  TRACKING = parentTracking;
+  ERROR_BOUNDARY = parentErrorBoundary;
+  if (!result.isSuccess) {
+    handleError(target.errorBoundary, result.value);
+  }
+}
+
 interface ProcessWork extends LinkedWork {
   cleanup?: Cleanup;
   errorBoundary?: ErrorBoundary;
@@ -570,51 +615,48 @@ function runWatchProcess(target: WatchWork<any>) {
   }
 }
 
-function runEffectProcessInternal(
-  target: EffectWork,
+function runSyncEffectProcessInternal(
+  target: SyncEffectWork,
   callback: Effect,
 ) {
   target.cleanup?.();
   target.cleanup = batchCleanup(callback);
 }
 
-function runEffectProcess(target: EffectWork) {
+function runSyncEffectProcess(target: SyncEffectWork) {
   const { callback } = target;
   if (callback) {
-    batch(runEffectProcessInternal, target, callback);
+    batch(runSyncEffectProcessInternal, target, callback);
   }
 }
 
-function runProcessInternal(target: ProcessWork) {
+function runEffectProcess(target: EffectWork) {
+  const newCallback = captured(() => {
+    processWork(target, runSyncEffectProcess);
+  });
+
+  if (target.timeout) {
+    cancelCallback(target.timeout);
+  }
+  target.timeout = requestCallback(newCallback);
+}
+
+function runProcess(target: ProcessWork) {
   switch (target.tag) {
     case WORK_COMPUTATION:
-      runComputationProcess(target as ComputationWork<any>);
+      processWork(target, runComputationProcess);
       break;
     case WORK_WATCH:
-      runWatchProcess(target as WatchWork<any>);
+      processWork(target, runWatchProcess);
       break;
     case WORK_EFFECT:
       runEffectProcess(target as EffectWork);
       break;
+    case WORK_SYNC_EFFECT:
+      processWork(target, runSyncEffectProcess);
+      break;
     default:
       break;
-  }
-}
-
-function runProcess(target: ProcessWork) {
-  unlinkLinkedWorkPublishers(target);
-  const parentContext = CONTEXT;
-  const parentTracking = TRACKING;
-  const parentErrorBoundary = ERROR_BOUNDARY;
-  ERROR_BOUNDARY = target.errorBoundary;
-  TRACKING = target;
-  CONTEXT = target.context;
-  const result = pcall1(runProcessInternal, target);
-  CONTEXT = parentContext;
-  TRACKING = parentTracking;
-  ERROR_BOUNDARY = parentErrorBoundary;
-  if (!result.isSuccess) {
-    handleError(target.errorBoundary, result.value);
   }
 }
 

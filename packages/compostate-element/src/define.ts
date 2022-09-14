@@ -2,6 +2,7 @@ import {
   createRoot,
   effect,
   reactive,
+  syncEffect,
 } from 'compostate';
 import {
   createDOMContext,
@@ -75,7 +76,7 @@ export default function define<RenderResult, Props extends string>(
       // tracked by a parent effect.
       this.lifecycle = createRoot(() => (
         createDOMContext(() => (
-          effect(() => {
+          syncEffect(() => {
             // Create a context for composition
             this.context = getDOMContext();
             const result = options.setup(this.props);

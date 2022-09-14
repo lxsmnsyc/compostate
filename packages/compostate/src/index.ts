@@ -48,7 +48,7 @@ export {
   computation,
   // effects
   effect,
-  // computed
+  syncEffect,
   // subscription
   untrack,
   watch,
