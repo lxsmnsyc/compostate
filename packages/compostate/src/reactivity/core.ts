@@ -203,6 +203,7 @@ export function batchCleanup(callback: () => void): Cleanup {
     if (alive) {
       alive = false;
       if (cleanups.size) {
+        // Untrack before running cleanups
         const parent = TRACKING;
         TRACKING = undefined;
         const internal = pcall1(exhaustCleanup, cleanups);
@@ -232,16 +233,20 @@ function runErrorHandlers(calls: IterableIterator<ErrorCapture>, error: unknown)
 function handleError(instance: ErrorBoundary | undefined, error: unknown): void {
   if (instance) {
     const { calls, parent } = instance;
+    // Check if the current boundary has listeners
     if (calls && calls.size) {
+      // Untrack before passing error
       const parentTracking = TRACKING;
       TRACKING = undefined;
       const result = pcall2(runErrorHandlers, calls.keys(), error);
       TRACKING = parentTracking;
       if (!result.isSuccess) {
-        handleError(parent, error);
+        // If the error handler fails, forward the new error and the current error
         handleError(parent, result.value);
+        handleError(parent, error);
       }
     } else {
+      // Forward the error to the parent
       handleError(parent, error);
     }
   } else {
@@ -524,7 +529,7 @@ export function atom<T>(value: T, isEqual: (next: T, prev: T) => boolean = is): 
   };
 }
 
-export function computedAtom<T>(
+export function computed<T>(
   compute: () => T,
   isEqual: (next: T, prev: T) => boolean = is,
 ): () => T {
@@ -796,7 +801,7 @@ export function isTransitionPending(): boolean {
   return readTransitionPending();
 }
 
-export function deferredAtom<T>(
+export function deferred<T>(
   callback: () => T,
   isEqual: (next: T, prev: T) => boolean = is,
 ): () => T {
