@@ -5,11 +5,11 @@ import {
   TRACKING,
   trackReactiveAtom,
   ReactiveAtom,
-  startTransition,
   untrack,
   captureReactiveAtomForCleanup,
   syncEffect,
   captured,
+  effect,
 } from './core';
 import {
   readonly,
@@ -127,10 +127,10 @@ export function deferred<T>(
   const instance = createReactiveAtom();
   captureReactiveAtomForCleanup(instance);
 
-  let value = untrack(callback);
+  let value: T;
 
-  syncEffect(() => {
-    startTransition(() => {
+  const setup = captured(() => {
+    effect(() => {
       const next = callback();
       if (!isEqual(value, next)) {
         value = next;
@@ -139,10 +139,17 @@ export function deferred<T>(
     });
   });
 
+  let doSetup = true;
+
   const node: Ref<T> & WithRef & WithTrackable = readonly({
     [REF]: true,
     [TRACKABLE]: instance,
     get value(): T {
+      if (doSetup) {
+        value = untrack(callback);
+        setup();
+        doSetup = false;
+      }
       if (TRACKING) {
         trackReactiveAtom(instance);
       }

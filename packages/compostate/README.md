@@ -20,21 +20,15 @@ pnpm add compostate
 
 ## Concepts
 
-### Signals and Atoms
-
-**TO DO**
+### Signals
 
 ### Effects
-
-**TO DO**
 
 ### Cleanups
 
 ### Context API
 
 ### Error Boundaries
-
-### Capturing Contexts
 
 ## Bindings
 

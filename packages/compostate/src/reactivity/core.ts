@@ -803,10 +803,10 @@ export function deferredAtom<T>(
   const instance = createReactiveAtom();
   captureReactiveAtomForCleanup(instance);
 
-  let value = untrack(callback);
+  let value: T;
 
-  syncEffect(() => {
-    startTransition(() => {
+  const setup = captured(() => {
+    effect(() => {
       const next = callback();
       if (!isEqual(value, next)) {
         value = next;
@@ -815,7 +815,14 @@ export function deferredAtom<T>(
     });
   });
 
+  let doSetup = true;
+
   return () => {
+    if (doSetup) {
+      value = untrack(callback);
+      setup();
+      doSetup = false;
+    }
     if (TRACKING) {
       trackReactiveAtom(instance);
     }
