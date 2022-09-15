@@ -65,19 +65,19 @@ export {
   // atoms
   atom,
   Atom,
-  computedAtom,
+  computed,
   // signal
   signal,
   Signal,
   // deferred
-  deferredAtom,
+  deferred,
 } from './reactivity/core';
 // Extensions
 export {
   ref,
   isRef,
-  computed,
-  deferred,
+  computedRef,
+  deferredRef,
 } from './reactivity/refs';
 export {
   readonly,
@@ -92,8 +92,8 @@ export {
   index,
 } from './reactivity/array';
 export {
-  debounce,
-  debouncedAtom,
+  debounced,
+  debouncedRef,
 } from './reactivity/debounce';
 export {
   default as reactive,
@@ -104,13 +104,8 @@ export {
   ResourceOptions,
 } from './reactivity/resource';
 export {
-  spread,
-  destructure,
-  Spread,
-} from './reactivity/spread';
-export {
   template,
-  templateAtom,
+  templateRef,
 } from './reactivity/template';
 export {
   Effect,
