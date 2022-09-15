@@ -1,15 +1,15 @@
-import { computedAtom } from './core';
-import { computed, isRef } from './refs';
+import { computed } from './core';
+import { computedRef, isRef } from './refs';
 import { Ref } from './types';
 
 function isLazy<T>(value: any): value is () => T {
   return typeof value === 'function';
 }
-export function template<T>(
+export function templateRef<T>(
   strings: TemplateStringsArray,
   ...args: (T | Ref<T> | (() => T))[]
 ): Ref<string> {
-  return computed(() => {
+  return computedRef(() => {
     let result = '';
     let a = 0;
     for (let i = 0, len = strings.length; i < len; i++) {
@@ -29,11 +29,11 @@ export function template<T>(
   });
 }
 
-export function templateAtom<T>(
+export function template<T>(
   strings: TemplateStringsArray,
   ...args: (T | Ref<T> | (() => T))[]
 ): () => string {
-  return computedAtom(() => {
+  return computed(() => {
     let result = '';
     let a = 0;
     for (let i = 0, len = strings.length; i < len; i++) {
