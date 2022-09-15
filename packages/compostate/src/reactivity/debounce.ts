@@ -1,4 +1,5 @@
 import {
+  captured,
   captureReactiveAtomForCleanup,
   createReactiveAtom,
   notifyReactiveAtom,
@@ -16,33 +17,42 @@ import { Ref } from './types';
 
 const { is } = Object;
 
-export function debounce<T>(
-  computation: () => T,
+export function debouncedRef<T>(
+  source: () => T,
   timeoutMS: number,
   isEqual: (next: T, prev: T) => boolean = is,
 ): Ref<T> {
   const instance = createReactiveAtom();
   captureReactiveAtomForCleanup(instance);
 
-  let value = untrack(computation);
+  let value: T;
 
-  syncEffect(
-    watch(computation, (next) => {
-      const timeout = setTimeout(() => {
-        value = next;
-        notifyReactiveAtom(instance);
-      }, timeoutMS);
+  const setup = captured(() => {
+    syncEffect(
+      watch(source, (next) => {
+        const timeout = setTimeout(() => {
+          value = next;
+          notifyReactiveAtom(instance);
+        }, timeoutMS);
 
-      onCleanup(() => {
-        clearTimeout(timeout);
-      });
-    }, isEqual),
-  );
+        onCleanup(() => {
+          clearTimeout(timeout);
+        });
+      }, isEqual),
+    );
+  });
+
+  let doSetup = true;
 
   const node: Ref<T> & WithRef & WithTrackable = readonly({
     [REF]: true,
     [TRACKABLE]: instance,
     get value(): T {
+      if (doSetup) {
+        value = untrack(source);
+        setup();
+        doSetup = false;
+      }
       if (TRACKING) {
         trackReactiveAtom(instance);
       }
@@ -53,28 +63,42 @@ export function debounce<T>(
   return node;
 }
 
-export function debouncedAtom<T>(
-  computation: () => T,
+export function debounced<T>(
+  source: () => T,
   timeoutMS: number,
   isEqual: (next: T, prev: T) => boolean = is,
 ): () => T {
   const instance = createReactiveAtom();
   captureReactiveAtomForCleanup(instance);
 
-  let value = untrack(computation);
+  let value: T;
 
-  syncEffect(
-    watch(computation, (next) => {
-      const timeout = setTimeout(() => {
-        value = next;
-        notifyReactiveAtom(instance);
-      }, timeoutMS);
+  const setup = captured(() => {
+    syncEffect(
+      watch(source, (next) => {
+        const timeout = setTimeout(() => {
+          value = next;
+          notifyReactiveAtom(instance);
+        }, timeoutMS);
 
-      onCleanup(() => {
-        clearTimeout(timeout);
-      });
-    }, isEqual),
-  );
+        onCleanup(() => {
+          clearTimeout(timeout);
+        });
+      }, isEqual),
+    );
+  });
 
-  return () => value;
+  let doSetup = true;
+
+  return () => {
+    if (doSetup) {
+      value = untrack(source);
+      setup();
+      doSetup = false;
+    }
+    if (TRACKING) {
+      trackReactiveAtom(instance);
+    }
+    return value;
+  };
 }
