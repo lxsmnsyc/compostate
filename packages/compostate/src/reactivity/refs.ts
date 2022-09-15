@@ -34,7 +34,7 @@ export function isRef<T>(object: any): object is Ref<T> {
   return object && typeof object === 'object' && REF in object;
 }
 
-export function computed<T>(
+export function computedRef<T>(
   compute: () => T,
   isEqual: (next: T, prev: T) => boolean = is,
 ): Readonly<Ref<T>> {
@@ -120,7 +120,7 @@ export function ref<T>(
   return new RefNode(value, instance, isEqual);
 }
 
-export function deferred<T>(
+export function deferredRef<T>(
   callback: () => T,
   isEqual: (next: T, prev: T) => boolean = is,
 ): Readonly<Ref<T>> {
