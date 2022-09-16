@@ -238,11 +238,11 @@ function handleError(instance: ErrorBoundary | undefined, error: unknown): void 
       // Untrack before passing error
       const parentTracking = TRACKING;
       TRACKING = undefined;
-      const result = pcall2(runErrorHandlers, calls.keys(), error);
+      const [isSuccess, value] = pcall2(runErrorHandlers, calls.keys(), error);
       TRACKING = parentTracking;
-      if (!result.isSuccess) {
+      if (!isSuccess) {
         // If the error handler fails, forward the new error and the current error
-        handleError(parent, result.value);
+        handleError(parent, value);
         handleError(parent, error);
       }
     } else {
@@ -573,12 +573,12 @@ function processWork(target: ProcessWork, work: (target: ProcessWork) => void) {
   ERROR_BOUNDARY = target.errorBoundary;
   TRACKING = target;
   CONTEXT = target.context;
-  const result = pcall1(work, target);
+  const [isSuccess, value] = pcall1(work, target);
   CONTEXT = parentContext;
   TRACKING = parentTracking;
   ERROR_BOUNDARY = parentErrorBoundary;
-  if (!result.isSuccess) {
-    handleError(target.errorBoundary, result.value);
+  if (!isSuccess) {
+    handleError(target.errorBoundary, value);
   }
 }
 

@@ -1,12 +1,6 @@
-export interface Success<T> {
-  isSuccess: true;
-  value: T;
-}
+export type Success<T> = [true, T];
 
-export interface Failure {
-  isSuccess: false;
-  value: any;
-}
+export type Failure = [false, any];
 
 export type Result<T> = Success<T> | Failure;
 
@@ -14,9 +8,9 @@ export function pcall0<T>(
   cb: () => T,
 ): Result<T> {
   try {
-    return { isSuccess: true, value: cb() };
+    return [true, cb()];
   } catch (error) {
-    return { isSuccess: false, value: error };
+    return [false, error];
   }
 }
 
@@ -25,9 +19,9 @@ export function pcall1<T, A>(
   a: A,
 ): Result<T> {
   try {
-    return { isSuccess: true, value: cb(a) };
+    return [true, cb(a)];
   } catch (error) {
-    return { isSuccess: false, value: error };
+    return [false, error];
   }
 }
 
@@ -37,9 +31,9 @@ export function pcall2<T, A, B>(
   b: B,
 ): Result<T> {
   try {
-    return { isSuccess: true, value: cb(a, b) };
+    return [true, cb(a, b)];
   } catch (error) {
-    return { isSuccess: false, value: error };
+    return [false, error];
   }
 }
 
@@ -48,15 +42,15 @@ export function pcall<T, F extends any[]>(
   args: F,
 ): Result<T> {
   try {
-    return { isSuccess: true, value: cb(...args) };
+    return [true, cb(...args)];
   } catch (error) {
-    return { isSuccess: false, value: error };
+    return [false, error];
   }
 }
 
-export function unwrap<T>(result: Result<T>): T {
-  if (result.isSuccess) {
-    return result.value;
+export function unwrap<T>([isSuccess, value]: Result<T>): T {
+  if (isSuccess) {
+    return value;
   }
-  throw result.value;
+  throw value;
 }
