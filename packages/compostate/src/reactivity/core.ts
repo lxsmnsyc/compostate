@@ -43,13 +43,6 @@ import {
   Task,
 } from '../scheduler';
 import {
-  pcall,
-  pcall0,
-  pcall1,
-  pcall2,
-  unwrap,
-} from '../utils/pcall';
-import {
   Cleanup,
   Effect,
   ErrorCapture,
@@ -80,25 +73,31 @@ export let CLEANUP: Set<Cleanup> | undefined;
 export function unbatch<T>(callback: () => T): T {
   const parent = BATCH_UPDATES;
   BATCH_UPDATES = undefined;
-  const result = pcall0(callback);
-  BATCH_UPDATES = parent;
-  return unwrap(result);
+  try {
+    return callback();
+  } finally {
+    BATCH_UPDATES = parent;
+  }
 }
 
 export function unbatchCleanup<T>(callback: () => T): T {
   const parent = CLEANUP;
   CLEANUP = undefined;
-  const result = pcall0(callback);
-  CLEANUP = parent;
-  return unwrap(result);
+  try {
+    return callback();
+  } finally {
+    CLEANUP = parent;
+  }
 }
 
 export function untrack<T>(callback: () => T): T {
   const parent = TRACKING;
   TRACKING = undefined;
-  const result = pcall0(callback);
-  TRACKING = parent;
-  return unwrap(result);
+  try {
+    return callback();
+  } finally {
+    TRACKING = parent;
+  }
 }
 
 export function createRoot<T>(callback: () => T): T {
@@ -108,11 +107,13 @@ export function createRoot<T>(callback: () => T): T {
   BATCH_UPDATES = undefined;
   TRACKING = undefined;
   CLEANUP = undefined;
-  const result = pcall0(callback);
-  CLEANUP = parentCleanup;
-  TRACKING = parentTracking;
-  BATCH_UPDATES = parentBatchUpdates;
-  return unwrap(result);
+  try {
+    return callback();
+  } finally {
+    CLEANUP = parentCleanup;
+    TRACKING = parentTracking;
+    BATCH_UPDATES = parentBatchUpdates;
+  }
 }
 
 export function capturedBatchCleanup<T extends any[], R>(
@@ -122,9 +123,11 @@ export function capturedBatchCleanup<T extends any[], R>(
   return (...args) => {
     const parent = CLEANUP;
     CLEANUP = current;
-    const result = pcall(callback, args);
-    CLEANUP = parent;
-    return unwrap(result);
+    try {
+      return callback(...args);
+    } finally {
+      CLEANUP = parent;
+    }
   };
 }
 
@@ -135,9 +138,11 @@ export function capturedErrorBoundary<T extends any[], R>(
   return (...args) => {
     const parent = ERROR_BOUNDARY;
     ERROR_BOUNDARY = current;
-    const result = pcall(callback, args);
-    ERROR_BOUNDARY = parent;
-    return unwrap(result);
+    try {
+      return callback(...args);
+    } finally {
+      ERROR_BOUNDARY = parent;
+    }
   };
 }
 
@@ -148,9 +153,11 @@ export function capturedContext<T extends any[], R>(
   return (...args) => {
     const parent = CONTEXT;
     CONTEXT = current;
-    const result = pcall(callback, args);
-    CONTEXT = parent;
-    return unwrap(result);
+    try {
+      return callback(...args);
+    } finally {
+      CONTEXT = parent;
+    }
   };
 }
 
@@ -167,11 +174,13 @@ export function captured<T extends any[], R>(
     ERROR_BOUNDARY = currentErrorBoundary;
     CLEANUP = currentCleanup;
     CONTEXT = currentContext;
-    const result = pcall(callback, args);
-    CONTEXT = parentContext;
-    CLEANUP = parentCleanup;
-    ERROR_BOUNDARY = parentErrorBoundary;
-    return unwrap(result);
+    try {
+      return callback(...args);
+    } finally {
+      CONTEXT = parentContext;
+      CLEANUP = parentCleanup;
+      ERROR_BOUNDARY = parentErrorBoundary;
+    }
   };
 }
 
@@ -194,9 +203,11 @@ export function batchCleanup(callback: () => void): Cleanup {
   const cleanups = new Set<Cleanup>();
   const parentCleanup = CLEANUP;
   CLEANUP = cleanups;
-  const result = pcall0(callback);
-  CLEANUP = parentCleanup;
-  unwrap(result);
+  try {
+    callback();
+  } finally {
+    CLEANUP = parentCleanup;
+  }
   let alive = true;
   // Create return cleanup
   return onCleanup(() => {
@@ -206,9 +217,11 @@ export function batchCleanup(callback: () => void): Cleanup {
         // Untrack before running cleanups
         const parent = TRACKING;
         TRACKING = undefined;
-        const internal = pcall1(exhaustCleanup, cleanups);
-        TRACKING = parent;
-        unwrap(internal);
+        try {
+          exhaustCleanup(cleanups);
+        } finally {
+          TRACKING = parent;
+        }
       }
     }
   });
@@ -238,12 +251,14 @@ function handleError(instance: ErrorBoundary | undefined, error: unknown): void 
       // Untrack before passing error
       const parentTracking = TRACKING;
       TRACKING = undefined;
-      const [isSuccess, value] = pcall2(runErrorHandlers, calls.keys(), error);
-      TRACKING = parentTracking;
-      if (!isSuccess) {
+      try {
+        runErrorHandlers(calls.keys(), error);
+      } catch (value) {
         // If the error handler fails, forward the new error and the current error
         handleError(parent, value);
         handleError(parent, error);
+      } finally {
+        TRACKING = parentTracking;
       }
     } else {
       // Forward the error to the parent
@@ -283,9 +298,11 @@ export function onError(errorCapture: ErrorCapture): Cleanup {
 export function errorBoundary<T>(callback: () => T): T {
   const parentInstance = ERROR_BOUNDARY;
   ERROR_BOUNDARY = createErrorBoundary(parentInstance);
-  const result = pcall0(callback);
-  ERROR_BOUNDARY = parentInstance;
-  return unwrap(result);
+  try {
+    return callback();
+  } finally {
+    ERROR_BOUNDARY = parentInstance;
+  }
 }
 
 export function captureError(): ErrorCapture {
@@ -332,9 +349,11 @@ function exhaustUpdates(instance: Set<LinkedWork>): void {
 
 function runUpdates(instance: Set<LinkedWork>) {
   BATCH_UPDATES = instance;
-  const result = pcall1(exhaustUpdates, instance);
-  BATCH_UPDATES = undefined;
-  unwrap(result);
+  try {
+    exhaustUpdates(instance);
+  } finally {
+    BATCH_UPDATES = undefined;
+  }
 }
 
 export function notifyReactiveAtom(target: ReactiveAtom): void {
@@ -358,9 +377,11 @@ export function batch<T extends any[]>(
   } else {
     const instance = new Set<LinkedWork>();
     BATCH_UPDATES = instance;
-    const result = pcall(callback, args);
-    BATCH_UPDATES = undefined;
-    unwrap(result);
+    try {
+      callback(...args);
+    } finally {
+      BATCH_UPDATES = undefined;
+    }
     runUpdates(instance);
   }
 }
@@ -573,12 +594,14 @@ function processWork(target: ProcessWork, work: (target: ProcessWork) => void) {
   ERROR_BOUNDARY = target.errorBoundary;
   TRACKING = target;
   CONTEXT = target.context;
-  const [isSuccess, value] = pcall1(work, target);
-  CONTEXT = parentContext;
-  TRACKING = parentTracking;
-  ERROR_BOUNDARY = parentErrorBoundary;
-  if (!isSuccess) {
+  try {
+    work(target);
+  } catch (value) {
     handleError(target.errorBoundary, value);
+  } finally {
+    CONTEXT = parentContext;
+    TRACKING = parentTracking;
+    ERROR_BOUNDARY = parentErrorBoundary;
   }
 }
 
@@ -664,9 +687,11 @@ export function contextual<T>(callback: () => T): T {
     parent,
     data: {},
   };
-  const result = pcall0(callback);
-  CONTEXT = parent;
-  return unwrap(result);
+  try {
+    return callback();
+  } finally {
+    CONTEXT = parent;
+  }
 }
 
 export interface Context<T> {
@@ -790,10 +815,11 @@ function scheduleTransition() {
 export function startTransition(callback: () => void): void {
   const parent = BATCH_UPDATES;
   BATCH_UPDATES = TRANSITIONS;
-  const result = pcall0(callback);
-  BATCH_UPDATES = parent;
-  unwrap(result);
-
+  try {
+    callback();
+  } finally {
+    BATCH_UPDATES = parent;
+  }
   scheduleTransition();
 }
 

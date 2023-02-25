@@ -16,8 +16,8 @@ importers:
 
   examples/compostate-element-vite:
     specifiers:
-      compostate: 0.4.0
-      compostate-element: 0.4.0
+      compostate: 0.5.0
+      compostate-element: 0.5.0
       eslint: ^8.22.0
       eslint-config-lxsmnsyc: ^0.4.8
       lit-html: ^1.4.1
@@ -36,11 +36,11 @@ importers:
   examples/preact-compostate-vite:
     specifiers:
       '@preact/preset-vite': ^2.3.0
-      compostate: 0.4.0
+      compostate: 0.5.0
       eslint: ^8.22.0
       eslint-config-lxsmnsyc: ^0.4.8
       preact: ^10.7.2
-      preact-compostate: 0.4.0
+      preact-compostate: 0.5.0
       typescript: ^4.7.4
       vite: ^3.0.9
     dependencies:
@@ -59,11 +59,11 @@ importers:
       '@types/react': ^18.0.9
       '@types/react-dom': ^18.0.4
       '@vitejs/plugin-react': ^1.3.2
-      compostate: 0.4.0
+      compostate: 0.5.0
       eslint: ^8.22.0
       eslint-config-lxsmnsyc: ^0.4.8
       react: ^18.1.0
-      react-compostate: 0.4.0
+      react-compostate: 0.5.0
       react-dom: ^18.1.0
       typescript: ^4.7.4
       vite: ^3.0.9
@@ -100,7 +100,7 @@ importers:
   packages/compostate-element:
     specifiers:
       '@types/node': ^18.7.8
-      compostate: 0.4.0
+      compostate: 0.5.0
       eslint: ^8.22.0
       eslint-config-lxsmnsyc: ^0.4.8
       pridepack: ^2.3.0
@@ -119,7 +119,7 @@ importers:
     specifiers:
       '@lyonph/preact-hooks': ^0.6.0
       '@types/node': ^18.7.8
-      compostate: 0.4.0
+      compostate: 0.5.0
       eslint: ^8.22.0
       eslint-config-lxsmnsyc: ^0.4.8
       preact: ^10.7.2
@@ -143,7 +143,7 @@ importers:
       '@lyonph/react-hooks': ^0.6.0
       '@types/node': ^18.7.8
       '@types/react': ^18.0.9
-      compostate: 0.4.0
+      compostate: 0.5.0
       eslint: ^8.22.0
       eslint-config-lxsmnsyc: ^0.4.8
       pridepack: ^2.3.0
