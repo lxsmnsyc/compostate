@@ -1,125 +1,96 @@
-export interface LinkedWork {
-  isSubscriber: boolean;
-  tag: number;
-  id: number;
-  alive: boolean;
-  links?: LinkedWork | Set<LinkedWork>;
-}
-
-let RUNNER: (work: LinkedWork) => void;
-
-export function setRunner(work: (work: LinkedWork) => void): void {
-  RUNNER = work;
-}
-
+/* eslint-disable max-classes-per-file */
 let STATE = 0;
 
-export function createLinkedWork(
-  isSubscriber: boolean,
-  tag: number,
-): LinkedWork {
-  return {
-    isSubscriber,
-    tag,
-    id: STATE++,
-    alive: true,
-  };
-}
+export abstract class LinkedWork {
+  tag: number;
 
-function registerLink(
-  left: LinkedWork,
-  right: LinkedWork,
-): void {
-  if (!left.links) {
-    left.links = right;
-  } else {
-    let currentLinks = left.links;
-    if (!(currentLinks instanceof Set)) {
-      currentLinks = new Set([currentLinks]);
-      left.links = currentLinks;
-    }
-    currentLinks.add(right);
+  id: number;
+
+  alive = true;
+
+  links: Set<LinkedWork> | undefined = undefined;
+
+  constructor(
+    tag: number,
+  ) {
+    this.tag = tag;
+    this.id = STATE++;
   }
-}
 
-export function publisherLinkSubscriber(
-  publisher: LinkedWork,
-  subscriber: LinkedWork,
-): void {
-  if (publisher.alive && subscriber.alive) {
-    registerLink(publisher, subscriber);
-    registerLink(subscriber, publisher);
-  }
-}
-
-export function enqueueSubscriberWork(
-  target: LinkedWork,
-  queue: Set<LinkedWork>,
-): void {
-  // Sets are internally ordered, so we can emulate
-  // a simple queue where we move the node to the end
-  // of the order
-  // Currently this is the fastest and cheapest
-  // non-linked list operation we can do
-  queue.delete(target);
-  queue.add(target);
-}
-
-export function evaluateSubscriberWork(
-  target: LinkedWork,
-): void {
-  RUNNER(target);
-}
-
-export function enqueuePublisherWork(
-  target: LinkedWork,
-  queue: Set<LinkedWork>,
-): void {
-  if (target.links) {
-    if (target.links instanceof Set) {
-      for (const item of target.links.keys()) {
-        enqueueSubscriberWork(item, queue);
-      }
+  register(link: LinkedWork) {
+    if (this.links) {
+      this.links.add(link);
     } else {
-      enqueueSubscriberWork(target.links, queue);
+      this.links = new Set([link]);
+    }
+  }
+
+  abstract enqueue(queue: Set<LinkedWork>): void;
+
+  abstract run(): void;
+
+  call() {
+    if (this.alive) {
+      this.run();
     }
   }
 }
 
-export function evaluatePublisherWork(target: LinkedWork): void {
-  if (target.links) {
-    if (target.links instanceof Set) {
-      for (const item of target.links.keys()) {
-        RUNNER(item);
+export class Publisher extends LinkedWork {
+  link(link: Subscriber): void {
+    link.register(this);
+    this.register(link);
+  }
+
+  enqueue(queue: Set<LinkedWork>) {
+    if (this.links) {
+      for (const item of this.links.keys()) {
+        item.enqueue(queue);
       }
-    } else {
-      RUNNER(target.links);
     }
+  }
+
+  run() {
+    if (this.links) {
+      for (const item of this.links.keys()) {
+        item.call();
+      }
+    }
+  }
+
+  destroy() {
+    this.alive = false;
   }
 }
 
-export function unlinkLinkedWorkPublishers(target: LinkedWork): void {
-  if (target.links) {
-    if (target.links instanceof Set) {
-      for (const item of target.links.keys()) {
+export abstract class Subscriber extends LinkedWork {
+  enqueue(queue: Set<LinkedWork>) {
+    // Sets are internally ordered, so we can emulate
+    // a simple queue where we move the node to the end
+    // of the order
+    // Currently this is the fastest and cheapest
+    // non-linked list operation we can do
+    queue.delete(this);
+    queue.add(this);
+  }
+
+  abstract run(): void;
+
+  clear() {
+    if (this.links) {
+      for (const item of this.links.keys()) {
         if (item.links instanceof Set) {
-          item.links.delete(target);
+          item.links.delete(this);
         } else {
           item.links = undefined;
         }
       }
-      target.links.clear();
+      this.links.clear();
     }
-    target.links = undefined;
   }
-}
 
-export function destroyLinkedWork(target: LinkedWork): void {
-  if (target.alive) {
-    target.alive = false;
-    if (target.isSubscriber) {
-      unlinkLinkedWorkPublishers(target);
-    }
-    target.links = undefined;
+  destroy() {
+    this.alive = false;
+    this.clear();
   }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable max-classes-per-file */
 /**
  * @license
  * MIT License
@@ -25,18 +26,19 @@
  * @author Alexis Munsayac <alexis.munsayac@gmail.com>
  * @copyright Alexis Munsayac 2021
  */
-import {
-  createLinkedWork,
-  destroyLinkedWork,
-  enqueuePublisherWork,
-  enqueueSubscriberWork,
-  evaluatePublisherWork,
-  evaluateSubscriberWork,
-  LinkedWork,
-  publisherLinkSubscriber,
-  setRunner,
-  unlinkLinkedWorkPublishers,
-} from '../linked-work';
+import { LinkedWork, Publisher, Subscriber } from '../linked-work';
+// import {
+//   createLinkedWork,
+//   destroyLinkedWork,
+//   enqueuePublisherWork,
+//   enqueueSubscriberWork,
+//   evaluatePublisherWork,
+//   evaluateSubscriberWork,
+//   LinkedWork,
+//   publisherLinkSubscriber,
+//   setRunner,
+//   unlinkLinkedWorkPublishers,
+// } from '../linked-work.old';
 import {
   cancelCallback,
   requestCallback,
@@ -49,7 +51,7 @@ import {
   Ref,
 } from './types';
 
-const { is, assign } = Object;
+const { is } = Object;
 
 // Work types
 const WORK_ATOM = 0b00000001;
@@ -60,7 +62,7 @@ const WORK_SYNC_EFFECT = 0b00001000;
 // Execution contexts
 
 // Context for whether the scope is tracking for subscribers
-export let TRACKING: LinkedWork | undefined;
+export let TRACKING: Subscriber | undefined;
 // Context for whether the updates are being batched
 let BATCH_UPDATES: Set<LinkedWork> | undefined;
 // Context for whether or not there is an error boundary
@@ -315,34 +317,30 @@ export function captureError(): ErrorCapture {
 /**
  * Linked Work
  */
-export type ReactiveAtom = LinkedWork;
+export type ReactiveAtom = Publisher;
 
 export function createReactiveAtom(): ReactiveAtom {
-  return createLinkedWork(false, WORK_ATOM);
+  return new Publisher(WORK_ATOM);
 }
 
 export function destroyReactiveAtom(target: ReactiveAtom): void {
-  destroyLinkedWork(target);
+  target.destroy();
 }
 
-export function captureReactiveAtomForCleanup(instance: ReactiveAtom): void {
+export function captureReactiveAtomForCleanup(target: ReactiveAtom): void {
   if (CLEANUP) {
-    CLEANUP.add(() => destroyLinkedWork(instance));
+    CLEANUP.add(() => target.destroy());
   }
 }
 
 export function trackReactiveAtom(target: ReactiveAtom): void {
-  publisherLinkSubscriber(target, TRACKING!);
+  target.link(TRACKING!);
 }
 
 function exhaustUpdates(instance: Set<LinkedWork>): void {
   for (const work of instance) {
     if (work.alive) {
-      if (work.isSubscriber) {
-        evaluateSubscriberWork(work);
-      } else {
-        evaluatePublisherWork(work);
-      }
+      work.call();
     }
   }
 }
@@ -359,10 +357,10 @@ function runUpdates(instance: Set<LinkedWork>) {
 export function notifyReactiveAtom(target: ReactiveAtom): void {
   if (target.alive) {
     if (BATCH_UPDATES) {
-      enqueuePublisherWork(target, BATCH_UPDATES);
+      target.enqueue(BATCH_UPDATES);
     } else {
       const instance = new Set<LinkedWork>();
-      enqueuePublisherWork(target, instance);
+      target.enqueue(instance);
       runUpdates(instance);
     }
   }
@@ -386,86 +384,151 @@ export function batch<T extends any[]>(
   }
 }
 
-function cleanProcess(work: ProcessWork): void {
-  if (work.cleanup) {
-    batch(work.cleanup);
-    work.cleanup = undefined;
+abstract class ProcessWork extends Subscriber {
+  cleanup: Cleanup | undefined = undefined;
+
+  errorBoundary: ErrorBoundary | undefined;
+
+  context: ContextTree | undefined;
+
+  constructor(tag: number) {
+    super(tag);
+    this.errorBoundary = ERROR_BOUNDARY;
+    this.context = CONTEXT;
   }
-  work.context = undefined;
-  work.errorBoundary = undefined;
+
+  abstract process(): void;
+
+  run() {
+    this.clear();
+    const parentContext = CONTEXT;
+    const parentTracking = TRACKING;
+    const parentErrorBoundary = ERROR_BOUNDARY;
+    ERROR_BOUNDARY = this.errorBoundary;
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    TRACKING = this;
+    CONTEXT = this.context;
+    try {
+      this.process();
+    } catch (value) {
+      handleError(this.errorBoundary, value);
+    } finally {
+      CONTEXT = parentContext;
+      TRACKING = parentTracking;
+      ERROR_BOUNDARY = parentErrorBoundary;
+    }
+  }
+
+  destroy(): void {
+    super.destroy();
+    batch(() => {
+      if (this.cleanup) {
+        this.cleanup();
+      }
+    });
+  }
 }
 
-interface ComputationWork<T> extends ProcessWork {
-  process?: (prev?: T) => T;
-  current?: T;
+class ComputationWork<T> extends ProcessWork {
+  callback: ((prev?: T) => T);
+
+  current: T | undefined;
+
+  constructor(callback: (prev?: T) => T, initial?: T) {
+    super(WORK_COMPUTATION);
+    this.callback = callback;
+    this.current = initial;
+  }
+
+  process(): void {
+    batch(() => {
+      if (this.cleanup) {
+        this.cleanup();
+      }
+      this.cleanup = batchCleanup(() => {
+        this.current = this.callback(this.current);
+      });
+    });
+  }
 }
 
 export function computation<T>(callback: (prev?: T) => T, initial?: T): Cleanup {
-  const work: ComputationWork<T> = assign(createLinkedWork(true, WORK_COMPUTATION), {
-    current: initial,
-    process: callback,
-    context: CONTEXT,
-    errorBoundary: ERROR_BOUNDARY,
-  });
-
-  evaluateSubscriberWork(work);
-
+  const work = new ComputationWork(callback, initial);
+  work.call();
   return onCleanup(() => {
-    if (work.alive) {
-      cleanProcess(work);
-      work.process = undefined;
-      destroyLinkedWork(work);
-    }
+    work.destroy();
   });
 }
 
-interface SyncEffectWork extends ProcessWork {
-  callback?: Effect;
-  cleanup?: Cleanup;
+class SyncEffectWork extends ProcessWork {
+  callback: Effect;
+
+  constructor(callback: Effect) {
+    super(WORK_SYNC_EFFECT);
+    this.callback = callback;
+  }
+
+  process(): void {
+    batch(() => {
+      if (this.cleanup) {
+        this.cleanup();
+      }
+      this.cleanup = batchCleanup(this.callback);
+    });
+  }
 }
 
 export function syncEffect(callback: Effect): Cleanup {
-  const work: SyncEffectWork = assign(createLinkedWork(true, WORK_SYNC_EFFECT), {
-    callback,
-    context: CONTEXT,
-    errorBoundary: ERROR_BOUNDARY,
-  });
-
-  evaluateSubscriberWork(work);
-
+  const work: SyncEffectWork = new SyncEffectWork(callback);
+  work.call();
   return onCleanup(() => {
-    if (work.alive) {
-      cleanProcess(work);
-      work.callback = undefined;
-      destroyLinkedWork(work);
-    }
+    work.destroy();
   });
 }
-interface EffectWork extends ProcessWork {
-  callback?: Effect;
-  cleanup?: Cleanup;
-  timeout?: ReturnType<typeof requestCallback>;
+
+class EffectWork extends ProcessWork {
+  callback: Effect;
+
+  timeout: ReturnType<typeof requestCallback> | undefined = undefined;
+
+  constructor(callback: Effect) {
+    super(WORK_EFFECT);
+    this.callback = callback;
+  }
+
+  process(): void {
+    batch(() => {
+      if (this.cleanup) {
+        this.cleanup();
+      }
+      this.cleanup = batchCleanup(this.callback);
+    });
+  }
+
+  run(): void {
+    const newCallback = captured(() => {
+      super.run();
+    });
+
+    if (this.timeout) {
+      cancelCallback(this.timeout);
+    }
+    this.timeout = requestCallback(newCallback);
+  }
+
+  destroy(): void {
+    super.destroy();
+    if (this.timeout) {
+      cancelCallback(this.timeout);
+    }
+  }
 }
 
 export function effect(callback: Effect): Cleanup {
-  const work: EffectWork = assign(createLinkedWork(true, WORK_EFFECT), {
-    callback,
-    context: CONTEXT,
-    errorBoundary: ERROR_BOUNDARY,
-  });
-
-  evaluateSubscriberWork(work);
-
+  const work: EffectWork = new EffectWork(callback);
+  work.call();
   return onCleanup(() => {
-    if (work.alive) {
-      cleanProcess(work);
-      if (work.timeout) {
-        cancelCallback(work.timeout);
-      }
-      work.timeout = undefined;
-      work.callback = undefined;
-      destroyLinkedWork(work);
-    }
+    work.destroy();
   });
 }
 
@@ -586,96 +649,6 @@ export function computed<T>(
   };
 }
 
-function processWork(target: ProcessWork, work: (target: ProcessWork) => void) {
-  unlinkLinkedWorkPublishers(target);
-  const parentContext = CONTEXT;
-  const parentTracking = TRACKING;
-  const parentErrorBoundary = ERROR_BOUNDARY;
-  ERROR_BOUNDARY = target.errorBoundary;
-  TRACKING = target;
-  CONTEXT = target.context;
-  try {
-    work(target);
-  } catch (value) {
-    handleError(target.errorBoundary, value);
-  } finally {
-    CONTEXT = parentContext;
-    TRACKING = parentTracking;
-    ERROR_BOUNDARY = parentErrorBoundary;
-  }
-}
-
-interface ProcessWork extends LinkedWork {
-  cleanup?: Cleanup;
-  errorBoundary?: ErrorBoundary;
-  context?: ContextTree;
-}
-
-function runComputationProcessInternal<T>(
-  target: ComputationWork<T>,
-  process: (prev?: T) => T,
-) {
-  if (target.cleanup) {
-    target.cleanup();
-  }
-  target.cleanup = batchCleanup(() => {
-    target.current = process(target.current);
-  });
-}
-
-function runComputationProcess(target: ComputationWork<any>) {
-  const { process } = target;
-  if (process) {
-    batch(runComputationProcessInternal, target, process);
-  }
-}
-
-function runSyncEffectProcessInternal(
-  target: SyncEffectWork,
-  callback: Effect,
-) {
-  if (target.cleanup) {
-    target.cleanup();
-  }
-  target.cleanup = batchCleanup(callback);
-}
-
-function runSyncEffectProcess(target: SyncEffectWork) {
-  const { callback } = target;
-  if (callback) {
-    batch(runSyncEffectProcessInternal, target, callback);
-  }
-}
-
-function runEffectProcess(target: EffectWork) {
-  const newCallback = captured(() => {
-    processWork(target, runSyncEffectProcess);
-  });
-
-  if (target.timeout) {
-    cancelCallback(target.timeout);
-  }
-  target.timeout = requestCallback(newCallback);
-}
-
-function runProcess(target: ProcessWork) {
-  switch (target.tag) {
-    case WORK_COMPUTATION:
-      processWork(target, runComputationProcess);
-      break;
-    case WORK_EFFECT:
-      runEffectProcess(target as EffectWork);
-      break;
-    case WORK_SYNC_EFFECT:
-      processWork(target, runSyncEffectProcess);
-      break;
-    default:
-      break;
-  }
-}
-
-setRunner(runProcess);
-
 interface ContextTree {
   parent?: ContextTree;
   data: Record<string, Ref<any> | undefined>;
@@ -753,7 +726,7 @@ export function selector<T, U extends T>(
           if (listeners && listeners.size) {
             for (const listener of listeners) {
               if (listener.alive) {
-                enqueueSubscriberWork(listener, BATCH_UPDATES!);
+                listener.enqueue(BATCH_UPDATES!);
               }
             }
           }
