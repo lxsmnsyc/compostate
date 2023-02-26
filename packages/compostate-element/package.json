@@ -1,5 +1,5 @@
 {
-  "version": "0.5.1",
+  "version": "0.6.0-alpha.0",
   "type": "module",
   "types": "./dist/types/index.d.ts",
   "main": "./dist/cjs/production/index.cjs",
@@ -29,7 +29,7 @@
   "name": "compostate-element",
   "devDependencies": {
     "@types/node": "^18.7.8",
-    "compostate": "0.5.1",
+    "compostate": "0.6.0-alpha.0",
     "eslint": "^8.22.0",
     "eslint-config-lxsmnsyc": "^0.4.8",
     "pridepack": "^2.3.0",
