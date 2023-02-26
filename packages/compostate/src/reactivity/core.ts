@@ -231,12 +231,12 @@ export function batchCleanup(callback: () => void): Cleanup {
 
 // ErrorBoundary
 interface ErrorBoundary {
-  calls?: Set<ErrorCapture>;
-  parent?: ErrorBoundary;
+  calls: Set<ErrorCapture> | undefined;
+  parent: ErrorBoundary | undefined;
 }
 
 function createErrorBoundary(parent?: ErrorBoundary): ErrorBoundary {
-  return { parent };
+  return { parent, calls: undefined };
 }
 
 function runErrorHandlers(calls: IterableIterator<ErrorCapture>, error: unknown): void {
@@ -622,28 +622,34 @@ export function computed<T>(
 
   let value: T;
   let initial = true;
-  let doSetup = true;
+  let cleanup: Cleanup | undefined;
 
   const setup = captured(() => {
-    syncEffect(
-      watch(compute, (current) => {
-        value = current;
-        if (initial) {
-          initial = false;
-        } else {
-          notifyReactiveAtom(instance);
-        }
-      }, isEqual),
-    );
+    cleanup = syncEffect(() => {
+      const next = compute();
+      if (initial) {
+        initial = false;
+        value = next;
+      } else if (!isEqual(value, next)) {
+        value = next;
+        notifyReactiveAtom(instance);
+      }
+    });
   });
 
   return () => {
-    if (doSetup) {
-      setup();
-      doSetup = false;
-    }
     if (TRACKING) {
       trackReactiveAtom(instance);
+      if (instance.links && instance.links.size === 1) {
+        setup();
+      }
+      onCleanup(() => {
+        if (instance.links && instance.links.size === 0 && cleanup) {
+          cleanup();
+        }
+      });
+    } else {
+      value = compute();
     }
     return value;
   };

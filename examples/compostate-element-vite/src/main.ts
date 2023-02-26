@@ -1,4 +1,4 @@
-import { ref, effect } from 'compostate';
+import { ref, effect, computed } from 'compostate';
 import { setRenderer, define } from 'compostate-element';
 import { render, html } from 'lit-html';
 
@@ -10,13 +10,14 @@ define({
   name: 'counter-title',
   props: ['value'],
   setup(props) {
+    const message = computed(() => `Current count: ${props.value}`);
     effect(() => {
-      console.log(`Current count: ${props.value}`);
+      console.log(message());
     });
 
     return () => (
       html`
-        <h1>Count: ${props.value}</h1>
+        <h1>${message()}</h1>
       `
     );
   },
