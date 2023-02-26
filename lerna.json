@@ -11,8 +11,7 @@
     "publish": {
       "allowBranch": [
         "main",
-        "vdom",
-        "no-vdom"
+        "next"
       ],
       "registry": "https://registry.npmjs.org/"
     }
