@@ -1,5 +1,5 @@
 {
-  "jsxFactory": "h",
-  "jsxFragment": "Fragment",
-  "target": "es2017"
+	"jsxFactory": "h",
+	"jsxFragment": "Fragment",
+	"target": "es2018"
 }
