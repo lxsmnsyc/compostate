@@ -431,6 +431,6 @@ export function isPending<T>(callback: () => T): boolean {
     callback();
     return false;
   } catch (error) {
-    return error === MARKER;
+    return error === MARKER || error instanceof ResourceNotReadyError;
   }
 }
