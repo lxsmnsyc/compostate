@@ -10,10 +10,15 @@ export {
   writeContext,
 } from './context';
 export {
+  captureError,
   errorBoundary,
   onError,
 } from './error-boundary';
 export * from './reactivity';
+export {
+  onSuspend,
+  suspenseBoundary,
+} from './suspense';
 export type {
   Cleanup,
   Context,

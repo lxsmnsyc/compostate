@@ -5,14 +5,22 @@ import {
   getCurrentContextTree,
   getCurrentErrorBoundary,
   getCurrentObserver,
+  getCurrentSuspenseBoundary,
   popContext,
   popErrorBoundary,
   popObserver,
+  popSuspenseBoundary,
   pushContext,
   pushErrorBoundary,
   pushObserver,
+  pushSuspenseBoundary,
 } from './owner';
 import { scheduleCallback } from './scheduler';
+import {
+  ResourceNotReadyError,
+  SUSPENSE_MARKER,
+  handleSuspense,
+} from './suspense';
 import type {
   AtomNode,
   ComputedNode,
@@ -105,6 +113,7 @@ export function createEffectNode(
     schedule: undefined,
     observables: undefined,
     cleanup: undefined,
+    suspenseBoundary: getCurrentSuspenseBoundary(),
     errorBoundary: getCurrentErrorBoundary(),
     contextTree: getCurrentContextTree(),
     callback,
@@ -247,14 +256,6 @@ export function writeNode<T>(
   notifyObservers(node, State.Dirty);
 }
 
-export class ResourceNotReadyError extends Error {
-  constructor() {
-    super('Resource is not yet ready.');
-  }
-}
-
-const MARKER = new ResourceNotReadyError();
-
 export function readNodeResult<T>(node: ObservableNode<T>): T {
   const result = node.value;
   if (!result) {
@@ -266,11 +267,7 @@ export function readNodeResult<T>(node: ObservableNode<T>): T {
   if (result.type === ResultState.Failure) {
     throw result.value;
   }
-  const observer = getCurrentObserver();
-  if (observer) {
-    throw MARKER;
-  }
-  throw new ResourceNotReadyError();
+  throw getCurrentObserver() ? SUSPENSE_MARKER : new ResourceNotReadyError();
 }
 
 export function readNode<T>(node: ObservableNode<T>): T {
@@ -295,6 +292,9 @@ function runComputedInternal<T>(this: ComputedNode<T>): void {
   }
 }
 function runComputed<T>(node: ComputedNode<T>): void {
+  if (!node.alive) {
+    return;
+  }
   node.state = State.Clean;
   if (node.cleanup) {
     node.cleanup();
@@ -305,24 +305,33 @@ function runComputed<T>(node: ComputedNode<T>): void {
 function runEffectInternal(this: EffectNode): void {
   cleanObservables(this);
   const parentObserver = pushObserver(this);
+  const parentSuspenseBoundary = pushSuspenseBoundary(this.suspenseBoundary);
   const parentErrorBoundary = pushErrorBoundary(this.errorBoundary);
   const parentContext = pushContext(this.contextTree);
   try {
     this.callback();
   } catch (error) {
-    if (error === MARKER) {
-      // TODO
+    if (error === SUSPENSE_MARKER) {
+      try {
+        handleSuspense(this.suspenseBoundary);
+      } catch (newError) {
+        handleError(this.errorBoundary, newError);
+      }
     } else {
       handleError(this.errorBoundary, error);
     }
   } finally {
-    popObserver(parentObserver);
-    popErrorBoundary(parentErrorBoundary);
     popContext(parentContext);
+    popErrorBoundary(parentErrorBoundary);
+    popSuspenseBoundary(parentSuspenseBoundary);
+    popObserver(parentObserver);
   }
 }
 
 function runEffect(node: EffectNode): void {
+  if (!node.alive) {
+    return;
+  }
   node.state = State.Clean;
   if (node.cleanup) {
     node.cleanup();
@@ -368,6 +377,9 @@ function runResourceInternal<T>(this: ResourceNode<T>): void {
   }
 }
 function runResource<T>(node: ResourceNode<T>): void {
+  if (!node.alive) {
+    return;
+  }
   node.state = State.Clean;
   if (node.cleanup) {
     node.cleanup();
@@ -437,12 +449,3 @@ export function updateNode<T>(node: ReactiveNode<T>): void {
 }
 
 // TODO add transition
-
-export function isPending<T>(callback: () => T): boolean {
-  try {
-    callback();
-    return false;
-  } catch (error) {
-    return error === MARKER || error instanceof ResourceNotReadyError;
-  }
-}

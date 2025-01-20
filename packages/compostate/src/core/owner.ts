@@ -3,6 +3,7 @@ import type {
   ContextTree,
   ErrorBoundary,
   ObserverNode,
+  SuspenseBoundary,
 } from './types';
 
 let CONTEXT_TREE: ContextTree | undefined;
@@ -23,24 +24,24 @@ export function getCurrentContextTree(): ContextTree | undefined {
   return CONTEXT_TREE;
 }
 
-let CLEANUP: CleanupBoundary | undefined;
+let CLEANUP_BOUNDARY: CleanupBoundary | undefined;
 
 export function pushCleanupBoundary(
   boundary: CleanupBoundary | undefined,
 ): CleanupBoundary | undefined {
-  const parent = CLEANUP;
-  CLEANUP = boundary;
+  const parent = CLEANUP_BOUNDARY;
+  CLEANUP_BOUNDARY = boundary;
   return parent;
 }
 
 export function popCleanupBoundary(
   boundary: CleanupBoundary | undefined,
 ): void {
-  CLEANUP = boundary;
+  CLEANUP_BOUNDARY = boundary;
 }
 
 export function getCurrentCleanupBoundary(): CleanupBoundary | undefined {
-  return CLEANUP;
+  return CLEANUP_BOUNDARY;
 }
 
 let ERROR_BOUNDARY: ErrorBoundary | undefined;
@@ -77,4 +78,24 @@ export function popObserver(observer: ObserverNode<any> | undefined): void {
 
 export function getCurrentObserver(): ObserverNode<any> | undefined {
   return OBSERVER;
+}
+
+let SUSPENSE_BOUNDARY: SuspenseBoundary | undefined;
+
+export function pushSuspenseBoundary(
+  boundary: SuspenseBoundary | undefined,
+): SuspenseBoundary | undefined {
+  const parent = SUSPENSE_BOUNDARY;
+  SUSPENSE_BOUNDARY = boundary;
+  return parent;
+}
+
+export function popSuspenseBoundary(
+  boundary: SuspenseBoundary | undefined,
+): void {
+  SUSPENSE_BOUNDARY = boundary;
+}
+
+export function getCurrentSuspenseBoundary(): SuspenseBoundary | undefined {
+  return SUSPENSE_BOUNDARY;
 }

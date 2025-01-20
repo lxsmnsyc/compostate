@@ -71,3 +71,8 @@ export function errorBoundary<T>(callback: () => T): T {
     popErrorBoundary(parent);
   }
 }
+
+export function captureError(): ErrorHandler {
+  const current = getCurrentErrorBoundary();
+  return handleError.bind(null, current);
+}

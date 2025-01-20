@@ -107,6 +107,7 @@ export interface EffectNode extends BaseReactiveNode<true>, Observer {
   callback: Effect;
 
   errorBoundary: ErrorBoundary | undefined;
+  suspenseBoundary: SuspenseBoundary | undefined;
   contextTree: ContextTree | undefined;
 }
 
@@ -156,3 +157,9 @@ export type ObservableNode<T> = AtomNode<T> | ComputedNode<T> | ResourceNode<T>;
 export type ObserverNode<T> = ComputedNode<T> | ResourceNode<T> | EffectNode;
 
 export type ReactiveNode<T> = ObservableNode<T> | ObserverNode<T>;
+
+export type SuspenseHandler = () => void;
+
+export interface SuspenseBoundary {
+  handlers: Set<SuspenseHandler> | undefined;
+}
