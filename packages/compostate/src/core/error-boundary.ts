@@ -7,34 +7,37 @@ import {
   pushErrorBoundary,
   pushObserver,
 } from './owner';
+import { SUSPENSE_MARKER } from './suspense';
 import type { Cleanup, ErrorBoundary, ErrorHandler } from './types';
 
 export function handleError(
   instance: ErrorBoundary | undefined,
   error: unknown,
 ): void {
-  if (instance) {
-    // Check if the current boundary has listeners
-    if (instance.handlers && instance.handlers.size) {
-      // Untrack before passing error
-      const parentObserver = pushObserver(undefined);
-      try {
-        for (const handler of instance.handlers) {
-          handler(error);
-        }
-      } catch (value) {
-        // If the error handler fails, forward the new error and the current error
-        handleError(instance.parent, value);
-        handleError(instance.parent, error);
-      } finally {
-        popObserver(parentObserver);
+  if (!instance) {
+    throw error;
+  }
+  // Check if the current boundary has listeners
+  if (instance.handlers && instance.handlers.size) {
+    // Untrack before passing error
+    const parentObserver = pushObserver(undefined);
+    try {
+      for (const handler of instance.handlers) {
+        handler(error);
       }
-    } else {
-      // Forward the error to the parent
+    } catch (value) {
+      if (value === SUSPENSE_MARKER) {
+        throw value;
+      }
+      // If the error handler fails, forward the new error and the current error
+      handleError(instance.parent, value);
       handleError(instance.parent, error);
+    } finally {
+      popObserver(parentObserver);
     }
   } else {
-    throw error;
+    // Forward the error to the parent
+    handleError(instance.parent, error);
   }
 }
 
