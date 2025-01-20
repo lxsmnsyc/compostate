@@ -49,8 +49,6 @@ export function readContext<T>(context: Context<T>): T {
     }
     if (current) {
       current = current.parent;
-    } else {
-      break;
     }
   }
   return context.defaultValue;
