@@ -6,13 +6,13 @@
   "module": "./dist/esm/production/index.mjs",
   "exports": {
     ".": {
+      "types": "./dist/types/index.d.ts",
       "development": {
         "require": "./dist/cjs/development/index.cjs",
         "import": "./dist/esm/development/index.mjs"
       },
       "require": "./dist/cjs/production/index.cjs",
-      "import": "./dist/esm/production/index.mjs",
-      "types": "./dist/types/index.d.ts"
+      "import": "./dist/esm/production/index.mjs"
     }
   },
   "files": [
@@ -29,7 +29,7 @@
   "name": "compostate",
   "devDependencies": {
     "@types/node": "^22.10.7",
-    "pridepack": "^2.6.3",
+    "pridepack": "^2.6.4",
     "tslib": "^2.8.1",
     "typescript": "^5.7.3",
     "vitest": "^3.0.2"
