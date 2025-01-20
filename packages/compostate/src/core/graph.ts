@@ -330,6 +330,26 @@ function runEffect(node: EffectNode): void {
   node.cleanup = batchCleanup(runEffectInternal.bind(node));
 }
 
+function resolveResource<T>(
+  this: ResourceNode<T>,
+  version: number,
+  value: T,
+): void {
+  if (this.version === version) {
+    writeNode(this, { type: ResultState.Success, value });
+  }
+}
+
+function rejectResource<T>(
+  this: ResourceNode<T>,
+  version: number,
+  value: unknown,
+): void {
+  if (this.version === version) {
+    writeNode(this, { type: ResultState.Failure, value });
+  }
+}
+
 function runResourceInternal<T>(this: ResourceNode<T>): void {
   cleanObservables(this);
   const parentObserver = pushObserver(this);
@@ -338,16 +358,8 @@ function runResourceInternal<T>(this: ResourceNode<T>): void {
     writeNode(this, { type: ResultState.Pending, value: result });
     const version = this.version;
     result.then(
-      value => {
-        if (this.version === version) {
-          writeNode(this, { type: ResultState.Success, value });
-        }
-      },
-      value => {
-        if (this.version === version) {
-          writeNode(this, { type: ResultState.Failure, value });
-        }
-      },
+      (resolveResource<T>).bind(this, version),
+      (rejectResource<T>).bind(this, version),
     );
   } catch (error) {
     writeNode(this, { type: ResultState.Failure, value: error });
