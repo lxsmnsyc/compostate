@@ -41,6 +41,7 @@ export function createAtomNode<T>(
     state: State.Clean,
     alive: true,
     type: NodeType.Atom,
+    version: 0,
     value: { type: ResultState.Success, value },
     isEqual,
     observers: undefined,
@@ -57,14 +58,14 @@ export function createComputedNode<T>(
     state: State.Uninitialized,
     alive: true,
     type: NodeType.Computed,
-    scheduleType,
-    schedule: undefined,
-    value: undefined,
-    observables: undefined,
-    cleanup: undefined,
-    contextTree: getCurrentContextTree(),
     isEqual,
     observers: undefined,
+    version: 0,
+    value: undefined,
+    scheduleType,
+    schedule: undefined,
+    observables: undefined,
+    cleanup: undefined,
     compute,
   };
 }
@@ -79,14 +80,14 @@ export function createResourceNode<T>(
     state: State.Uninitialized,
     alive: true,
     type: NodeType.Resource,
-    scheduleType,
-    schedule: undefined,
-    value: undefined,
-    observables: undefined,
-    cleanup: undefined,
-    contextTree: getCurrentContextTree(),
     isEqual,
     observers: undefined,
+    version: 0,
+    value: undefined,
+    scheduleType,
+    schedule: undefined,
+    observables: undefined,
+    cleanup: undefined,
     compute,
   };
 }
@@ -241,6 +242,7 @@ export function writeNode<T>(
   ) {
     return;
   }
+  node.version++;
   node.value = value;
   notifyObservers(node, State.Dirty);
 }
@@ -284,18 +286,12 @@ export function readNode<T>(node: ObservableNode<T>): T {
 function runComputedInternal<T>(this: ComputedNode<T>): void {
   cleanObservables(this);
   const parentObserver = pushObserver(this);
-  const parentContext = pushContext(this.contextTree);
   try {
     writeNode(this, { type: ResultState.Success, value: this.compute() });
   } catch (error) {
-    if (error === MARKER) {
-      // TODO
-    } else {
-      writeNode(this, { type: ResultState.Failure, value: error });
-    }
+    writeNode(this, { type: ResultState.Failure, value: error });
   } finally {
     popObserver(parentObserver);
-    popContext(parentContext);
   }
 }
 function runComputed<T>(node: ComputedNode<T>): void {
@@ -337,23 +333,26 @@ function runEffect(node: EffectNode): void {
 function runResourceInternal<T>(this: ResourceNode<T>): void {
   cleanObservables(this);
   const parentObserver = pushObserver(this);
-  const parentContext = pushContext(this.contextTree);
   try {
     const result = Promise.resolve(this.compute());
-    result.then(
-      value => writeNode(this, { type: ResultState.Success, value }),
-      value => writeNode(this, { type: ResultState.Failure, value }),
-    );
     writeNode(this, { type: ResultState.Pending, value: result });
+    const version = this.version;
+    result.then(
+      value => {
+        if (this.version === version) {
+          writeNode(this, { type: ResultState.Success, value });
+        }
+      },
+      value => {
+        if (this.version === version) {
+          writeNode(this, { type: ResultState.Failure, value });
+        }
+      },
+    );
   } catch (error) {
-    if (error === MARKER) {
-      // TODO
-    } else {
-      writeNode(this, { type: ResultState.Failure, value: error });
-    }
+    writeNode(this, { type: ResultState.Failure, value: error });
   } finally {
     popObserver(parentObserver);
-    popContext(parentContext);
   }
 }
 function runResource<T>(node: ResourceNode<T>): void {

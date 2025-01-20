@@ -36,6 +36,7 @@ export interface BaseReactiveNode<Observer extends boolean> {
 export type IsEqual<T> = (prev: T, next: T) => boolean;
 
 export interface Observable {
+  version: number;
   observers: Set<ObserverNode<any>> | undefined;
 }
 
@@ -85,7 +86,6 @@ export interface Observer {
   observables: Set<ObservableNode<any>> | undefined;
 
   cleanup: Cleanup | undefined;
-  contextTree: ContextTree | undefined;
 }
 
 export interface ComputedNode<T>
@@ -107,6 +107,7 @@ export interface EffectNode extends BaseReactiveNode<true>, Observer {
   callback: Effect;
 
   errorBoundary: ErrorBoundary | undefined;
+  contextTree: ContextTree | undefined;
 }
 
 export interface ResourceNode<T>
