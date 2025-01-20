@@ -8,8 +8,10 @@ let head: ScheduledCallback | undefined;
 let tail: ScheduledCallback | undefined;
 
 function removeCallback(this: ScheduledCallback): void {
-  if (this.next && this.prev) {
+  if (this.next) {
     this.next.prev = this.prev;
+  }
+  if (this.prev) {
     this.prev.next = this.next;
   }
   if (tail === this) {
@@ -48,5 +50,8 @@ export function flushCallbacks(shouldYield: () => boolean): void {
   if (current) {
     head = current;
     current.prev = undefined;
+  } else {
+    head = undefined;
+    tail = undefined;
   }
 }
