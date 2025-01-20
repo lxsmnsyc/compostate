@@ -189,7 +189,7 @@ export function destroyNode<T>(this: ReactiveNode<T>): void {
 }
 
 function notifyObservers<T>(node: ObservableNode<T>, state: State): void {
-  if (!node.observers) {
+  if (!(node.observers && node.alive)) {
     return;
   }
   const observers = [...node.observers];
@@ -243,13 +243,22 @@ export function writeNode<T>(
     return;
   }
   node.state = State.Clean;
-  if (
-    node.value &&
-    node.value.type === ResultState.Success &&
-    value.type === ResultState.Success &&
-    node.isEqual(node.value.value, value.value)
-  ) {
-    return;
+  if (node.value) {
+    // For pending results
+    if (
+      node.value.type === ResultState.Pending &&
+      value.type === ResultState.Pending
+    ) {
+      return;
+    }
+    // For success results
+    if (
+      node.value.type === ResultState.Success &&
+      value.type === ResultState.Success &&
+      node.isEqual(node.value.value, value.value)
+    ) {
+      return;
+    }
   }
   node.version++;
   node.value = value;
@@ -364,8 +373,8 @@ function runResourceInternal<T>(this: ResourceNode<T>): void {
   const parentObserver = pushObserver(this);
   try {
     const result = Promise.resolve(this.compute());
-    writeNode(this, { type: ResultState.Pending, value: result });
     const version = this.version;
+    writeNode(this, { type: ResultState.Pending, value: result });
     result.then(
       (resolveResource<T>).bind(this, version),
       (rejectResource<T>).bind(this, version),

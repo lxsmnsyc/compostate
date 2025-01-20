@@ -105,5 +105,3 @@ export function untrack<T>(callback: () => T): T {
     popObserver(parent);
   }
 }
-
-export { isPending } from './graph';

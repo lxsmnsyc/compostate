@@ -16,6 +16,7 @@ export {
 } from './error-boundary';
 export * from './reactivity';
 export {
+  isPending,
   onSuspend,
   suspenseBoundary,
 } from './suspense';
