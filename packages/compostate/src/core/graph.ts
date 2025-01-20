@@ -141,13 +141,15 @@ function addObserver(
 }
 
 function cleanObservers<T>(node: ObservableNode<T>): void {
-  if (node.observers) {
-    for (const observer of [...node.observers]) {
-      if (observer.observables) {
-        observer.observables.delete(node);
-      }
+  if (!node.observers) {
+    return;
+  }
+  for (const observer of [...node.observers]) {
+    if (observer.observables) {
+      observer.observables.delete(node);
     }
   }
+  node.observers.clear();
 }
 
 function cleanObservables<T>(node: ObserverNode<T>): void {
@@ -249,6 +251,9 @@ export function writeNode<T>(
       node.value.type === ResultState.Pending &&
       value.type === ResultState.Pending
     ) {
+      // Update version, but don't notify
+      node.version++;
+      node.value = value;
       return;
     }
     // For success results
@@ -291,6 +296,9 @@ export function readNode<T>(node: ObservableNode<T>): T {
 
 function runComputedInternal<T>(this: ComputedNode<T>): void {
   cleanObservables(this);
+  const parentSuspenseBoundary = pushSuspenseBoundary(undefined);
+  const parentErrorBoundary = pushErrorBoundary(undefined);
+  const parentContext = pushContext(undefined);
   const parentObserver = pushObserver(this);
   try {
     writeNode(this, { type: ResultState.Success, value: this.compute() });
@@ -298,6 +306,9 @@ function runComputedInternal<T>(this: ComputedNode<T>): void {
     writeNode(this, { type: ResultState.Failure, value: error });
   } finally {
     popObserver(parentObserver);
+    popContext(parentContext);
+    popErrorBoundary(parentErrorBoundary);
+    popSuspenseBoundary(parentSuspenseBoundary);
   }
 }
 function runComputed<T>(node: ComputedNode<T>): void {
@@ -370,11 +381,14 @@ function rejectResource<T>(
 
 function runResourceInternal<T>(this: ResourceNode<T>): void {
   cleanObservables(this);
+  const parentSuspenseBoundary = pushSuspenseBoundary(undefined);
+  const parentErrorBoundary = pushErrorBoundary(undefined);
+  const parentContext = pushContext(undefined);
   const parentObserver = pushObserver(this);
   try {
     const result = Promise.resolve(this.compute());
-    const version = this.version;
     writeNode(this, { type: ResultState.Pending, value: result });
+    const version = this.version;
     result.then(
       (resolveResource<T>).bind(this, version),
       (rejectResource<T>).bind(this, version),
@@ -383,6 +397,9 @@ function runResourceInternal<T>(this: ResourceNode<T>): void {
     writeNode(this, { type: ResultState.Failure, value: error });
   } finally {
     popObserver(parentObserver);
+    popContext(parentContext);
+    popErrorBoundary(parentErrorBoundary);
+    popSuspenseBoundary(parentSuspenseBoundary);
   }
 }
 function runResource<T>(node: ResourceNode<T>): void {
