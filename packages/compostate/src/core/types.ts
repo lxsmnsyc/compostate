@@ -24,6 +24,7 @@ export const enum NodeType {
   Atom = 0,
   Computed = 1,
   Effect = 2,
+  Resource = 3,
 }
 
 export interface BaseReactiveNode<Observer extends boolean> {
@@ -35,24 +36,55 @@ export interface BaseReactiveNode<Observer extends boolean> {
 export type IsEqual<T> = (prev: T, next: T) => boolean;
 
 export interface Observable {
-  computeds: Set<ComputedNode<any>> | undefined;
-
-  effects: Set<EffectNode> | undefined;
+  observers: Set<ObserverNode<any>> | undefined;
 }
+
+export const enum ResultState {
+  Pending = 0,
+  Success = 1,
+  Failure = 2,
+}
+
+export interface PendingResult<T> {
+  type: ResultState.Pending;
+  value: Promise<T>;
+}
+
+export interface SuccessResult<T> {
+  type: ResultState.Success;
+  value: T;
+}
+
+export interface FailureResult {
+  type: ResultState.Failure;
+  value: unknown;
+}
+
+export type ResultValue<T> =
+  | PendingResult<T>
+  | SuccessResult<T>
+  | FailureResult;
 
 export interface AtomNode<T> extends BaseReactiveNode<false>, Observable {
   type: NodeType.Atom;
 
-  value: T;
+  value: ResultValue<T>;
 
   isEqual: IsEqual<T>;
 }
 
+export const enum ScheduleType {
+  Sync = 0,
+  Idle = 1,
+}
+
 export interface Observer {
-  sources: Set<AtomNode<any> | ComputedNode<any>> | undefined;
+  scheduleType: ScheduleType;
+  schedule: Cleanup | undefined;
+
+  observables: Set<ObservableNode<any>> | undefined;
 
   cleanup: Cleanup | undefined;
-  errorBoundary: ErrorBoundary | undefined;
   contextTree: ContextTree | undefined;
 }
 
@@ -62,27 +94,32 @@ export interface ComputedNode<T>
     Observable {
   type: NodeType.Computed;
 
-  value: T;
+  value: ResultValue<T> | undefined;
 
   compute: () => T;
 
   isEqual: IsEqual<T>;
 }
 
-export type ObservableNode = AtomNode<any> | ComputedNode<any>;
-export type ObserverNode = ComputedNode<any> | EffectNode;
-
-export const enum EffectType {
-  Sync = 0,
-  Idle = 1,
-}
-
 export interface EffectNode extends BaseReactiveNode<true>, Observer {
   type: NodeType.Effect;
 
-  effectType: EffectType;
-
   callback: Effect;
+
+  errorBoundary: ErrorBoundary | undefined;
+}
+
+export interface ResourceNode<T>
+  extends BaseReactiveNode<true>,
+    Observer,
+    Observable {
+  type: NodeType.Resource;
+
+  value: ResultValue<T> | undefined;
+
+  compute: () => T | Promise<T>;
+
+  isEqual: IsEqual<T>;
 }
 
 export interface Ref<T> {
@@ -112,3 +149,9 @@ export interface ErrorBoundary {
   parent: ErrorBoundary | undefined;
   handlers: Set<ErrorHandler> | undefined;
 }
+
+export type ObservableNode<T> = AtomNode<T> | ComputedNode<T> | ResourceNode<T>;
+
+export type ObserverNode<T> = ComputedNode<T> | ResourceNode<T> | EffectNode;
+
+export type ReactiveNode<T> = ObservableNode<T> | ObserverNode<T>;

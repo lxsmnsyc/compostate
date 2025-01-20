@@ -61,20 +61,20 @@ export function getCurrentErrorBoundary(): ErrorBoundary | undefined {
   return ERROR_BOUNDARY;
 }
 
-let OBSERVER: ObserverNode | undefined;
+let OBSERVER: ObserverNode<any> | undefined;
 
 export function pushObserver(
-  observer: ObserverNode | undefined,
-): ObserverNode | undefined {
+  observer: ObserverNode<any> | undefined,
+): ObserverNode<any> | undefined {
   const parent = OBSERVER;
   OBSERVER = observer;
   return parent;
 }
 
-export function popObserver(observer: ObserverNode | undefined): void {
+export function popObserver(observer: ObserverNode<any> | undefined): void {
   OBSERVER = observer;
 }
 
-export function getCurrentObserver(): ObserverNode | undefined {
+export function getCurrentObserver(): ObserverNode<any> | undefined {
   return OBSERVER;
 }
