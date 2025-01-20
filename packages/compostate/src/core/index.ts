@@ -13,6 +13,7 @@ export {
   errorBoundary,
   onError,
 } from './error-boundary';
+export * from './reactivity';
 export type {
   Cleanup,
   Context,
