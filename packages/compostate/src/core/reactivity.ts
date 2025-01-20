@@ -105,3 +105,37 @@ export function untrack<T>(callback: () => T): T {
     popObserver(parent);
   }
 }
+
+export interface SignalOptions<T> {
+  isEqual?: IsEqual<T>;
+}
+
+export type SignalSetStateAction<T> = (prev: T) => T;
+export type SignalSetState<T> = (value: T | SignalSetStateAction<T>) => void;
+
+export type Signal<T> = [() => T, SignalSetState<T>];
+
+function isSignalSetStateAction<T>(
+  value: unknown,
+): value is SignalSetStateAction<T> {
+  return typeof value === 'function';
+}
+
+function writeSignal<T>(
+  this: AtomNode<T>,
+  value: T | SignalSetStateAction<T>,
+): void {
+  if (this.value.type !== ResultState.Success) {
+    return;
+  }
+  const newValue = isSignalSetStateAction<T>(value)
+    ? value(this.value.value)
+    : value;
+  writeNode(this, { type: ResultState.Success, value: newValue });
+}
+
+export function signal<T>(value: T, options?: SignalOptions<T>): Signal<T> {
+  const instance = createAtomNode(value, options?.isEqual);
+  onCleanup((destroyNode<T>).bind(instance));
+  return [(readNode<T>).bind(null, instance), (writeSignal<T>).bind(instance)];
+}
