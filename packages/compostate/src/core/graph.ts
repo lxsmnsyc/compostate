@@ -141,7 +141,7 @@ function addObserver(
 }
 
 function cleanObservers<T>(node: ObservableNode<T>): void {
-  if (!node.observers) {
+  if (!(node.observers && node.observers.size)) {
     return;
   }
   for (const observer of [...node.observers]) {
@@ -153,10 +153,10 @@ function cleanObservers<T>(node: ObservableNode<T>): void {
 }
 
 function cleanObservables<T>(node: ObserverNode<T>): void {
-  if (!node.observables) {
+  if (!(node.observables && node.observables.size)) {
     return;
   }
-  for (const source of node.observables) {
+  for (const source of [...node.observables]) {
     if (source.observers) {
       source.observers.delete(node);
     }
@@ -191,20 +191,23 @@ export function destroyNode<T>(this: ReactiveNode<T>): void {
 }
 
 function notifyObservers<T>(node: ObservableNode<T>, state: State): void {
-  if (!(node.observers && node.alive)) {
+  if (!(node.alive && node.observers && node.observers.size)) {
     return;
   }
   const observers = [...node.observers];
+  // Mark observers with the new state
   for (const observer of observers) {
     observer.state = state;
   }
-  // 1st step
+  // 1st step, notify each observer with the new state
+  // This is a recursive process, which defers
+  // any effects from immediately occuring
   for (const observer of observers) {
     if (observer.type !== NodeType.Effect) {
       notifyObservers(observer, State.Check);
     }
   }
-  // 2nd step
+  // 2nd step, run the effects.
   for (const observer of observers) {
     if (observer.type === NodeType.Effect) {
       updateNode(observer);
@@ -220,7 +223,8 @@ function canNodeUpdate<T>(node: ReactiveNode<T>): boolean {
     case State.Clean:
       return false;
     case State.Check: {
-      if (node.observables) {
+      // Check if an observables are dirty
+      if (node.observables && node.observables.size) {
         for (const source of [...node.observables]) {
           updateNode(source);
           if ((node as any).state === State.Dirty) {
@@ -244,6 +248,7 @@ export function writeNode<T>(
   if (!node.alive) {
     return;
   }
+  // Already mark this as clean
   node.state = State.Clean;
   if (node.value) {
     // For pending results
@@ -256,7 +261,7 @@ export function writeNode<T>(
       node.value = value;
       return;
     }
-    // For success results
+    // For success results, only compare the resolving values
     if (
       node.value.type === ResultState.Success &&
       value.type === ResultState.Success &&
@@ -264,28 +269,38 @@ export function writeNode<T>(
     ) {
       return;
     }
+    // We actually don't care for failing results
   }
   node.version++;
   node.value = value;
+  // Value changed, notify observers
   notifyObservers(node, State.Dirty);
 }
 
 export function readNodeResult<T>(node: ObservableNode<T>): T {
   const result = node.value;
+  // This shouldn't happen at all
   if (!result) {
     throw new Error('unreachable');
   }
+  // If the result succeeded, return
   if (result.type === ResultState.Success) {
     return result.value;
   }
+  // ...otherwise, rethrow the error.
   if (result.type === ResultState.Failure) {
     throw result.value;
   }
+  // For pending result, just "throw" to halt the current
+  // execution
   throw getCurrentObserver() ? SUSPENSE_MARKER : new ResourceNotReadyError();
 }
 
 export function readNode<T>(node: ObservableNode<T>): T {
+  // Update the node if it can be updated
   updateNode(node);
+  // if there's an observer accessing this node,
+  // mark as an additional observer to this node
   const observer = getCurrentObserver();
   if (observer) {
     addObservable(observer, node);
@@ -295,14 +310,18 @@ export function readNode<T>(node: ObservableNode<T>): T {
 }
 
 function runComputedInternal<T>(this: ComputedNode<T>): void {
+  // Clean the observables
   cleanObservables(this);
+  // Remount owners
   const parentSuspenseBoundary = pushSuspenseBoundary(undefined);
   const parentErrorBoundary = pushErrorBoundary(undefined);
   const parentContext = pushContext(undefined);
   const parentObserver = pushObserver(this);
   try {
+    // Resolve computation
     writeNode(this, { type: ResultState.Success, value: this.compute() });
   } catch (error) {
+    // Computation failed, memoize the error
     writeNode(this, { type: ResultState.Failure, value: error });
   } finally {
     popObserver(parentObserver);
@@ -316,9 +335,11 @@ function runComputed<T>(node: ComputedNode<T>): void {
     return;
   }
   node.state = State.Clean;
+  // Clean previous cleanup boundary
   if (node.cleanup) {
     node.cleanup();
   }
+  // Create a new cleanup boundary
   node.cleanup = batchCleanup((runComputedInternal<T>).bind(node));
 }
 
@@ -331,6 +352,7 @@ function runEffectInternal(this: EffectNode): void {
   try {
     this.callback();
   } catch (error) {
+    // If error is a Suspense marker, we wait
     if (error === SUSPENSE_MARKER) {
       try {
         handleSuspense(this.suspenseBoundary);
@@ -338,6 +360,7 @@ function runEffectInternal(this: EffectNode): void {
         handleError(this.errorBoundary, newError);
       }
     } else {
+      // Pass error to the error boundary
       handleError(this.errorBoundary, error);
     }
   } finally {
@@ -353,9 +376,11 @@ function runEffect(node: EffectNode): void {
     return;
   }
   node.state = State.Clean;
+  // Clean previous cleanup boundary
   if (node.cleanup) {
     node.cleanup();
   }
+  // Create new cleanup boundary
   node.cleanup = batchCleanup(runEffectInternal.bind(node));
 }
 
@@ -364,6 +389,7 @@ function resolveResource<T>(
   version: number,
   value: T,
 ): void {
+  // Make sure that the we are going to write to the latest version
   if (this.version === version) {
     writeNode(this, { type: ResultState.Success, value });
   }
@@ -374,6 +400,7 @@ function rejectResource<T>(
   version: number,
   value: unknown,
 ): void {
+  // Make sure that the we are going to write to the latest version
   if (this.version === version) {
     writeNode(this, { type: ResultState.Failure, value });
   }
@@ -386,14 +413,19 @@ function runResourceInternal<T>(this: ResourceNode<T>): void {
   const parentContext = pushContext(undefined);
   const parentObserver = pushObserver(this);
   try {
+    // Force into a Promise
     const result = Promise.resolve(this.compute());
+    // Set node to pending state
     writeNode(this, { type: ResultState.Pending, value: result });
+    // Get current version
     const version = this.version;
+    // Update the node when the promise resolves
     result.then(
       (resolveResource<T>).bind(this, version),
       (rejectResource<T>).bind(this, version),
     );
   } catch (error) {
+    // Memoize error
     writeNode(this, { type: ResultState.Failure, value: error });
   } finally {
     popObserver(parentObserver);
