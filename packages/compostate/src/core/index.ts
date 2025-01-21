@@ -14,6 +14,10 @@ export {
   errorBoundary,
   onError,
 } from './error-boundary';
+export {
+  batch,
+  unbatch,
+} from './graph';
 export * from './reactivity';
 export {
   isPending,

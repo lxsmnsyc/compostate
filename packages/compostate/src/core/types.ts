@@ -163,3 +163,7 @@ export type SuspenseHandler = () => void;
 export interface SuspenseBoundary {
   handlers: Set<SuspenseHandler> | undefined;
 }
+
+export interface BatchedUpdates {
+  effects: Set<EffectNode> | undefined;
+}

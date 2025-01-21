@@ -1,4 +1,5 @@
 import type {
+  BatchedUpdates,
   CleanupBoundary,
   ContextTree,
   ErrorBoundary,
@@ -98,4 +99,22 @@ export function popSuspenseBoundary(
 
 export function getCurrentSuspenseBoundary(): SuspenseBoundary | undefined {
   return SUSPENSE_BOUNDARY;
+}
+
+let BATCHED_UPDATES: BatchedUpdates | undefined;
+
+export function pushBatchedUpdates(
+  boundary: BatchedUpdates | undefined,
+): BatchedUpdates | undefined {
+  const parent = BATCHED_UPDATES;
+  BATCHED_UPDATES = boundary;
+  return parent;
+}
+
+export function popBatchedUpdates(boundary: BatchedUpdates | undefined): void {
+  BATCHED_UPDATES = boundary;
+}
+
+export function getCurrentBatchedUpdates(): BatchedUpdates | undefined {
+  return BATCHED_UPDATES;
 }

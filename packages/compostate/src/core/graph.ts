@@ -2,14 +2,17 @@ import { batchCleanup } from './cleanup-boundary';
 import { IS_EQUAL } from './constants';
 import { handleError } from './error-boundary';
 import {
+  getCurrentBatchedUpdates,
   getCurrentContextTree,
   getCurrentErrorBoundary,
   getCurrentObserver,
   getCurrentSuspenseBoundary,
+  popBatchedUpdates,
   popContext,
   popErrorBoundary,
   popObserver,
   popSuspenseBoundary,
+  pushBatchedUpdates,
   pushContext,
   pushErrorBoundary,
   pushObserver,
@@ -23,6 +26,7 @@ import {
 } from './suspense';
 import type {
   AtomNode,
+  BatchedUpdates,
   ComputedNode,
   EffectNode,
   IsEqual,
@@ -210,7 +214,7 @@ function notifyObservers<T>(node: ObservableNode<T>, state: State): void {
   // 2nd step, run the effects.
   for (const observer of observers) {
     if (observer.type === NodeType.Effect) {
-      updateNode(observer);
+      addUpdate(observer);
     }
   }
 }
@@ -345,6 +349,8 @@ function runComputed<T>(node: ComputedNode<T>): void {
 
 function runEffectInternal(this: EffectNode): void {
   cleanObservables(this);
+  const updates = createBatchedUpdates();
+  const parentBatchedUpdates = pushBatchedUpdates(updates);
   const parentObserver = pushObserver(this);
   const parentSuspenseBoundary = pushSuspenseBoundary(this.suspenseBoundary);
   const parentErrorBoundary = pushErrorBoundary(this.errorBoundary);
@@ -368,6 +374,9 @@ function runEffectInternal(this: EffectNode): void {
     popErrorBoundary(parentErrorBoundary);
     popSuspenseBoundary(parentSuspenseBoundary);
     popObserver(parentObserver);
+    popBatchedUpdates(parentBatchedUpdates);
+
+    flushUpdates(updates);
   }
 }
 
@@ -490,6 +499,56 @@ export function updateNode<T>(node: ReactiveNode<T>): void {
     case NodeType.Resource:
       updateResource(node);
       break;
+  }
+}
+
+function flushUpdates(batchedUpdates: BatchedUpdates): void {
+  if (batchedUpdates.effects && batchedUpdates.effects.size) {
+    for (const effect of batchedUpdates.effects) {
+      updateNode(effect);
+    }
+  }
+}
+
+function addUpdate(effect: EffectNode): void {
+  const updates = getCurrentBatchedUpdates();
+  if (updates) {
+    if (!updates.effects) {
+      updates.effects = new Set();
+    }
+    updates.effects.add(effect);
+  } else {
+    updateNode(effect);
+  }
+}
+
+export function unbatch<T>(callback: () => T): T {
+  const parent = pushBatchedUpdates(undefined);
+  try {
+    return callback();
+  } finally {
+    popBatchedUpdates(parent);
+  }
+}
+
+function createBatchedUpdates(): BatchedUpdates {
+  return {
+    effects: undefined,
+  };
+}
+
+export function batch<T>(callback: () => T): T {
+  const current = getCurrentBatchedUpdates();
+  if (current) {
+    return callback();
+  }
+  const instance = createBatchedUpdates();
+  const parent = pushBatchedUpdates(instance);
+  try {
+    return callback();
+  } finally {
+    popBatchedUpdates(parent);
+    flushUpdates(instance);
   }
 }
 
