@@ -79,6 +79,7 @@ export function createComputedNode<T>(
     observables: undefined,
     cleanup: undefined,
     compute,
+    contextTree: getCurrentContextTree(),
   };
 }
 
@@ -101,6 +102,7 @@ export function createResourceNode<T>(
     observables: undefined,
     cleanup: undefined,
     compute,
+    contextTree: getCurrentContextTree(),
   };
 }
 
@@ -344,6 +346,7 @@ function runComputed<T>(node: ComputedNode<T>): void {
     node.cleanup();
   }
   // Create a new cleanup boundary
+  // TODO Should isolate cleanup boundary?
   node.cleanup = batchCleanup((runComputedInternal<T>).bind(node));
 }
 
@@ -390,6 +393,7 @@ function runEffect(node: EffectNode): void {
     node.cleanup();
   }
   // Create new cleanup boundary
+  // TODO Should isolate cleanup boundary?
   node.cleanup = batchCleanup(runEffectInternal.bind(node));
 }
 
@@ -451,6 +455,7 @@ function runResource<T>(node: ResourceNode<T>): void {
   if (node.cleanup) {
     node.cleanup();
   }
+  // TODO Should isolate cleanup boundary?
   node.cleanup = batchCleanup((runResourceInternal<T>).bind(node));
 }
 

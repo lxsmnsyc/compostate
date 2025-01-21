@@ -86,6 +86,8 @@ export interface Observer {
   observables: Set<ObservableNode<any>> | undefined;
 
   cleanup: Cleanup | undefined;
+
+  contextTree: ContextTree | undefined;
 }
 
 export interface ComputedNode<T>
@@ -108,7 +110,6 @@ export interface EffectNode extends BaseReactiveNode<true>, Observer {
 
   errorBoundary: ErrorBoundary | undefined;
   suspenseBoundary: SuspenseBoundary | undefined;
-  contextTree: ContextTree | undefined;
 }
 
 export interface ResourceNode<T>
