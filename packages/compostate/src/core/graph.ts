@@ -460,10 +460,7 @@ function updateComputed<T>(node: ComputedNode<T>): void {
 }
 
 function updateEffect(node: EffectNode): void {
-  if (
-    node.scheduleType === ScheduleType.Sync ||
-    node.state === State.Uninitialized
-  ) {
+  if (node.scheduleType === ScheduleType.Sync) {
     runEffect(node);
   } else {
     if (node.schedule) {
