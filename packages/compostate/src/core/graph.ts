@@ -471,17 +471,7 @@ function updateEffect(node: EffectNode): void {
 }
 
 function updateResource<T>(node: ResourceNode<T>): void {
-  if (
-    node.scheduleType === ScheduleType.Sync ||
-    node.state === State.Uninitialized
-  ) {
-    runResource(node);
-  } else {
-    if (node.schedule) {
-      node.schedule();
-    }
-    node.schedule = scheduleCallback((runResource<T>).bind(null, node));
-  }
+  runResource(node);
 }
 
 export function updateNode<T>(node: ReactiveNode<T>): void {
