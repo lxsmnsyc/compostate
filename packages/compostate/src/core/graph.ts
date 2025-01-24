@@ -19,11 +19,7 @@ import {
   pushTracker,
 } from './owner';
 import { scheduleCallback } from './scheduler';
-import {
-  ResourceNotReadyError,
-  SUSPENSE_MARKER,
-  handleSuspense,
-} from './suspense';
+import { ResourceNotReadyError, handleSuspense } from './suspense';
 import type {
   BatchedUpdates,
   Cleanup,
@@ -343,7 +339,7 @@ function readNodeResult<T>(node: MiddleTrackableNode<T>): T {
   }
   // For pending result, just "throw" to halt the current
   // execution
-  throw getCurrentTracker() ? SUSPENSE_MARKER : new ResourceNotReadyError();
+  throw new ResourceNotReadyError();
 }
 
 export function readNode<T>(node: MiddleTrackableNode<T>): T {
@@ -404,12 +400,8 @@ function runEffectInternal(this: EffectNode): void {
     this.callback();
   } catch (error) {
     // If error is a Suspense marker, we wait
-    if (error === SUSPENSE_MARKER) {
-      try {
-        handleSuspense(this.suspenseBoundary);
-      } catch (newError) {
-        handleError(this.errorBoundary, newError);
-      }
+    if (error instanceof ResourceNotReadyError) {
+      handleSuspense(this.suspenseBoundary);
     } else {
       // Pass error to the error boundary
       handleError(this.errorBoundary, error);

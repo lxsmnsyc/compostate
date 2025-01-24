@@ -3,7 +3,9 @@ import { NO_OP } from './constants';
 import {
   getCurrentSuspenseBoundary,
   popSuspenseBoundary,
+  popTracker,
   pushSuspenseBoundary,
+  pushTracker,
 } from './owner';
 import type { Cleanup, SuspenseBoundary, SuspenseHandler } from './types';
 
@@ -13,15 +15,18 @@ export class ResourceNotReadyError extends Error {
   }
 }
 
-export const SUSPENSE_MARKER = new ResourceNotReadyError();
-
 export function handleSuspense(boundary: SuspenseBoundary | undefined): void {
   if (!boundary) {
     return;
   }
   if (boundary.handlers && boundary.handlers.size) {
-    for (const handler of boundary.handlers) {
-      handler();
+    const parent = pushTracker(undefined);
+    try {
+      for (const handler of boundary.handlers) {
+        handler();
+      }
+    } finally {
+      popTracker(parent);
     }
   }
 }
@@ -70,6 +75,6 @@ export function isPending<T>(callback: () => T): boolean {
     callback();
     return false;
   } catch (error) {
-    return error === SUSPENSE_MARKER || error instanceof ResourceNotReadyError;
+    return error instanceof ResourceNotReadyError;
   }
 }

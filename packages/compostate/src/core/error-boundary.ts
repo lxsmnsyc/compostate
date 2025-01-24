@@ -7,7 +7,7 @@ import {
   pushErrorBoundary,
   pushTracker,
 } from './owner';
-import { SUSPENSE_MARKER } from './suspense';
+import { ResourceNotReadyError } from './suspense';
 import type { Cleanup, ErrorBoundary, ErrorHandler } from './types';
 
 export function handleError(
@@ -26,7 +26,7 @@ export function handleError(
         handler(error);
       }
     } catch (value) {
-      if (value === SUSPENSE_MARKER) {
+      if (value instanceof ResourceNotReadyError) {
         throw value;
       }
       // If the error handler fails, forward the new error and the current error
