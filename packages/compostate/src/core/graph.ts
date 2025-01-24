@@ -42,8 +42,6 @@ export type MiddleTrackableNode<T> = ComputedNode<T> | ResourceNode<T>;
 
 export type TrackableNode<T> = TopTrackableNode<T> | MiddleTrackableNode<T>;
 
-export type WriteableNode<T> = AtomNode<T> | MiddleTrackableNode<T>;
-
 export type TrackerNode<T> = ComputedNode<T> | ResourceNode<T> | EffectNode;
 
 export type ReactiveNode<T> = TrackableNode<T> | TrackerNode<T>;
@@ -93,14 +91,14 @@ export class AtomNode<T> {
 
   trackable: Trackable;
 
-  value: ResultValue<T>;
+  value: T;
 
   constructor(
     value: T,
     public isEqual: IsEqual<T> = IS_EQUAL,
   ) {
     this.trackable = new Trackable(this);
-    this.value = { type: ResultState.Success, value };
+    this.value = value;
   }
 }
 
@@ -267,50 +265,6 @@ function notifyTrackers(node: Trackable, state: State): void {
   }
 }
 
-function isTopTrackable<T>(
-  trackable: TrackableNode<T>,
-): trackable is TopTrackableNode<T> {
-  switch (trackable.type) {
-    case NodeType.Atom:
-    case NodeType.Pulse:
-      return true;
-    case NodeType.Resource:
-    case NodeType.Computed:
-      return false;
-  }
-}
-
-function isTrackerDirty(node: Tracker): boolean {
-  // Check if one of the trackables are dirty
-  if (node.trackables && node.trackables.size) {
-    for (const trackable of [...node.trackables]) {
-      if (!isTopTrackable(trackable.parent)) {
-        revalidateNode(trackable.parent);
-        if ((node as any).state === State.Dirty) {
-          return true;
-        }
-      }
-    }
-  }
-  node.state = State.Clean;
-  return false;
-}
-
-function canTrackerUpdate(node: Tracker): boolean {
-  if (!node.alive) {
-    return false;
-  }
-  switch (node.state) {
-    case State.Clean:
-      return false;
-    case State.Check:
-      return isTrackerDirty(node);
-    case State.Dirty:
-    case State.Uninitialized:
-      return true;
-  }
-}
-
 export function writeTrackable(node: Trackable, notify: boolean): void {
   node.version++;
   if (notify) {
@@ -319,7 +273,7 @@ export function writeTrackable(node: Trackable, notify: boolean): void {
 }
 
 export function writeNode<T>(
-  node: WriteableNode<T>,
+  node: MiddleTrackableNode<T>,
   value: ResultValue<T>,
 ): void {
   if (!node.trackable.alive) {
@@ -351,7 +305,29 @@ export function writeNode<T>(
   writeTrackable(node.trackable, true);
 }
 
-export function readNodeResult<T>(node: WriteableNode<T>): T {
+export function trackNode<T>(node: TrackableNode<T>): void {
+  // if there's a tracker accessing this node,
+  // mark as an additional tracker to this node
+  const tracker = getCurrentTracker();
+  if (tracker) {
+    addTrackable(tracker, node.trackable);
+    addTracker(node.trackable, tracker);
+  }
+}
+
+export function readAtomNode<T>(node: AtomNode<T>): T {
+  trackNode(node);
+  return node.value;
+}
+
+export function writeAtomNode<T>(node: AtomNode<T>, value: T): void {
+  if (!node.isEqual(node.value, value)) {
+    node.value = value;
+    writeTrackable(node.trackable, true);
+  }
+}
+
+function readNodeResult<T>(node: MiddleTrackableNode<T>): T {
   const result = node.value;
   // This shouldn't happen at all
   if (!result) {
@@ -368,21 +344,6 @@ export function readNodeResult<T>(node: WriteableNode<T>): T {
   // For pending result, just "throw" to halt the current
   // execution
   throw getCurrentTracker() ? SUSPENSE_MARKER : new ResourceNotReadyError();
-}
-
-export function trackNode<T>(node: TrackableNode<T>): void {
-  // if there's a tracker accessing this node,
-  // mark as an additional tracker to this node
-  const tracker = getCurrentTracker();
-  if (tracker) {
-    addTrackable(tracker, node.trackable);
-    addTracker(node.trackable, tracker);
-  }
-}
-
-export function readAtomNode<T>(node: AtomNode<T>): T {
-  trackNode(node);
-  return readNodeResult(node);
 }
 
 export function readNode<T>(node: MiddleTrackableNode<T>): T {
@@ -558,6 +519,50 @@ function updateEffect(node: EffectNode): void {
 
 function updateResource<T>(node: ResourceNode<T>): void {
   runResource(node);
+}
+
+function isTopTrackable<T>(
+  trackable: TrackableNode<T>,
+): trackable is TopTrackableNode<T> {
+  switch (trackable.type) {
+    case NodeType.Atom:
+    case NodeType.Pulse:
+      return true;
+    case NodeType.Resource:
+    case NodeType.Computed:
+      return false;
+  }
+}
+
+function isTrackerDirty(node: Tracker): boolean {
+  // Check if one of the trackables are dirty
+  if (node.trackables && node.trackables.size) {
+    for (const trackable of [...node.trackables]) {
+      if (!isTopTrackable(trackable.parent)) {
+        revalidateNode(trackable.parent);
+        if ((node as any).state === State.Dirty) {
+          return true;
+        }
+      }
+    }
+  }
+  node.state = State.Clean;
+  return false;
+}
+
+function canTrackerUpdate(node: Tracker): boolean {
+  if (!node.alive) {
+    return false;
+  }
+  switch (node.state) {
+    case State.Clean:
+      return false;
+    case State.Check:
+      return isTrackerDirty(node);
+    case State.Dirty:
+    case State.Uninitialized:
+      return true;
+  }
 }
 
 export function revalidateNode<T>(node: TrackerNode<T>): void {

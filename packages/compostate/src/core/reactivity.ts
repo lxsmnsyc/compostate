@@ -10,12 +10,11 @@ import {
   destroyResourceNode,
   readAtomNode,
   readNode,
-  readNodeResult,
   revalidateNode,
-  writeNode,
+  writeAtomNode,
 } from './graph';
 import { popTracker, pushTracker } from './owner';
-import { type Effect, type IsEqual, ResultState, ScheduleType } from './types';
+import { type Effect, type IsEqual, ScheduleType } from './types';
 
 export interface Atom<T> {
   (): T;
@@ -28,8 +27,8 @@ export interface AtomOptions<T> {
 
 function atomAction<T>(this: AtomNode<T>, ...args: [] | [T]): T {
   if (args.length === 1) {
-    writeNode(this, { type: ResultState.Success, value: args[0] });
-    return readNodeResult(this);
+    writeAtomNode(this, args[0]);
+    return this.value;
   }
   return readAtomNode(this);
 }
@@ -123,13 +122,10 @@ function writeSignal<T>(
   this: AtomNode<T>,
   value: T | SignalSetStateAction<T>,
 ): void {
-  if (this.value.type !== ResultState.Success) {
-    return;
-  }
-  const newValue = isSignalSetStateAction<T>(value)
-    ? value(this.value.value)
-    : value;
-  writeNode(this, { type: ResultState.Success, value: newValue });
+  writeAtomNode(
+    this,
+    isSignalSetStateAction<T>(value) ? value(this.value) : value,
+  );
 }
 
 export function signal<T>(value: T, options?: SignalOptions<T>): Signal<T> {
