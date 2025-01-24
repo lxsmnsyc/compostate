@@ -27,6 +27,7 @@ export const enum NodeType {
   Computed = 1,
   Effect = 2,
   Resource = 3,
+  Pulse = 4,
 }
 
 export type IsEqual<T> = (prev: T, next: T) => boolean;

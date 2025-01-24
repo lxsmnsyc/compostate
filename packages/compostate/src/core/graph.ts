@@ -36,7 +36,13 @@ import type {
 } from './types';
 import { NodeType, ResultState, ScheduleType, State } from './types';
 
-export type TrackableNode<T> = AtomNode<T> | ComputedNode<T> | ResourceNode<T>;
+export type TopTrackableNode<T> = PulseNode | AtomNode<T>;
+
+export type MiddleTrackableNode<T> = ComputedNode<T> | ResourceNode<T>;
+
+export type TrackableNode<T> = TopTrackableNode<T> | MiddleTrackableNode<T>;
+
+export type WriteableNode<T> = AtomNode<T> | MiddleTrackableNode<T>;
 
 export type TrackerNode<T> = ComputedNode<T> | ResourceNode<T> | EffectNode;
 
@@ -74,6 +80,12 @@ export class Tracker {
     public parent: TrackerNode<any>,
     public scheduleType: ScheduleType,
   ) {}
+}
+
+export class PulseNode {
+  type: NodeType.Pulse = NodeType.Pulse;
+
+  trackable = new Trackable(this);
 }
 
 export class AtomNode<T> {
@@ -255,11 +267,24 @@ function notifyTrackers(node: Trackable, state: State): void {
   }
 }
 
+function isTopTrackable<T>(
+  trackable: TrackableNode<T>,
+): trackable is TopTrackableNode<T> {
+  switch (trackable.type) {
+    case NodeType.Atom:
+    case NodeType.Pulse:
+      return true;
+    case NodeType.Resource:
+    case NodeType.Computed:
+      return false;
+  }
+}
+
 function isTrackerDirty(node: Tracker): boolean {
   // Check if one of the trackables are dirty
   if (node.trackables && node.trackables.size) {
     for (const trackable of [...node.trackables]) {
-      if (trackable.parent.type !== NodeType.Atom) {
+      if (!isTopTrackable(trackable.parent)) {
         revalidateNode(trackable.parent);
         if ((node as any).state === State.Dirty) {
           return true;
@@ -294,7 +319,7 @@ export function writeTrackable(node: Trackable, notify: boolean): void {
 }
 
 export function writeNode<T>(
-  node: TrackableNode<T>,
+  node: WriteableNode<T>,
   value: ResultValue<T>,
 ): void {
   if (!node.trackable.alive) {
@@ -326,7 +351,7 @@ export function writeNode<T>(
   writeTrackable(node.trackable, true);
 }
 
-export function readNodeResult<T>(node: TrackableNode<T>): T {
+export function readNodeResult<T>(node: WriteableNode<T>): T {
   const result = node.value;
   // This shouldn't happen at all
   if (!result) {
@@ -355,11 +380,13 @@ export function trackNode<T>(node: TrackableNode<T>): void {
   }
 }
 
-export function readNode<T>(node: TrackableNode<T>): T {
-  // Update the node if it can be updated
-  if (node.type !== NodeType.Atom) {
-    revalidateNode(node);
-  }
+export function readAtomNode<T>(node: AtomNode<T>): T {
+  trackNode(node);
+  return readNodeResult(node);
+}
+
+export function readNode<T>(node: MiddleTrackableNode<T>): T {
+  revalidateNode(node);
   trackNode(node);
   return readNodeResult(node);
 }

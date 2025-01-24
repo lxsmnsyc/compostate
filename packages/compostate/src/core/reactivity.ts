@@ -8,6 +8,7 @@ import {
   destroyComputedNode,
   destroyEffectNode,
   destroyResourceNode,
+  readAtomNode,
   readNode,
   readNodeResult,
   revalidateNode,
@@ -30,7 +31,7 @@ function atomAction<T>(this: AtomNode<T>, ...args: [] | [T]): T {
     writeNode(this, { type: ResultState.Success, value: args[0] });
     return readNodeResult(this);
   }
-  return readNode(this);
+  return readAtomNode(this);
 }
 
 export function atom<T>(value: T, options?: AtomOptions<T>): Atom<T> {
@@ -134,5 +135,8 @@ function writeSignal<T>(
 export function signal<T>(value: T, options?: SignalOptions<T>): Signal<T> {
   const instance = new AtomNode(value, options?.isEqual);
   onCleanup((destroyAtomNode<T>).bind(instance));
-  return [(readNode<T>).bind(null, instance), (writeSignal<T>).bind(instance)];
+  return [
+    (readAtomNode<T>).bind(null, instance),
+    (writeSignal<T>).bind(instance),
+  ];
 }
