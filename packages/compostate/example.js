@@ -1,18 +1,19 @@
-import { atom, computed, syncEffect } from "./dist/esm/development/index.mjs";
+import {
+  atom,
+  batch,
+  computed,
+  syncEffect,
+} from "./dist/esm/development/index.mjs";
 
-function log(result) {
-  console.log("logged", result);
-  return result;
-}
-
-const a = atom(0);
-const b = computed(() => log(`even: ${a() % 2 === 0}`));
-const c = computed(() => log(`odd: ${a() % 2 === 1}`));
-const d = computed(() => log(b() + ", " + c()));
+const greeting = atom("Hello");
+const receiver = atom("Alexis");
+const result = computed(() => `${greeting()}, ${receiver()}!`);
 
 syncEffect(() => {
-  console.log("result", d());
+  console.log(result()); // 'Hello, Alexis!'
 });
 
-console.log("Update");
-a(101);
+batch(() => {
+  greeting("Bonjour"); // 'Bonjour, Alexis!'
+  receiver("Compostate"); // 'Bonjour, Compostate!'
+}); // 'Bonjour, Compostate!'
