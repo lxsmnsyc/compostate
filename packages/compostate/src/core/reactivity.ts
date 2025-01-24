@@ -14,7 +14,8 @@ import {
   writeAtomNode,
 } from './graph';
 import { popTracker, pushTracker } from './owner';
-import { type Effect, type IsEqual, ScheduleType } from './types';
+import { ResourceNotReadyError } from './suspense';
+import { type Effect, type IsEqual, ResultState, ScheduleType } from './types';
 
 export interface Atom<T> {
   (): T;
@@ -135,4 +136,57 @@ export function signal<T>(value: T, options?: SignalOptions<T>): Signal<T> {
     (readAtomNode<T>).bind(null, instance),
     (writeSignal<T>).bind(instance),
   ];
+}
+
+export type UnwrapSignal<T> = T extends () => infer R ? R : never;
+
+export type UnwrapSignals<T> = T extends [infer F, ...infer Rest]
+  ? [UnwrapSignal<F>, ...UnwrapSignals<Rest>]
+  : T extends [infer F]
+    ? [UnwrapSignal<F>]
+    : [];
+
+type Result<T> =
+  | { type: 0 }
+  | { type: 1; value: T }
+  | { type: 2; value: unknown };
+
+function toResult<T>(signal: () => T): Result<T> {
+  try {
+    return { type: ResultState.Success, value: signal() };
+  } catch (error) {
+    if (error instanceof ResourceNotReadyError) {
+      return { type: ResultState.Pending };
+    }
+    return { type: ResultState.Failure, value: error };
+  }
+}
+
+export function waitForAll<T extends (() => any)[]>(
+  signals: T,
+): UnwrapSignals<T> {
+  const results: Result<unknown>[] = [];
+  for (let i = 0, len = signals.length; i < len; i++) {
+    results.push(toResult(signals[i]));
+  }
+  const values: unknown[] = [];
+  const errors: unknown[] = [];
+  for (let i = 0, len = results.length; i < len; i++) {
+    const result = results[i];
+    if (result.type === ResultState.Pending) {
+      throw new ResourceNotReadyError();
+    }
+    if (result.type === ResultState.Success) {
+      values.push(result.value);
+    }
+    if (result.type === ResultState.Failure) {
+      errors.push(result.value);
+    }
+  }
+
+  if (errors.length > 0) {
+    // TODO shim
+    throw new AggregateError(errors);
+  }
+  return values as UnwrapSignals<T>;
 }
