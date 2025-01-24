@@ -85,3 +85,4 @@
 //   Ref,
 // } from './reactivity/types';
 export * from './core';
+export * from './extra';
