@@ -1,11 +1,11 @@
 import {
   getCurrentCleanupBoundary,
   popCleanupBoundary,
-  popObserver,
+  popTracker,
   pushCleanupBoundary,
-  pushObserver,
+  pushTracker,
 } from './owner';
-import type { Cleanup, CleanupBoundary } from './types';
+import type { Cleanup, CleanupBoundary, Effect } from './types';
 
 function addCleanup(instance: CleanupBoundary, cleanup: Cleanup): void {
   // so it's easier to change
@@ -20,13 +20,13 @@ function runCleanup(this: CleanupBoundary): void {
     this.alive = false;
 
     if (this.cleanups && this.cleanups.size) {
-      const parent = pushObserver(undefined);
+      const parent = pushTracker(undefined);
       try {
         for (const cleanup of this.cleanups) {
           cleanup();
         }
       } finally {
-        popObserver(parent);
+        popTracker(parent);
       }
     }
   }
@@ -40,7 +40,7 @@ export function onCleanup(callback: Cleanup): Cleanup {
   return callback;
 }
 
-export function batchCleanup(callback: Cleanup): Cleanup {
+export function batchCleanup(callback: Effect): Effect {
   const boundary: CleanupBoundary = {
     alive: true,
     cleanups: undefined,

@@ -1,9 +1,9 @@
+import type { Tracker } from './graph';
 import type {
   BatchedUpdates,
   CleanupBoundary,
   ContextTree,
   ErrorBoundary,
-  ObserverNode,
   SuspenseBoundary,
 } from './types';
 
@@ -63,22 +63,20 @@ export function getCurrentErrorBoundary(): ErrorBoundary | undefined {
   return ERROR_BOUNDARY;
 }
 
-let OBSERVER: ObserverNode<any> | undefined;
+let TRACKER: Tracker | undefined;
 
-export function pushObserver(
-  observer: ObserverNode<any> | undefined,
-): ObserverNode<any> | undefined {
-  const parent = OBSERVER;
-  OBSERVER = observer;
+export function pushTracker(tracker: Tracker | undefined): Tracker | undefined {
+  const parent = TRACKER;
+  TRACKER = tracker;
   return parent;
 }
 
-export function popObserver(observer: ObserverNode<any> | undefined): void {
-  OBSERVER = observer;
+export function popTracker(tracker: Tracker | undefined): void {
+  TRACKER = tracker;
 }
 
-export function getCurrentObserver(): ObserverNode<any> | undefined {
-  return OBSERVER;
+export function getCurrentTracker(): Tracker | undefined {
+  return TRACKER;
 }
 
 let SUSPENSE_BOUNDARY: SuspenseBoundary | undefined;

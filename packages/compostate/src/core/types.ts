@@ -1,3 +1,5 @@
+import type { EffectNode } from './graph';
+
 export type Effect = () => void;
 
 export const enum State {
@@ -27,18 +29,7 @@ export const enum NodeType {
   Resource = 3,
 }
 
-export interface BaseReactiveNode<Observer extends boolean> {
-  id: number;
-  alive: boolean;
-  state: Observer extends true ? State : Exclude<State, State.Check>;
-}
-
 export type IsEqual<T> = (prev: T, next: T) => boolean;
-
-export interface Observable {
-  version: number;
-  observers: Set<ObserverNode<any>> | undefined;
-}
 
 export const enum ResultState {
   Pending = 0,
@@ -66,63 +57,9 @@ export type ResultValue<T> =
   | SuccessResult<T>
   | FailureResult;
 
-export interface AtomNode<T> extends BaseReactiveNode<false>, Observable {
-  type: NodeType.Atom;
-
-  value: ResultValue<T>;
-
-  isEqual: IsEqual<T>;
-}
-
 export const enum ScheduleType {
   Sync = 0,
   Idle = 1,
-}
-
-export interface Observer {
-  scheduleType: ScheduleType;
-  schedule: Cleanup | undefined;
-
-  observables: Set<ObservableNode<any>> | undefined;
-
-  cleanup: Cleanup | undefined;
-
-  contextTree: ContextTree | undefined;
-}
-
-export interface ComputedNode<T>
-  extends BaseReactiveNode<true>,
-    Observer,
-    Observable {
-  type: NodeType.Computed;
-
-  value: ResultValue<T> | undefined;
-
-  compute: () => T;
-
-  isEqual: IsEqual<T>;
-}
-
-export interface EffectNode extends BaseReactiveNode<true>, Observer {
-  type: NodeType.Effect;
-
-  callback: Effect;
-
-  errorBoundary: ErrorBoundary | undefined;
-  suspenseBoundary: SuspenseBoundary | undefined;
-}
-
-export interface ResourceNode<T>
-  extends BaseReactiveNode<true>,
-    Observer,
-    Observable {
-  type: NodeType.Resource;
-
-  value: ResultValue<T> | undefined;
-
-  compute: () => T | Promise<T>;
-
-  isEqual: IsEqual<T>;
 }
 
 export interface Ref<T> {
@@ -152,12 +89,6 @@ export interface ErrorBoundary {
   parent: ErrorBoundary | undefined;
   handlers: Set<ErrorHandler> | undefined;
 }
-
-export type ObservableNode<T> = AtomNode<T> | ComputedNode<T> | ResourceNode<T>;
-
-export type ObserverNode<T> = ComputedNode<T> | ResourceNode<T> | EffectNode;
-
-export type ReactiveNode<T> = ObservableNode<T> | ObserverNode<T>;
 
 export type SuspenseHandler = () => void;
 

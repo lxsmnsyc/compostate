@@ -3,9 +3,9 @@ import { NO_OP } from './constants';
 import {
   getCurrentErrorBoundary,
   popErrorBoundary,
-  popObserver,
+  popTracker,
   pushErrorBoundary,
-  pushObserver,
+  pushTracker,
 } from './owner';
 import { SUSPENSE_MARKER } from './suspense';
 import type { Cleanup, ErrorBoundary, ErrorHandler } from './types';
@@ -20,7 +20,7 @@ export function handleError(
   // Check if the current boundary has listeners
   if (instance.handlers && instance.handlers.size) {
     // Untrack before passing error
-    const parentObserver = pushObserver(undefined);
+    const parentObserver = pushTracker(undefined);
     try {
       for (const handler of instance.handlers) {
         handler(error);
@@ -33,7 +33,7 @@ export function handleError(
       handleError(instance.parent, value);
       handleError(instance.parent, error);
     } finally {
-      popObserver(parentObserver);
+      popTracker(parentObserver);
     }
   } else {
     // Forward the error to the parent

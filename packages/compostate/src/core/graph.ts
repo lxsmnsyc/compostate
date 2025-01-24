@@ -5,18 +5,18 @@ import {
   getCurrentBatchedUpdates,
   getCurrentContextTree,
   getCurrentErrorBoundary,
-  getCurrentObserver,
   getCurrentSuspenseBoundary,
+  getCurrentTracker,
   popBatchedUpdates,
   popContext,
   popErrorBoundary,
-  popObserver,
   popSuspenseBoundary,
+  popTracker,
   pushBatchedUpdates,
   pushContext,
   pushErrorBoundary,
-  pushObserver,
   pushSuspenseBoundary,
+  pushTracker,
 } from './owner';
 import { scheduleCallback } from './scheduler';
 import {
@@ -25,237 +25,281 @@ import {
   handleSuspense,
 } from './suspense';
 import type {
-  AtomNode,
   BatchedUpdates,
-  ComputedNode,
-  EffectNode,
+  Cleanup,
+  ContextTree,
+  Effect,
+  ErrorBoundary,
   IsEqual,
-  ObservableNode,
-  ObserverNode,
-  ReactiveNode,
-  ResourceNode,
   ResultValue,
+  SuspenseBoundary,
 } from './types';
 import { NodeType, ResultState, ScheduleType, State } from './types';
 
-let ID = 0;
+export type TrackableNode<T> = AtomNode<T> | ComputedNode<T> | ResourceNode<T>;
 
-function getID(): number {
-  return ID++;
+export type TrackerNode<T> = ComputedNode<T> | ResourceNode<T> | EffectNode;
+
+export type ReactiveNode<T> = TrackableNode<T> | TrackerNode<T>;
+
+let TRACKABLE_ID = 0;
+
+function getTrackableId(): number {
+  return TRACKABLE_ID++;
 }
 
-export function createAtomNode<T>(
-  value: T,
-  isEqual: IsEqual<T> = IS_EQUAL,
-): AtomNode<T> {
-  return {
-    id: getID(),
-    state: State.Clean,
-    alive: true,
-    type: NodeType.Atom,
-    version: 0,
-    value: { type: ResultState.Success, value },
-    isEqual,
-    observers: undefined,
-  };
+export class Trackable {
+  id = getTrackableId();
+  alive = true;
+  version = 0;
+  trackers: Set<Tracker> | undefined = undefined;
+  constructor(public parent: TrackableNode<any>) {}
 }
 
-export function createComputedNode<T>(
-  scheduleType: ScheduleType,
-  compute: () => T,
-  isEqual: IsEqual<T> = IS_EQUAL,
-): ComputedNode<T> {
-  return {
-    id: getID(),
-    state: State.Uninitialized,
-    alive: true,
-    type: NodeType.Computed,
-    isEqual,
-    observers: undefined,
-    version: 0,
-    value: undefined,
-    scheduleType,
-    schedule: undefined,
-    observables: undefined,
-    cleanup: undefined,
-    compute,
-    contextTree: getCurrentContextTree(),
-  };
+let TRACKER_ID = 0;
+
+function getTrackerID(): number {
+  return TRACKER_ID++;
 }
 
-export function createResourceNode<T>(
-  scheduleType: ScheduleType,
-  compute: () => T | Promise<T>,
-  isEqual: IsEqual<T> = IS_EQUAL,
-): ResourceNode<T> {
-  return {
-    id: getID(),
-    state: State.Uninitialized,
-    alive: true,
-    type: NodeType.Resource,
-    isEqual,
-    observers: undefined,
-    version: 0,
-    value: undefined,
-    scheduleType,
-    schedule: undefined,
-    observables: undefined,
-    cleanup: undefined,
-    compute,
-    contextTree: getCurrentContextTree(),
-  };
+export class Tracker {
+  id = getTrackerID();
+  alive = true;
+  state: State = State.Uninitialized;
+  trackables: Set<Trackable> | undefined = undefined;
+  schedule: Cleanup | undefined = undefined;
+  cleanup: Cleanup | undefined = undefined;
+
+  constructor(
+    public parent: TrackerNode<any>,
+    public scheduleType: ScheduleType,
+  ) {}
 }
 
-export function createEffectNode(
-  scheduleType: ScheduleType,
-  callback: () => void,
-): EffectNode {
-  return {
-    id: getID(),
-    state: State.Uninitialized,
-    alive: true,
-    type: NodeType.Effect,
-    scheduleType,
-    schedule: undefined,
-    observables: undefined,
-    cleanup: undefined,
-    suspenseBoundary: getCurrentSuspenseBoundary(),
-    errorBoundary: getCurrentErrorBoundary(),
-    contextTree: getCurrentContextTree(),
-    callback,
-  };
-}
+export class AtomNode<T> {
+  type: NodeType.Atom = NodeType.Atom;
 
-function addObservable(
-  node: ObserverNode<any>,
-  source: ObservableNode<any>,
-): void {
-  if (!node.observables) {
-    node.observables = new Set();
+  trackable: Trackable;
+
+  value: ResultValue<T>;
+
+  constructor(
+    value: T,
+    public isEqual: IsEqual<T> = IS_EQUAL,
+  ) {
+    this.trackable = new Trackable(this);
+    this.value = { type: ResultState.Success, value };
   }
-  node.observables.add(source);
 }
 
-function addObserver(
-  node: ObservableNode<any>,
-  observer: ObserverNode<any>,
-): void {
-  if (!node.observers) {
-    node.observers = new Set();
+export class ComputedNode<T> {
+  type: NodeType.Computed = NodeType.Computed;
+
+  trackable: Trackable;
+
+  tracker: Tracker;
+
+  value: ResultValue<T> | undefined;
+
+  contextTree: ContextTree | undefined;
+
+  constructor(
+    scheduleType: ScheduleType,
+    public compute: () => T,
+    public isEqual: IsEqual<T> = IS_EQUAL,
+  ) {
+    this.trackable = new Trackable(this);
+    this.tracker = new Tracker(this, scheduleType);
+    this.contextTree = getCurrentContextTree();
   }
-  node.observers.add(observer);
 }
 
-function cleanObservers<T>(node: ObservableNode<T>): void {
-  if (!(node.observers && node.observers.size)) {
+export class ResourceNode<T> {
+  type: NodeType.Resource = NodeType.Resource;
+
+  trackable: Trackable;
+
+  tracker: Tracker;
+
+  value: ResultValue<T> | undefined;
+
+  contextTree: ContextTree | undefined;
+
+  constructor(
+    scheduleType: ScheduleType,
+    public compute: () => T | Promise<T>,
+    public isEqual: IsEqual<T> = IS_EQUAL,
+  ) {
+    this.trackable = new Trackable(this);
+    this.tracker = new Tracker(this, scheduleType);
+    this.contextTree = getCurrentContextTree();
+  }
+}
+
+export class EffectNode {
+  type: NodeType.Effect = NodeType.Effect;
+
+  tracker: Tracker;
+
+  contextTree: ContextTree | undefined;
+  errorBoundary: ErrorBoundary | undefined;
+  suspenseBoundary: SuspenseBoundary | undefined;
+
+  constructor(
+    scheduleType: ScheduleType,
+    public callback: Effect,
+  ) {
+    this.tracker = new Tracker(this, scheduleType);
+    this.suspenseBoundary = getCurrentSuspenseBoundary();
+    this.errorBoundary = getCurrentErrorBoundary();
+    this.contextTree = getCurrentContextTree();
+  }
+}
+
+function addTrackable(node: Tracker, trackable: Trackable): void {
+  if (!node.trackables) {
+    node.trackables = new Set();
+  }
+  node.trackables.add(trackable);
+}
+
+function addTracker(node: Trackable, tracker: Tracker): void {
+  if (!node.trackers) {
+    node.trackers = new Set();
+  }
+  node.trackers.add(tracker);
+}
+
+function cleanTrackers(node: Trackable): void {
+  if (!(node.trackers && node.trackers.size)) {
     return;
   }
-  for (const observer of [...node.observers]) {
-    if (observer.observables) {
-      observer.observables.delete(node);
+  for (const tracker of [...node.trackers]) {
+    if (tracker.trackables) {
+      tracker.trackables.delete(node);
     }
   }
-  node.observers.clear();
+  node.trackers.clear();
 }
 
-function cleanObservables<T>(node: ObserverNode<T>): void {
-  if (!(node.observables && node.observables.size)) {
+function cleanTrackables(node: Tracker): void {
+  if (!(node.trackables && node.trackables.size)) {
     return;
   }
-  for (const source of [...node.observables]) {
-    if (source.observers) {
-      source.observers.delete(node);
+  for (const trackable of [...node.trackables]) {
+    if (trackable.trackers) {
+      trackable.trackers.delete(node);
     }
   }
 
-  node.observables.clear();
+  node.trackables.clear();
 }
 
-export function destroyNode<T>(this: ReactiveNode<T>): void {
-  if (this.alive) {
-    this.alive = false;
-
-    if (
-      this.type === NodeType.Computed ||
-      this.type === NodeType.Effect ||
-      this.type === NodeType.Resource
-    ) {
-      if (this.cleanup) {
-        this.cleanup();
-      }
-      cleanObservables(this);
-    }
-
-    if (
-      this.type === NodeType.Atom ||
-      this.type === NodeType.Computed ||
-      this.type === NodeType.Resource
-    ) {
-      cleanObservers(this);
-    }
+export function destroyTrackable(instance: Trackable): void {
+  if (instance.alive) {
+    instance.alive = false;
+    cleanTrackers(instance);
   }
 }
 
-function notifyObservers<T>(node: ObservableNode<T>, state: State): void {
-  if (!(node.alive && node.observers && node.observers.size)) {
+export function destroyTracker(instance: Tracker): void {
+  if (instance.alive) {
+    instance.alive = false;
+    if (instance.cleanup) {
+      instance.cleanup();
+    }
+    cleanTrackables(instance);
+  }
+}
+
+export function destroyAtomNode<T>(this: AtomNode<T>): void {
+  destroyTrackable(this.trackable);
+}
+
+export function destroyEffectNode(this: EffectNode): void {
+  destroyTracker(this.tracker);
+}
+
+export function destroyComputedNode<T>(this: ComputedNode<T>): void {
+  destroyTracker(this.tracker);
+  destroyTrackable(this.trackable);
+}
+
+export function destroyResourceNode<T>(this: ResourceNode<T>): void {
+  destroyTracker(this.tracker);
+  destroyTrackable(this.trackable);
+}
+
+function notifyTrackers(node: Trackable, state: State): void {
+  if (!(node.alive && node.trackers && node.trackers.size)) {
     return;
   }
-  const observers = [...node.observers];
-  // Mark observers with the new state
-  for (const observer of observers) {
-    observer.state = state;
+  const trackers = [...node.trackers];
+  // Mark trackers with the new state
+  for (const tracker of trackers) {
+    tracker.state = state;
   }
-  // 1st step, notify each observer with the new state
+  // 1st step, notify each tracker with the new state
   // This is a recursive process, which defers
   // any effects from immediately occuring
-  for (const observer of observers) {
-    if (observer.type !== NodeType.Effect) {
-      notifyObservers(observer, State.Check);
+  for (const tracker of trackers) {
+    if (tracker.parent.type !== NodeType.Effect) {
+      notifyTrackers(tracker.parent.trackable, State.Check);
     }
   }
   // 2nd step, run the effects.
-  for (const observer of observers) {
-    if (observer.type === NodeType.Effect) {
-      addUpdate(observer);
+  for (const tracker of trackers) {
+    if (tracker.parent.type === NodeType.Effect) {
+      addUpdate(tracker.parent);
     }
   }
 }
 
-function canNodeUpdate<T>(node: ReactiveNode<T>): boolean {
+function isTrackerDirty(node: Tracker): boolean {
+  // Check if one of the trackables are dirty
+  if (node.trackables && node.trackables.size) {
+    for (const trackable of [...node.trackables]) {
+      if (trackable.parent.type !== NodeType.Atom) {
+        revalidateNode(trackable.parent);
+        if ((node as any).state === State.Dirty) {
+          return true;
+        }
+      }
+    }
+  }
+  node.state = State.Clean;
+  return false;
+}
+
+function canTrackerUpdate(node: Tracker): boolean {
   if (!node.alive) {
     return false;
   }
   switch (node.state) {
     case State.Clean:
       return false;
-    case State.Check: {
-      // Check if an observables are dirty
-      if (node.observables && node.observables.size) {
-        for (const source of [...node.observables]) {
-          updateNode(source);
-          if ((node as any).state === State.Dirty) {
-            return true;
-          }
-        }
-      }
-      node.state = State.Clean;
-      return false;
-    }
+    case State.Check:
+      return isTrackerDirty(node);
     case State.Dirty:
     case State.Uninitialized:
       return true;
   }
 }
 
+export function writeTrackable(node: Trackable, notify: boolean): void {
+  node.version++;
+  if (notify) {
+    notifyTrackers(node, State.Dirty);
+  }
+}
+
 export function writeNode<T>(
-  node: ObservableNode<T>,
+  node: TrackableNode<T>,
   value: ResultValue<T>,
 ): void {
-  if (!node.alive) {
+  if (!node.trackable.alive) {
     return;
   }
-  // Already mark this as clean
-  node.state = State.Clean;
   if (node.value) {
     // For pending results
     if (
@@ -263,8 +307,8 @@ export function writeNode<T>(
       value.type === ResultState.Pending
     ) {
       // Update version, but don't notify
-      node.version++;
       node.value = value;
+      writeTrackable(node.trackable, false);
       return;
     }
     // For success results, only compare the resolving values
@@ -277,13 +321,12 @@ export function writeNode<T>(
     }
     // We actually don't care for failing results
   }
-  node.version++;
   node.value = value;
   // Value changed, notify observers
-  notifyObservers(node, State.Dirty);
+  writeTrackable(node.trackable, true);
 }
 
-export function readNodeResult<T>(node: ObservableNode<T>): T {
+export function readNodeResult<T>(node: TrackableNode<T>): T {
   const result = node.value;
   // This shouldn't happen at all
   if (!result) {
@@ -299,30 +342,46 @@ export function readNodeResult<T>(node: ObservableNode<T>): T {
   }
   // For pending result, just "throw" to halt the current
   // execution
-  throw getCurrentObserver() ? SUSPENSE_MARKER : new ResourceNotReadyError();
+  throw getCurrentTracker() ? SUSPENSE_MARKER : new ResourceNotReadyError();
 }
 
-export function readNode<T>(node: ObservableNode<T>): T {
-  // Update the node if it can be updated
-  updateNode(node);
-  // if there's an observer accessing this node,
-  // mark as an additional observer to this node
-  const observer = getCurrentObserver();
-  if (observer) {
-    addObservable(observer, node);
-    addObserver(node, observer);
+export function trackNode<T>(node: TrackableNode<T>): void {
+  // if there's a tracker accessing this node,
+  // mark as an additional tracker to this node
+  const tracker = getCurrentTracker();
+  if (tracker) {
+    addTrackable(tracker, node.trackable);
+    addTracker(node.trackable, tracker);
   }
+}
+
+export function readNode<T>(node: TrackableNode<T>): T {
+  // Update the node if it can be updated
+  if (node.type !== NodeType.Atom) {
+    revalidateNode(node);
+  }
+  trackNode(node);
   return readNodeResult(node);
+}
+
+function writeTrackerCleanup(node: Tracker, cleanup: Cleanup): void {
+  // Clean previous cleanup boundary
+  if (node.cleanup) {
+    node.cleanup();
+  }
+  // Create a new cleanup boundary
+  // TODO Should isolate cleanup boundary?
+  node.cleanup = batchCleanup(cleanup);
 }
 
 function runComputedInternal<T>(this: ComputedNode<T>): void {
   // Clean the observables
-  cleanObservables(this);
+  cleanTrackables(this.tracker);
   // Remount owners
   const parentSuspenseBoundary = pushSuspenseBoundary(undefined);
   const parentErrorBoundary = pushErrorBoundary(undefined);
   const parentContext = pushContext(undefined);
-  const parentObserver = pushObserver(this);
+  const parentTracker = pushTracker(this.tracker);
   try {
     // Resolve computation
     writeNode(this, { type: ResultState.Success, value: this.compute() });
@@ -330,31 +389,26 @@ function runComputedInternal<T>(this: ComputedNode<T>): void {
     // Computation failed, memoize the error
     writeNode(this, { type: ResultState.Failure, value: error });
   } finally {
-    popObserver(parentObserver);
+    popTracker(parentTracker);
     popContext(parentContext);
     popErrorBoundary(parentErrorBoundary);
     popSuspenseBoundary(parentSuspenseBoundary);
   }
 }
+
 function runComputed<T>(node: ComputedNode<T>): void {
-  if (!node.alive) {
+  if (!node.trackable.alive) {
     return;
   }
-  node.state = State.Clean;
-  // Clean previous cleanup boundary
-  if (node.cleanup) {
-    node.cleanup();
-  }
-  // Create a new cleanup boundary
-  // TODO Should isolate cleanup boundary?
-  node.cleanup = batchCleanup((runComputedInternal<T>).bind(node));
+  node.tracker.state = State.Clean;
+  writeTrackerCleanup(node.tracker, (runComputedInternal<T>).bind(node));
 }
 
 function runEffectInternal(this: EffectNode): void {
-  cleanObservables(this);
+  cleanTrackables(this.tracker);
   const updates = createBatchedUpdates();
   const parentBatchedUpdates = pushBatchedUpdates(updates);
-  const parentObserver = pushObserver(this);
+  const parentTracker = pushTracker(this.tracker);
   const parentSuspenseBoundary = pushSuspenseBoundary(this.suspenseBoundary);
   const parentErrorBoundary = pushErrorBoundary(this.errorBoundary);
   const parentContext = pushContext(this.contextTree);
@@ -376,7 +430,7 @@ function runEffectInternal(this: EffectNode): void {
     popContext(parentContext);
     popErrorBoundary(parentErrorBoundary);
     popSuspenseBoundary(parentSuspenseBoundary);
-    popObserver(parentObserver);
+    popTracker(parentTracker);
     popBatchedUpdates(parentBatchedUpdates);
 
     flushUpdates(updates);
@@ -384,17 +438,11 @@ function runEffectInternal(this: EffectNode): void {
 }
 
 function runEffect(node: EffectNode): void {
-  if (!node.alive) {
+  if (!node.tracker.alive) {
     return;
   }
-  node.state = State.Clean;
-  // Clean previous cleanup boundary
-  if (node.cleanup) {
-    node.cleanup();
-  }
-  // Create new cleanup boundary
-  // TODO Should isolate cleanup boundary?
-  node.cleanup = batchCleanup(runEffectInternal.bind(node));
+  node.tracker.state = State.Clean;
+  writeTrackerCleanup(node.tracker, runEffectInternal.bind(node));
 }
 
 function resolveResource<T>(
@@ -403,7 +451,7 @@ function resolveResource<T>(
   value: T,
 ): void {
   // Make sure that the we are going to write to the latest version
-  if (this.version === version) {
+  if (this.trackable.version === version) {
     writeNode(this, { type: ResultState.Success, value });
   }
 }
@@ -414,24 +462,24 @@ function rejectResource<T>(
   value: unknown,
 ): void {
   // Make sure that the we are going to write to the latest version
-  if (this.version === version) {
+  if (this.trackable.version === version) {
     writeNode(this, { type: ResultState.Failure, value });
   }
 }
 
 function runResourceInternal<T>(this: ResourceNode<T>): void {
-  cleanObservables(this);
+  cleanTrackables(this.tracker);
   const parentSuspenseBoundary = pushSuspenseBoundary(undefined);
   const parentErrorBoundary = pushErrorBoundary(undefined);
   const parentContext = pushContext(undefined);
-  const parentObserver = pushObserver(this);
+  const parentTracker = pushTracker(this.tracker);
   try {
     // Force into a Promise
     const result = Promise.resolve(this.compute());
     // Set node to pending state
     writeNode(this, { type: ResultState.Pending, value: result });
     // Get current version
-    const version = this.version;
+    const version = this.trackable.version;
     // Update the node when the promise resolves
     result.then(
       (resolveResource<T>).bind(this, version),
@@ -441,46 +489,43 @@ function runResourceInternal<T>(this: ResourceNode<T>): void {
     // Memoize error
     writeNode(this, { type: ResultState.Failure, value: error });
   } finally {
-    popObserver(parentObserver);
+    popTracker(parentTracker);
     popContext(parentContext);
     popErrorBoundary(parentErrorBoundary);
     popSuspenseBoundary(parentSuspenseBoundary);
   }
 }
 function runResource<T>(node: ResourceNode<T>): void {
-  if (!node.alive) {
+  if (!node.trackable.alive) {
     return;
   }
-  node.state = State.Clean;
-  if (node.cleanup) {
-    node.cleanup();
+  node.tracker.state = State.Clean;
+  writeTrackerCleanup(node.tracker, (runResourceInternal<T>).bind(node));
+}
+
+function writeTrackerSchedule(node: Tracker, callback: Effect): void {
+  if (node.schedule) {
+    node.schedule();
   }
-  // TODO Should isolate cleanup boundary?
-  node.cleanup = batchCleanup((runResourceInternal<T>).bind(node));
+  node.schedule = scheduleCallback(callback);
 }
 
 function updateComputed<T>(node: ComputedNode<T>): void {
   if (
-    node.scheduleType === ScheduleType.Sync ||
-    node.state === State.Uninitialized
+    node.tracker.scheduleType === ScheduleType.Sync ||
+    node.tracker.state === State.Uninitialized
   ) {
     runComputed(node);
   } else {
-    if (node.schedule) {
-      node.schedule();
-    }
-    node.schedule = scheduleCallback((runComputed<T>).bind(null, node));
+    writeTrackerSchedule(node.tracker, (runComputed<T>).bind(null, node));
   }
 }
 
 function updateEffect(node: EffectNode): void {
-  if (node.scheduleType === ScheduleType.Sync) {
+  if (node.tracker.scheduleType === ScheduleType.Sync) {
     runEffect(node);
   } else {
-    if (node.schedule) {
-      node.schedule();
-    }
-    node.schedule = scheduleCallback(runEffect.bind(null, node));
+    writeTrackerSchedule(node.tracker, runEffect.bind(null, node));
   }
 }
 
@@ -488,13 +533,11 @@ function updateResource<T>(node: ResourceNode<T>): void {
   runResource(node);
 }
 
-export function updateNode<T>(node: ReactiveNode<T>): void {
-  if (!canNodeUpdate(node)) {
+export function revalidateNode<T>(node: TrackerNode<T>): void {
+  if (!canTrackerUpdate(node.tracker)) {
     return;
   }
   switch (node.type) {
-    case NodeType.Atom:
-      break;
     case NodeType.Computed:
       updateComputed(node);
       break;
@@ -510,7 +553,7 @@ export function updateNode<T>(node: ReactiveNode<T>): void {
 function flushUpdates(batchedUpdates: BatchedUpdates): void {
   if (batchedUpdates.effects && batchedUpdates.effects.size) {
     for (const effect of batchedUpdates.effects) {
-      updateNode(effect);
+      revalidateNode(effect);
     }
   }
 }
@@ -523,7 +566,7 @@ function addUpdate(effect: EffectNode): void {
     }
     updates.effects.add(effect);
   } else {
-    updateNode(effect);
+    revalidateNode(effect);
   }
 }
 
@@ -553,7 +596,9 @@ export function batch<T>(callback: () => T): T {
     return callback();
   } finally {
     popBatchedUpdates(parent);
+    console.log('flush start');
     flushUpdates(instance);
+    console.log('flush endd');
   }
 }
 

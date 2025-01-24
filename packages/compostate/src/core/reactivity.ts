@@ -1,23 +1,20 @@
 import { onCleanup } from './cleanup-boundary';
 import {
-  createAtomNode,
-  createComputedNode,
-  createEffectNode,
-  createResourceNode,
-  destroyNode,
+  AtomNode,
+  ComputedNode,
+  EffectNode,
+  ResourceNode,
+  destroyAtomNode,
+  destroyComputedNode,
+  destroyEffectNode,
+  destroyResourceNode,
   readNode,
   readNodeResult,
-  updateNode,
+  revalidateNode,
   writeNode,
 } from './graph';
-import { popObserver, pushObserver } from './owner';
-import {
-  type AtomNode,
-  type Effect,
-  type IsEqual,
-  ResultState,
-  ScheduleType,
-} from './types';
+import { popTracker, pushTracker } from './owner';
+import { type Effect, type IsEqual, ResultState, ScheduleType } from './types';
 
 export interface Atom<T> {
   (): T;
@@ -37,8 +34,8 @@ function atomAction<T>(this: AtomNode<T>, ...args: [] | [T]): T {
 }
 
 export function atom<T>(value: T, options?: AtomOptions<T>): Atom<T> {
-  const instance = createAtomNode(value, options?.isEqual);
-  onCleanup((destroyNode<T>).bind(instance));
+  const instance = new AtomNode(value, options?.isEqual);
+  onCleanup((destroyAtomNode<T>).bind(instance));
   return (atomAction<T>).bind(instance);
 }
 
@@ -50,37 +47,37 @@ export function computed<T>(
   compute: () => T,
   options?: ComputedOptions<T>,
 ): () => T {
-  const instance = createComputedNode(
+  const instance = new ComputedNode(
     ScheduleType.Sync,
     compute,
     options?.isEqual,
   );
-  onCleanup((destroyNode<T>).bind(instance));
+  onCleanup((destroyComputedNode<T>).bind(instance));
   return (readNode<T>).bind(null, instance);
 }
 
 export function syncEffect(callback: Effect): () => void {
-  const instance = createEffectNode(ScheduleType.Sync, callback);
-  updateNode(instance);
-  return onCleanup(destroyNode.bind(instance));
+  const instance = new EffectNode(ScheduleType.Sync, callback);
+  revalidateNode(instance);
+  return onCleanup(destroyEffectNode.bind(instance));
 }
 
 export function effect(callback: Effect): () => void {
-  const instance = createEffectNode(ScheduleType.Idle, callback);
-  updateNode(instance);
-  return onCleanup(destroyNode.bind(instance));
+  const instance = new EffectNode(ScheduleType.Idle, callback);
+  revalidateNode(instance);
+  return onCleanup(destroyEffectNode.bind(instance));
 }
 
 export function deferred<T>(
   compute: () => T,
   options?: ComputedOptions<T>,
 ): () => T {
-  const instance = createComputedNode(
+  const instance = new ComputedNode(
     ScheduleType.Idle,
     compute,
     options?.isEqual,
   );
-  onCleanup((destroyNode<T>).bind(instance));
+  onCleanup((destroyComputedNode<T>).bind(instance));
   return (readNode<T>).bind(null, instance);
 }
 
@@ -88,21 +85,21 @@ export function resource<T>(
   compute: () => T | Promise<T>,
   options?: ComputedOptions<T>,
 ): () => T {
-  const instance = createResourceNode(
+  const instance = new ResourceNode(
     ScheduleType.Sync,
     compute,
     options?.isEqual,
   );
-  onCleanup((destroyNode<T>).bind(instance));
+  onCleanup((destroyResourceNode<T>).bind(instance));
   return (readNode<T>).bind(null, instance);
 }
 
 export function untrack<T>(callback: () => T): T {
-  const parent = pushObserver(undefined);
+  const parent = pushTracker(undefined);
   try {
     return callback();
   } finally {
-    popObserver(parent);
+    popTracker(parent);
   }
 }
 
@@ -135,7 +132,7 @@ function writeSignal<T>(
 }
 
 export function signal<T>(value: T, options?: SignalOptions<T>): Signal<T> {
-  const instance = createAtomNode(value, options?.isEqual);
-  onCleanup((destroyNode<T>).bind(instance));
+  const instance = new AtomNode(value, options?.isEqual);
+  onCleanup((destroyAtomNode<T>).bind(instance));
   return [(readNode<T>).bind(null, instance), (writeSignal<T>).bind(instance)];
 }
