@@ -38,7 +38,7 @@ syncEffect(() => {
 });
 
 // Update the count
-setCount(100); // Logs 'Count: 0' due to the effect
+setCount(100); // Logs 'Count: 100'
 ```
 
 When effects re-evaluate, it reconstructs the tracked dependencies from scratch, and so conditional dependency can also be done.
@@ -97,6 +97,89 @@ setTimeout(() => {
 ```
 
 ## Deriving signals
+
+Signals and atoms can be composed into derived signals. The basic form of a derived signal uses nothing but a simple function.
+
+```js
+const count = atom(0);
+const squared = () => count() ** 2;
+
+syncEffect(() => {
+  console.log(squared()); // 0
+});
+
+count(4); // 16
+```
+
+Normally this is useful but there arises a problem: a derived signal may return the same value but would still trigger a re-evaluation.
+
+```js
+const message = atom('Hello');
+const length = () => message().length;
+
+
+syncEffect(() => {
+  console.log('Length:', length()); // Length: 5
+});
+
+message('Aloha') // Logs again with Length: 5
+```
+
+To fix this problem, `computed` can be used in place of the derived signal.
+
+```js
+import { computed } from 'compostate';
+
+const message = atom('Hello');
+const length = computed(() => message().length);
+
+
+syncEffect(() => {
+  console.log('Length:', length()); // Length: 5
+});
+
+message('Aloha') // Logs nothing
+message('Bonjour') // Length: 7
+```
+
+`computed` keeps track of the previously returned value and compares it with the new one, deciding if it should re-evaluate its dependents.
+
+> **INFO**
+> `computed` signals are lazy: it only evaluates when read and only if its dependencies has updated.
+
+> **INFO**
+> Errors thrown in `computed` are memoized and will be thrown every time it is read until it re-evaluates.
+
+## Batching updates
+
+Signals are cheap to write with, but synchoronous updates can be expensive. For example, if an effect subscribes to multiple signals, whose values are also updated synchronously, the effect may re-evaluate multiple times which is undesirable. The desired result should be for the effect to wait for all the signals to update, and then re-evaluate so that it only has to do it a single time.
+
+`compostate` provides `batch` to group updates into a single flush.
+
+```js
+import { syncEffect, atom, batch } from 'compostate';
+
+const greeting = atom('Hello');
+const receiver = atom('Alexis');
+
+syncEffect(() => {
+  console.log(`${greeting()}, ${receiver()}!`); // 'Hello, Alexis!'
+});
+
+// Without batching
+greeting('Bonjour'); // 'Bonjour, Alexis!'
+receiver('Compostate'); // 'Bonjour, Compostate!'
+
+// With batching
+batch(() => {
+  greeting('Bonjour'); // Update deferred
+  receiver('Compostate'); // Update deferred
+}); // 'Bonjour, Compostate!'
+```
+
+Do take note that in batching, writes are already applied, only the re-evaluation is deferred.
+
+`compostate` also provides `unbatch` in case flushing updates synchronously is desirable.
 
 ## Cleanups
 
