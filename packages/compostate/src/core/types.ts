@@ -23,10 +23,25 @@ export const enum State {
 }
 
 export const enum NodeType {
+  /**
+   * Basic read/write unit of reactivity
+   */
   Atom = 0,
+  /**
+   * Derived reactivity
+   */
   Computed = 1,
+  /**
+   * Reactive subscription
+   */
   Effect = 2,
+  /**
+   * Async derived reactivity
+   */
   Resource = 3,
+  /**
+   * Basic notifier
+   */
   Pulse = 4,
 }
 
