@@ -8,11 +8,13 @@ import {
   getCurrentSuspenseBoundary,
   getCurrentTracker,
   popBatchedUpdates,
+  popCleanupBoundary,
   popContext,
   popErrorBoundary,
   popSuspenseBoundary,
   popTracker,
   pushBatchedUpdates,
+  pushCleanupBoundary,
   pushContext,
   pushErrorBoundary,
   pushSuspenseBoundary,
@@ -23,10 +25,13 @@ import { ResourceNotReadyError, handleSuspense } from './suspense';
 import type {
   BatchedUpdates,
   Cleanup,
+  Computation,
   ContextTree,
   Effect,
   ErrorBoundary,
   IsEqual,
+  Ref,
+  ResourceComputation,
   ResultValue,
   SuspenseBoundary,
 } from './types';
@@ -105,13 +110,15 @@ export class ComputedNode<T> {
 
   tracker: Tracker;
 
+  prevValue: Ref<T> | undefined;
+
   value: ResultValue<T> | undefined;
 
   contextTree: ContextTree | undefined;
 
   constructor(
     scheduleType: ScheduleType,
-    public compute: () => T,
+    public compute: Computation<T>,
     public isEqual: IsEqual<T> = IS_EQUAL,
   ) {
     this.trackable = new Trackable(this);
@@ -127,13 +134,15 @@ export class ResourceNode<T> {
 
   tracker: Tracker;
 
+  prevValue: Ref<T> | undefined;
+
   value: ResultValue<T> | undefined;
 
   contextTree: ContextTree | undefined;
 
   constructor(
     scheduleType: ScheduleType,
-    public compute: () => T | Promise<T>,
+    public compute: ResourceComputation<T>,
     public isEqual: IsEqual<T> = IS_EQUAL,
   ) {
     this.trackable = new Trackable(this);
@@ -354,8 +363,9 @@ function writeTrackerCleanup(node: Tracker, cleanup: Cleanup): void {
     node.cleanup();
   }
   // Create a new cleanup boundary
-  // TODO Should isolate cleanup boundary?
+  const parent = pushCleanupBoundary(undefined);
   node.cleanup = batchCleanup(cleanup);
+  popCleanupBoundary(parent);
 }
 
 function runComputedInternal<T>(this: ComputedNode<T>): void {
@@ -368,7 +378,11 @@ function runComputedInternal<T>(this: ComputedNode<T>): void {
   const parentTracker = pushTracker(this.tracker);
   try {
     // Resolve computation
-    writeNode(this, { type: ResultState.Success, value: this.compute() });
+    const newValue = this.compute(this.prevValue);
+    this.prevValue = {
+      value: newValue,
+    };
+    writeNode(this, { type: ResultState.Success, value: newValue });
   } catch (error) {
     // Computation failed, memoize the error
     writeNode(this, { type: ResultState.Failure, value: error });
@@ -432,6 +446,7 @@ function resolveResource<T>(
 ): void {
   // Make sure that the we are going to write to the latest version
   if (this.trackable.version === version) {
+    this.prevValue = { value };
     writeNode(this, { type: ResultState.Success, value });
   }
 }
@@ -455,7 +470,7 @@ function runResourceInternal<T>(this: ResourceNode<T>): void {
   const parentTracker = pushTracker(this.tracker);
   try {
     // Force into a Promise
-    const result = Promise.resolve(this.compute());
+    const result = Promise.resolve(this.compute(this.prevValue));
     // Set node to pending state
     writeNode(this, { type: ResultState.Pending, value: result });
     // Get current version

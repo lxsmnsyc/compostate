@@ -115,3 +115,9 @@ export interface SuspenseBoundary {
 export interface BatchedUpdates {
   effects: Set<EffectNode> | undefined;
 }
+
+export type Computation<T> = (prev: Ref<T> | undefined) => T;
+
+export type ResourceComputation<T> = (
+  prev: Ref<T> | undefined,
+) => T | Promise<T>;

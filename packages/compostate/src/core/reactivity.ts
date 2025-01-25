@@ -14,7 +14,13 @@ import {
   writeAtomNode,
 } from './graph';
 import { popTracker, pushTracker } from './owner';
-import { type Effect, type IsEqual, ScheduleType } from './types';
+import type {
+  Computation,
+  Effect,
+  IsEqual,
+  ResourceComputation,
+} from './types';
+import { ScheduleType } from './types';
 
 export interface Atom<T> {
   (): T;
@@ -44,7 +50,7 @@ export interface ComputedOptions<T> {
 }
 
 export function computed<T>(
-  compute: () => T,
+  compute: Computation<T>,
   options?: ComputedOptions<T>,
 ): () => T {
   const instance = new ComputedNode(
@@ -69,7 +75,7 @@ export function effect(callback: Effect): () => void {
 }
 
 export function deferred<T>(
-  compute: () => T,
+  compute: Computation<T>,
   options?: ComputedOptions<T>,
 ): () => T {
   const instance = new ComputedNode(
@@ -82,7 +88,7 @@ export function deferred<T>(
 }
 
 export function resource<T>(
-  compute: () => T | Promise<T>,
+  compute: ResourceComputation<T>,
   options?: ComputedOptions<T>,
 ): () => T {
   const instance = new ResourceNode(
