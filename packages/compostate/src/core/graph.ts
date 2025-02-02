@@ -592,7 +592,9 @@ export function revalidateNode<T>(node: TrackerNode<T>): void {
 function flushUpdates(batchedUpdates: BatchedUpdates): void {
   if (batchedUpdates.effects && batchedUpdates.effects.size) {
     for (const effect of batchedUpdates.effects) {
-      revalidateNode(effect);
+      if (canTrackerUpdate(effect.tracker)) {
+        updateEffect(effect);
+      }
     }
   }
 }
@@ -635,9 +637,7 @@ export function batch<T>(callback: () => T): T {
     return callback();
   } finally {
     popBatchedUpdates(parent);
-    console.log('flush start');
     flushUpdates(instance);
-    console.log('flush endd');
   }
 }
 
