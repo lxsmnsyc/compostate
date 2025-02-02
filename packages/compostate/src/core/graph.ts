@@ -231,6 +231,10 @@ export function destroyAtomNode<T>(this: AtomNode<T>): void {
   destroyTrackable(this.trackable);
 }
 
+export function destroyPulseNode(this: PulseNode): void {
+  destroyTrackable(this.trackable);
+}
+
 export function destroyEffectNode(this: EffectNode): void {
   destroyTracker(this.tracker);
 }

@@ -3,15 +3,19 @@ import {
   AtomNode,
   ComputedNode,
   EffectNode,
+  PulseNode,
   ResourceNode,
   destroyAtomNode,
   destroyComputedNode,
   destroyEffectNode,
+  destroyPulseNode,
   destroyResourceNode,
   readAtomNode,
   readNode,
   revalidateNode,
+  trackNode,
   writeAtomNode,
+  writeTrackable,
 } from './graph';
 import { popTracker, pushTracker } from './owner';
 import type {
@@ -141,4 +145,20 @@ export function signal<T>(value: T, options?: SignalOptions<T>): Signal<T> {
     (readAtomNode<T>).bind(null, instance),
     (writeSignal<T>).bind(instance),
   ];
+}
+
+export type Pulse = [track: () => void, update: () => void];
+
+function trackPulse(this: PulseNode): void {
+  trackNode(this);
+}
+
+function updatePulse(this: PulseNode): void {
+  writeTrackable(this.trackable, true);
+}
+
+export function pulse(): Pulse {
+  const instance = new PulseNode();
+  onCleanup(destroyPulseNode.bind(instance));
+  return [trackPulse.bind(instance), updatePulse.bind(instance)];
 }
