@@ -47,32 +47,6 @@ export const enum NodeType {
 
 export type IsEqual<T> = (prev: T, next: T) => boolean;
 
-export const enum ResultState {
-  Pending = 0,
-  Success = 1,
-  Failure = 2,
-}
-
-export interface PendingResult<T> {
-  type: ResultState.Pending;
-  value: Promise<T>;
-}
-
-export interface SuccessResult<T> {
-  type: ResultState.Success;
-  value: T;
-}
-
-export interface FailureResult {
-  type: ResultState.Failure;
-  value: unknown;
-}
-
-export type ResultValue<T> =
-  | PendingResult<T>
-  | SuccessResult<T>
-  | FailureResult;
-
 export const enum ScheduleType {
   Sync = 0,
   Idle = 1,

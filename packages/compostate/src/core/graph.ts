@@ -32,10 +32,9 @@ import type {
   IsEqual,
   Ref,
   ResourceComputation,
-  ResultValue,
   SuspenseBoundary,
 } from './types';
-import { NodeType, ResultState, ScheduleType, State } from './types';
+import { NodeType, ScheduleType, State } from './types';
 
 export type TopTrackableNode<T> = PulseNode | AtomNode<T>;
 
@@ -103,6 +102,13 @@ export class AtomNode<T> {
   }
 }
 
+const enum ComputedState {
+  Uninitialized = 0,
+  Pending = 1,
+  Success = 2,
+  Failure = 3,
+}
+
 export class ComputedNode<T> {
   type: NodeType.Computed = NodeType.Computed;
 
@@ -110,9 +116,11 @@ export class ComputedNode<T> {
 
   tracker: Tracker;
 
-  prevValue: Ref<T> | undefined;
+  state: ComputedState = ComputedState.Uninitialized;
 
-  value: ResultValue<T> | undefined;
+  value: Ref<T> | undefined;
+
+  error: Ref<unknown> | undefined;
 
   contextTree: ContextTree | undefined;
 
@@ -134,9 +142,11 @@ export class ResourceNode<T> {
 
   tracker: Tracker;
 
-  prevValue: Ref<T> | undefined;
+  state: ComputedState = ComputedState.Uninitialized;
 
-  value: ResultValue<T> | undefined;
+  value: Ref<T> | undefined;
+
+  error: Ref<unknown> | undefined;
 
   contextTree: ContextTree | undefined;
 
@@ -275,42 +285,37 @@ function notifyTrackers(node: Trackable, state: State): void {
 }
 
 export function writeTrackable(node: Trackable, notify: boolean): void {
-  node.version++;
-  if (notify) {
-    notifyTrackers(node, State.Dirty);
+  if (node.alive) {
+    node.version++;
+    if (notify) {
+      notifyTrackers(node, State.Dirty);
+    }
   }
 }
 
-export function writeNode<T>(
-  node: MiddleTrackableNode<T>,
-  value: ResultValue<T>,
-): void {
-  if (!node.trackable.alive) {
-    return;
+function writePending<T>(node: MiddleTrackableNode<T>): void {
+  if (node.state === ComputedState.Pending) {
+    writeTrackable(node.trackable, false);
+  } else {
+    node.state = ComputedState.Pending;
+    writeTrackable(node.trackable, true);
   }
-  if (node.value) {
-    // For pending results
-    if (
-      node.value.type === ResultState.Pending &&
-      value.type === ResultState.Pending
-    ) {
-      // Update version, but don't notify
-      node.value = value;
-      writeTrackable(node.trackable, false);
+}
+
+function writeSuccess<T>(node: MiddleTrackableNode<T>, value: T): void {
+  if (node.state === ComputedState.Success && node.value) {
+    if (node.isEqual(node.value.value, value)) {
       return;
     }
-    // For success results, only compare the resolving values
-    if (
-      node.value.type === ResultState.Success &&
-      value.type === ResultState.Success &&
-      node.isEqual(node.value.value, value.value)
-    ) {
-      return;
-    }
-    // We actually don't care for failing results
   }
-  node.value = value;
-  // Value changed, notify observers
+  node.state = ComputedState.Success;
+  node.value = { value };
+  writeTrackable(node.trackable, true);
+}
+
+function writeFailure<T>(node: MiddleTrackableNode<T>, error: unknown): void {
+  node.state = ComputedState.Failure;
+  node.error = { value: error };
   writeTrackable(node.trackable, true);
 }
 
@@ -337,18 +342,23 @@ export function writeAtomNode<T>(node: AtomNode<T>, value: T): void {
 }
 
 function readNodeResult<T>(node: MiddleTrackableNode<T>): T {
-  const result = node.value;
   // This shouldn't happen at all
-  if (!result) {
+  if (node.state === ComputedState.Uninitialized) {
     throw new Error('unreachable');
   }
   // If the result succeeded, return
-  if (result.type === ResultState.Success) {
-    return result.value;
+  if (node.state === ComputedState.Success) {
+    if (!node.value) {
+      throw new Error('unreachable');
+    }
+    return node.value.value;
   }
   // ...otherwise, rethrow the error.
-  if (result.type === ResultState.Failure) {
-    throw result.value;
+  if (node.state === ComputedState.Failure) {
+    if (!node.error) {
+      throw new Error('unreachable');
+    }
+    throw node.error.value;
   }
   // For pending result, just "throw" to halt the current
   // execution
@@ -382,14 +392,10 @@ function runComputedInternal<T>(this: ComputedNode<T>): void {
   const parentTracker = pushTracker(this.tracker);
   try {
     // Resolve computation
-    const newValue = this.compute(this.prevValue);
-    this.prevValue = {
-      value: newValue,
-    };
-    writeNode(this, { type: ResultState.Success, value: newValue });
+    writeSuccess(this, this.compute(this.value));
   } catch (error) {
     // Computation failed, memoize the error
-    writeNode(this, { type: ResultState.Failure, value: error });
+    writeFailure(this, error);
   } finally {
     popTracker(parentTracker);
     popContext(parentContext);
@@ -450,8 +456,7 @@ function resolveResource<T>(
 ): void {
   // Make sure that the we are going to write to the latest version
   if (this.trackable.version === version) {
-    this.prevValue = { value };
-    writeNode(this, { type: ResultState.Success, value });
+    writeSuccess(this, value);
   }
 }
 
@@ -462,7 +467,7 @@ function rejectResource<T>(
 ): void {
   // Make sure that the we are going to write to the latest version
   if (this.trackable.version === version) {
-    writeNode(this, { type: ResultState.Failure, value });
+    writeFailure(this, value);
   }
 }
 
@@ -474,9 +479,10 @@ function runResourceInternal<T>(this: ResourceNode<T>): void {
   const parentTracker = pushTracker(this.tracker);
   try {
     // Force into a Promise
-    const result = Promise.resolve(this.compute(this.prevValue));
+    const result = Promise.resolve(this.compute(this.value));
     // Set node to pending state
-    writeNode(this, { type: ResultState.Pending, value: result });
+    // TODO: do not write pending during transition state
+    writePending(this);
     // Get current version
     const version = this.trackable.version;
     // Update the node when the promise resolves
@@ -486,7 +492,7 @@ function runResourceInternal<T>(this: ResourceNode<T>): void {
     );
   } catch (error) {
     // Memoize error
-    writeNode(this, { type: ResultState.Failure, value: error });
+    writeFailure(this, error);
   } finally {
     popTracker(parentTracker);
     popContext(parentContext);
