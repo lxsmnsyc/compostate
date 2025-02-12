@@ -342,27 +342,22 @@ export function writeAtomNode<T>(node: AtomNode<T>, value: T): void {
 }
 
 function readNodeResult<T>(node: MiddleTrackableNode<T>): T {
-  // This shouldn't happen at all
-  if (node.state === ComputedState.Uninitialized) {
-    throw new Error('unreachable');
-  }
-  // If the result succeeded, return
-  if (node.state === ComputedState.Success) {
-    if (!node.value) {
-      throw new Error('unreachable');
-    }
-    return node.value.value;
-  }
-  // ...otherwise, rethrow the error.
-  if (node.state === ComputedState.Failure) {
-    if (!node.error) {
-      throw new Error('unreachable');
-    }
-    throw node.error.value;
-  }
   // For pending result, just "throw" to halt the current
   // execution
-  throw new ResourceNotReadyError();
+  if (node.state === ComputedState.Pending) {
+    // TODO stale boundary
+    throw new ResourceNotReadyError();
+  }
+  if (node.state === ComputedState.Success && node.value) {
+    // If the result succeeded, return
+    return node.value.value;
+  }
+  if (node.state === ComputedState.Failure && node.error) {
+    // ...otherwise, rethrow the error.
+    throw node.error.value;
+  }
+  // This shouldn't happen at all
+  throw new Error('unreachable');
 }
 
 export function readNode<T>(node: MiddleTrackableNode<T>): T {
