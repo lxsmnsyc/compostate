@@ -320,12 +320,14 @@ function writeFailure<T>(node: MiddleTrackableNode<T>, error: unknown): void {
 }
 
 export function trackNode<T>(node: TrackableNode<T>): void {
-  // if there's a tracker accessing this node,
-  // mark as an additional tracker to this node
-  const tracker = getCurrentTracker();
-  if (tracker) {
-    addTrackable(tracker, node.trackable);
-    addTracker(node.trackable, tracker);
+  if (node.trackable.alive) {
+    // if there's a tracker accessing this node,
+    // mark as an additional tracker to this node
+    const tracker = getCurrentTracker();
+    if (tracker) {
+      addTrackable(tracker, node.trackable);
+      addTracker(node.trackable, tracker);
+    }
   }
 }
 
