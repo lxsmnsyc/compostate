@@ -9,8 +9,8 @@ import {
 } from './owner';
 import type { Cleanup, SuspenseBoundary, SuspenseHandler } from './types';
 
-export class ResourceNotReadyError extends Error {
-  constructor() {
+export class ResourceNotReadyError<T> extends Error {
+  constructor(readonly request: Promise<T>) {
     super('Resource is not yet ready.');
   }
 }
