@@ -89,38 +89,35 @@ export class PulseNode {
 export class AtomNode<T> {
   type: NodeType.Atom = NodeType.Atom;
 
-  trackable: Trackable;
-
-  value: T;
+  trackable = new Trackable(this);
 
   constructor(
-    value: T,
+    public value: T,
     public isEqual: IsEqual<T> = IS_EQUAL,
-  ) {
-    this.trackable = new Trackable(this);
-    this.value = value;
-  }
+  ) {}
 }
 
 const enum ComputedState {
-  Uninitialized = 0,
   Pending = 1,
   Success = 2,
   Failure = 3,
 }
 
+type ComputedResult<T> =
+  | { type: ComputedState.Success; value: T }
+  | { type: ComputedState.Failure; value: unknown }
+  | { type: ComputedState.Pending; value: Promise<T> };
+
 export class ComputedNode<T> {
   type: NodeType.Computed = NodeType.Computed;
 
-  trackable: Trackable;
+  trackable = new Trackable(this);
 
   tracker: Tracker;
 
-  state: ComputedState = ComputedState.Uninitialized;
+  state: ComputedResult<T> | undefined;
 
-  value: Ref<T> | undefined;
-
-  error: Ref<unknown> | undefined;
+  prev: Ref<T> | undefined;
 
   contextTree: ContextTree | undefined;
 
@@ -129,7 +126,6 @@ export class ComputedNode<T> {
     public compute: Computation<T>,
     public isEqual: IsEqual<T> = IS_EQUAL,
   ) {
-    this.trackable = new Trackable(this);
     this.tracker = new Tracker(this, scheduleType);
     this.contextTree = getCurrentContextTree();
   }
@@ -138,15 +134,13 @@ export class ComputedNode<T> {
 export class ResourceNode<T> {
   type: NodeType.Resource = NodeType.Resource;
 
-  trackable: Trackable;
+  trackable = new Trackable(this);
 
   tracker: Tracker;
 
-  state: ComputedState = ComputedState.Uninitialized;
+  state: ComputedResult<T> | undefined;
 
-  value: Ref<T> | undefined;
-
-  error: Ref<unknown> | undefined;
+  prev: Ref<T> | undefined;
 
   contextTree: ContextTree | undefined;
 
@@ -155,7 +149,6 @@ export class ResourceNode<T> {
     public compute: ResourceComputation<T>,
     public isEqual: IsEqual<T> = IS_EQUAL,
   ) {
-    this.trackable = new Trackable(this);
     this.tracker = new Tracker(this, scheduleType);
     this.contextTree = getCurrentContextTree();
   }
@@ -293,29 +286,30 @@ export function writeTrackable(node: Trackable, notify: boolean): void {
   }
 }
 
-function writePending<T>(node: MiddleTrackableNode<T>): void {
-  if (node.state === ComputedState.Pending) {
-    writeTrackable(node.trackable, false);
-  } else {
-    node.state = ComputedState.Pending;
-    writeTrackable(node.trackable, true);
-  }
+function writePending<T>(
+  node: MiddleTrackableNode<T>,
+  value: Promise<T>,
+): void {
+  const shouldNotify = !(
+    node.state && node.state.type === ComputedState.Pending
+  );
+  node.state = { type: ComputedState.Pending, value };
+  writeTrackable(node.trackable, shouldNotify);
 }
 
 function writeSuccess<T>(node: MiddleTrackableNode<T>, value: T): void {
-  if (node.state === ComputedState.Success && node.value) {
-    if (node.isEqual(node.value.value, value)) {
+  if (node.state && node.state.type === ComputedState.Success && node.prev) {
+    if (node.isEqual(node.prev.value, value)) {
       return;
     }
   }
-  node.state = ComputedState.Success;
-  node.value = { value };
+  node.prev = { value };
+  node.state = { type: ComputedState.Success, value };
   writeTrackable(node.trackable, true);
 }
 
 function writeFailure<T>(node: MiddleTrackableNode<T>, error: unknown): void {
-  node.state = ComputedState.Failure;
-  node.error = { value: error };
+  node.state = { type: ComputedState.Failure, value: error };
   writeTrackable(node.trackable, true);
 }
 
@@ -344,28 +338,36 @@ export function writeAtomNode<T>(node: AtomNode<T>, value: T): void {
 }
 
 function readNodeResult<T>(node: MiddleTrackableNode<T>): T {
-  // For pending result, just "throw" to halt the current
-  // execution
-  if (node.state === ComputedState.Pending) {
-    // TODO stale boundary
-    throw new ResourceNotReadyError();
-  }
-  if (node.state === ComputedState.Success && node.value) {
-    // If the result succeeded, return
-    return node.value.value;
-  }
-  if (node.state === ComputedState.Failure && node.error) {
-    // ...otherwise, rethrow the error.
-    throw node.error.value;
+  if (node.state) {
+    // For pending result, just "throw" to halt the current
+    // execution
+    if (node.state.type === ComputedState.Pending) {
+      // TODO stale boundary
+      throw new ResourceNotReadyError(node.state.value);
+    }
+    if (node.state.type === ComputedState.Success) {
+      // If the result succeeded, return
+      return node.state.value;
+    }
+    if (node.state.type === ComputedState.Failure) {
+      // ...otherwise, rethrow the error.
+      throw node.state.value;
+    }
   }
   // This shouldn't happen at all
-  throw new Error('unreachable');
+  throw new Error('Node is uninitialized.');
 }
 
-export function readNode<T>(node: MiddleTrackableNode<T>): T {
-  revalidateNode(node);
-  trackNode(node);
-  return readNodeResult(node);
+export function readComputedNode<T>(this: ComputedNode<T>): T {
+  revalidateComputedNode(this);
+  trackNode(this);
+  return readNodeResult(this);
+}
+
+export function readResourceNode<T>(this: ResourceNode<T>): T {
+  revalidateResourceNode(this);
+  trackNode(this);
+  return readNodeResult(this);
 }
 
 function writeTrackerCleanup(node: Tracker, cleanup: Cleanup): void {
@@ -389,7 +391,7 @@ function runComputedInternal<T>(this: ComputedNode<T>): void {
   const parentTracker = pushTracker(this.tracker);
   try {
     // Resolve computation
-    writeSuccess(this, this.compute(this.value));
+    writeSuccess(this, this.compute(this.prev));
   } catch (error) {
     // Computation failed, memoize the error
     writeFailure(this, error);
@@ -476,10 +478,10 @@ function runResourceInternal<T>(this: ResourceNode<T>): void {
   const parentTracker = pushTracker(this.tracker);
   try {
     // Force into a Promise
-    const result = Promise.resolve(this.compute(this.value));
+    const result = Promise.resolve(this.compute(this.prev));
     // Set node to pending state
     // TODO: do not write pending during transition state
-    writePending(this);
+    writePending(this, result);
     // Get current version
     const version = this.trackable.version;
     // Update the node when the promise resolves
@@ -535,28 +537,18 @@ function updateResource<T>(node: ResourceNode<T>): void {
   runResource(node);
 }
 
-function isTopTrackable<T>(
-  trackable: TrackableNode<T>,
-): trackable is TopTrackableNode<T> {
-  switch (trackable.type) {
-    case NodeType.Atom:
-    case NodeType.Pulse:
-      return true;
-    case NodeType.Resource:
-    case NodeType.Computed:
-      return false;
-  }
-}
-
 function isTrackerDirty(node: Tracker): boolean {
   // Check if one of the trackables are dirty
   if (node.trackables && node.trackables.size) {
     for (const trackable of [...node.trackables]) {
-      if (!isTopTrackable(trackable.parent)) {
-        revalidateNode(trackable.parent);
-        if ((node as any).state === State.Dirty) {
-          return true;
-        }
+      if (trackable.parent.type === NodeType.Computed) {
+        revalidateComputedNode(trackable.parent);
+      }
+      if (trackable.parent.type === NodeType.Resource) {
+        revalidateResourceNode(trackable.parent);
+      }
+      if ((node as any).state === State.Dirty) {
+        return true;
       }
     }
   }
@@ -579,20 +571,19 @@ function canTrackerUpdate(node: Tracker): boolean {
   }
 }
 
-export function revalidateNode<T>(node: TrackerNode<T>): void {
-  if (!canTrackerUpdate(node.tracker)) {
-    return;
+export function revalidateComputedNode<T>(node: ComputedNode<T>): void {
+  if (canTrackerUpdate(node.tracker)) {
+    updateComputed(node);
   }
-  switch (node.type) {
-    case NodeType.Computed:
-      updateComputed(node);
-      break;
-    case NodeType.Effect:
-      updateEffect(node);
-      break;
-    case NodeType.Resource:
-      updateResource(node);
-      break;
+}
+export function revalidateResourceNode<T>(node: ResourceNode<T>): void {
+  if (canTrackerUpdate(node.tracker)) {
+    updateResource(node);
+  }
+}
+export function revalidateEffectNode(node: EffectNode): void {
+  if (canTrackerUpdate(node.tracker)) {
+    updateEffect(node);
   }
 }
 
@@ -614,7 +605,7 @@ function addUpdate(effect: EffectNode): void {
     }
     updates.effects.add(effect);
   } else {
-    revalidateNode(effect);
+    revalidateEffectNode(effect);
   }
 }
 
