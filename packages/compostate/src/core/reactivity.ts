@@ -11,8 +11,9 @@ import {
   destroyPulseNode,
   destroyResourceNode,
   readAtomNode,
-  readNode,
-  revalidateNode,
+  readComputedNode,
+  readResourceNode,
+  revalidateEffectNode,
   trackNode,
   writeAtomNode,
   writeTrackable,
@@ -63,18 +64,18 @@ export function computed<T>(
     options?.isEqual,
   );
   onCleanup((destroyComputedNode<T>).bind(instance));
-  return (readNode<T>).bind(null, instance);
+  return (readComputedNode<T>).bind(instance);
 }
 
 export function syncEffect(callback: Effect): () => void {
   const instance = new EffectNode(ScheduleType.Sync, callback);
-  revalidateNode(instance);
+  revalidateEffectNode(instance);
   return onCleanup(destroyEffectNode.bind(instance));
 }
 
 export function effect(callback: Effect): () => void {
   const instance = new EffectNode(ScheduleType.Idle, callback);
-  revalidateNode(instance);
+  revalidateEffectNode(instance);
   return onCleanup(destroyEffectNode.bind(instance));
 }
 
@@ -88,7 +89,7 @@ export function deferred<T>(
     options?.isEqual,
   );
   onCleanup((destroyComputedNode<T>).bind(instance));
-  return (readNode<T>).bind(null, instance);
+  return (readComputedNode<T>).bind(instance);
 }
 
 export function resource<T>(
@@ -101,7 +102,7 @@ export function resource<T>(
     options?.isEqual,
   );
   onCleanup((destroyResourceNode<T>).bind(instance));
-  return (readNode<T>).bind(null, instance);
+  return (readResourceNode<T>).bind(instance);
 }
 
 export function untrack<T>(callback: () => T): T {
