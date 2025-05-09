@@ -12,7 +12,6 @@ export {
 export {
   captureError,
   errorBoundary,
-  onError,
 } from './error-boundary';
 export {
   batch,

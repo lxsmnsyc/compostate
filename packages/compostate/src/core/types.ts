@@ -77,7 +77,7 @@ export type ErrorHandler = (error: unknown) => void;
 
 export interface ErrorBoundary {
   parent: ErrorBoundary | undefined;
-  handlers: Set<ErrorHandler> | undefined;
+  handler: ErrorHandler;
 }
 
 export type SuspenseHandler = () => void;

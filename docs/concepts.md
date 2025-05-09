@@ -239,13 +239,11 @@ To solve this problem, `compostate` provides `errorBoundary` and `onError`.
 import { errorBoundary, onError } from 'compostate';
 
 errorBoundary(() => {
-  onError((error) => {
-    console.error(error);
-  });
-
   // Whenever the effect re-evaluation throws
   // the error boundary will be able to receive it.
   effect(() => doSomeUnsafeWork());
+}, (error) => {
+  console.error(error);
 });
 ```
 
@@ -257,10 +255,6 @@ If there's a callback that runs outside or uncaptured by `errorBoundary` (e.g. `
 import { captureError } from 'compostate';
 
 errorBoundary(() => {
-  onError((error) => {
-    console.error(error);
-  });
-
   const capture = captureError();
 
   // Whenever the effect re-evaluation throws
@@ -272,6 +266,8 @@ errorBoundary(() => {
       capture(error);
     }
   })
+}, (error) => {
+  console.error(error);
 });
 ```
 
