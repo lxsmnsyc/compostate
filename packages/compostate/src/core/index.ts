@@ -21,7 +21,6 @@ export {
 export * from './reactivity';
 export {
   isPending,
-  onSuspend,
   ResourceNotReadyError,
   suspenseBoundary,
 } from './suspense';

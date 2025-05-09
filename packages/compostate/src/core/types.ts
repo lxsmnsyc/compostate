@@ -83,7 +83,7 @@ export interface ErrorBoundary {
 export type SuspenseHandler = () => void;
 
 export interface SuspenseBoundary {
-  handlers: Set<SuspenseHandler> | undefined;
+  handler: SuspenseHandler;
 }
 
 export interface BatchedUpdates {
