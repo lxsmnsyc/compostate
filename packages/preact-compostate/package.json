@@ -23,12 +23,12 @@
   "keywords": ["pridepack"],
   "name": "preact-compostate",
   "devDependencies": {
-    "@types/node": "^22.10.7",
+    "@types/node": "^22.15.17",
     "compostate": "0.5.1",
     "preact": "^10.25.4",
     "pridepack": "^2.6.4",
     "tslib": "^2.8.1",
-    "typescript": "^5.7.3"
+    "typescript": "^5.8.3"
   },
   "peerDependencies": {
     "compostate": "^0.2.1-beta.0",

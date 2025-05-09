@@ -1,23 +1,23 @@
 {
-	"version": "0.5.1",
-	"name": "compostate-element-vite",
-	"license": "MIT",
-	"scripts": {
-		"dev": "vite",
-		"build": "vite build",
-		"serve": "vite preview"
-	},
-	"dependencies": {
-		"compostate": "0.5.1",
-		"compostate-element": "0.5.1",
-		"lit-html": "^3.2.1"
-	},
-	"devDependencies": {
-		"typescript": "^5.7.3",
-		"vite": "^6.0.7"
-	},
-	"private": true,
-	"publishConfig": {
-		"access": "restricted"
-	}
+  "version": "0.5.1",
+  "name": "compostate-element-vite",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "dependencies": {
+    "compostate": "0.5.1",
+    "compostate-element": "0.5.1",
+    "lit-html": "^3.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  },
+  "private": true,
+  "publishConfig": {
+    "access": "restricted"
+  }
 }
