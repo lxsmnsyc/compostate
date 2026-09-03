@@ -1,4 +1,3 @@
-import { CLEANUP } from '../reactivity/core';
 import { onCleanup } from './cleanup-boundary';
 import { getCurrentContextTree, popContext, pushContext } from './owner';
 import type { Context, ContextTree } from './types';
@@ -34,9 +33,7 @@ export function writeContext<T>(context: Context<T>, value: T): void {
   const parent = getCurrentContextTree();
   if (parent) {
     parent.data[context.id] = { value };
-    if (CLEANUP) {
-      onCleanup(clearContextData.bind(parent, context.id));
-    }
+    onCleanup(clearContextData.bind(parent, context.id));
   }
 }
 

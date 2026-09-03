@@ -1,10 +1,28 @@
 {
   "name": "root",
   "private": true,
-  "workspaces": ["packages/*", "examples/*"],
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/*\" run build",
+    "test": "pnpm -r --filter \"./packages/*\" run test",
+    "type-check": "pnpm -r --filter \"./packages/*\" run type-check",
+    "lint": "oxlint --type-aware",
+    "lint:fix": "oxlint --type-aware --fix",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "cs:add": "changeset add",
+    "cs:ver": "changeset version",
+    "cs:pub": "pnpm run build && changeset publish"
+  },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "lerna": "^8.1.9",
-    "typescript": "^5.8.3"
+    "@changesets/cli": "^3.0.1",
+    "oxfmt": "^0.66.0",
+    "oxlint": "^1.81.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "typescript": "^7.0.2"
   }
 }

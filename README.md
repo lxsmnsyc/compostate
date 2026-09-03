@@ -2,12 +2,14 @@
 
 > Fine-grained reactivity library
 
-[![NPM](https://img.shields.io/npm/v/compostate.svg)](https://www.npmjs.com/package/compostate) [![JavaScript Style Guide](https://badgen.net/badge/code%20style/airbnb/ff5a5f?icon=airbnb)](https://github.com/airbnb/javascript)
+[![NPM](https://img.shields.io/npm/v/compostate.svg)](https://www.npmjs.com/package/compostate)
+
+`compostate` is a small reactive core built on atoms, computed values and effects. It ships with bindings for React, Preact and custom elements as subpath exports, so there is only one package to install and one reactive graph at runtime.
 
 ## Install
 
 ```bash
-npm install --save compostate
+npm i compostate
 ```
 
 ```bash
@@ -18,27 +20,45 @@ yarn add compostate
 pnpm add compostate
 ```
 
-## Concepts
+## Usage
 
-### Deriving signals
+```js
+import { atom, computed, syncEffect } from 'compostate';
 
-### Cleanups
+const count = atom(0);
+const doubled = computed(() => count() * 2);
 
-### Error Boundaries
+syncEffect(() => {
+  console.log('Doubled:', doubled());
+});
 
-### Context API
+count(1); // Logs 'Doubled: 2'
+```
 
-## Bindings
+## Entry points
 
-- [Web Components](https://github.com/lxsmnsyc/compostate/tree/main/packages/compostate-element)
-- [React](https://github.com/lxsmnsyc/compostate/tree/main/packages/react-compostate)
-- [Preact](https://github.com/lxsmnsyc/compostate/tree/main/packages/preact-compostate)
+| Import               | What it gives you                                     |
+| -------------------- | ----------------------------------------------------- |
+| `compostate`         | The reactive core and the concurrency helpers.        |
+| `compostate/react`   | `defineComponent` and `useCompostateSetup` for React. |
+| `compostate/preact`  | The same bindings for Preact.                         |
+| `compostate/element` | `define` and `setRenderer` for custom elements.       |
 
-### Coming Soon
+React and Preact are optional peer dependencies. Install only the one you use.
 
-- SolidJS
-- Svelte
-- Vue
+## Documentation
+
+- [Concepts](./docs/concepts.md) explains atoms, effects, cleanups, error boundaries and contexts.
+- [Concurrency](./docs/concurrency.md) covers resources, suspense and the `waitFor*` helpers.
+- [API reference](./docs/api.md) lists every export.
+- [React and Preact](./docs/react.md) covers the component bindings.
+- [Custom elements](./docs/custom-elements.md) covers the web component binding.
+
+## Examples
+
+- [Custom elements with Vite](./examples/compostate-element-vite)
+- [React with Vite](./examples/react-compostate-vite)
+- [Preact with Vite](./examples/preact-compostate-vite)
 
 ## License
 

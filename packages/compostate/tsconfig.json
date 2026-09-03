@@ -1,21 +1,24 @@
 {
-  "exclude": ["node_modules"],
-  "include": ["src", "types"],
+  "exclude": ["node_modules", "dist"],
+  "include": ["src", "test", "tsdown.config.ts", "vitest.config.ts"],
   "compilerOptions": {
     "module": "ESNext",
-    "lib": ["ESNext", "DOM"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["node"],
     "importHelpers": true,
     "declaration": true,
     "sourceMap": true,
-    "rootDir": "./src",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "moduleResolution": "node",
-    "jsx": "react",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
     "esModuleInterop": true,
-    "target": "es2018"
+    "skipLibCheck": true,
+    "target": "ESNext",
+    "useDefineForClassFields": false
   }
 }

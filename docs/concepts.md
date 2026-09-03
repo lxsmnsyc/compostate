@@ -77,7 +77,7 @@ const greeting = atom('Hello');
 const receiver = atom('Alexis');
 
 effect(() => {
-  // Since the evaluation is deferred, this effect will only 
+  // Since the evaluation is deferred, this effect will only
   // log after the synchronous code ends.
   console.log(`${greeting()}, ${receiver()}!`);
 });
@@ -117,12 +117,11 @@ Normally this is useful but there arises a problem: a derived signal may return 
 const message = atom('Hello');
 const length = () => message().length;
 
-
 syncEffect(() => {
   console.log('Length:', length()); // Length: 5
 });
 
-message('Aloha') // Logs again with Length: 5
+message('Aloha'); // Logs again with Length: 5
 ```
 
 To fix this problem, `computed` can be used in place of the derived signal.
@@ -133,13 +132,12 @@ import { computed } from 'compostate';
 const message = atom('Hello');
 const length = computed(() => message().length);
 
-
 syncEffect(() => {
   console.log('Length:', length()); // Length: 5
 });
 
-message('Aloha') // Logs nothing
-message('Bonjour') // Length: 7
+message('Aloha'); // Logs nothing
+message('Bonjour'); // Length: 7
 ```
 
 `computed` keeps track of the previously returned value and compares it with the new one, deciding if it should re-evaluate its dependents.
@@ -233,42 +231,54 @@ stop();
 
 Like any other code, user code in effects and computations may throw an error. Normal `try`-`catch` won't work in `compostate` since by the time a re-evaluation happen, the try block may have already been escaped.
 
-To solve this problem, `compostate` provides `errorBoundary` and `onError`.
+To solve this problem, `compostate` provides `errorBoundary`. It takes the code
+to run and a handler that receives any error thrown by the effects and
+computations created inside it.
 
 ```js
-import { errorBoundary, onError } from 'compostate';
+import { effect, errorBoundary } from 'compostate';
 
-errorBoundary(() => {
-  // Whenever the effect re-evaluation throws
-  // the error boundary will be able to receive it.
-  effect(() => doSomeUnsafeWork());
-}, (error) => {
-  console.error(error);
-});
+errorBoundary(
+  () => {
+    // Whenever the effect re-evaluation throws
+    // the error boundary will be able to receive it.
+    effect(() => doSomeUnsafeWork());
+  },
+  error => {
+    console.error(error);
+  },
+);
 ```
 
-If a given `onError` throws an error on itself, the thrown error and the received error is forwarded to a parent `errorBoundary`.
+An error boundary only catches errors from the effects and computations created
+inside it. An error thrown directly by its own callback is not caught.
+
+If the handler itself throws, both the new error and the original error are
+forwarded to the parent `errorBoundary`.
 
 If there's a callback that runs outside or uncaptured by `errorBoundary` (e.g. `setTimeout`) and you want the `errorBoundary` to capture it, you can use `captureError`:
 
 ```js
 import { captureError } from 'compostate';
 
-errorBoundary(() => {
-  const capture = captureError();
+errorBoundary(
+  () => {
+    const capture = captureError();
 
-  // Whenever the effect re-evaluation throws
-  // the error boundary will be able to receive it.
-  setTimeout(() => {
-    try {
-      doSomething();
-    } catch (error) {
-      capture(error);
-    }
-  })
-}, (error) => {
-  console.error(error);
-});
+    // Whenever the effect re-evaluation throws
+    // the error boundary will be able to receive it.
+    setTimeout(() => {
+      try {
+        doSomething();
+      } catch (error) {
+        capture(error);
+      }
+    });
+  },
+  error => {
+    console.error(error);
+  },
+);
 ```
 
 ## Contexts
@@ -276,7 +286,12 @@ errorBoundary(() => {
 `compostate` provides a way to inject values through function calls, effects and computations
 
 ```js
-import { contextual, createContext, writeContext, readContext } from 'compostate';
+import {
+  contextual,
+  createContext,
+  writeContext,
+  readContext,
+} from 'compostate';
 
 // Create a context instance with a default value
 const message = createContext('Hello World');
@@ -293,4 +308,47 @@ contextual(() => {
 
   log(); // 'Ohayo Sekai'
 });
+```
+
+## Scheduling
+
+`syncEffect` and `computed` run synchronously. `effect` and `deferred` run on an
+idle queue instead, so they can be interrupted by more urgent work.
+
+The queue is drained by `requestIdleCallback` when the host provides it, and by a
+macro task otherwise. Call `flushIdle` to drain it right away.
+
+```js
+import { atom, effect, flushIdle } from 'compostate';
+
+const count = atom(0);
+
+effect(() => {
+  console.log('Count:', count());
+});
+
+// Nothing has been logged yet.
+flushIdle(); // Logs 'Count: 0'
+```
+
+`flushIdle` is mostly useful in tests and on the server, where there is no idle
+time to wait for.
+
+## Pulses
+
+A pulse is a signal with no value. Reading it subscribes, and updating it
+notifies every subscriber. Use it when you need to invalidate a computation
+without storing anything.
+
+```js
+import { pulse, syncEffect } from 'compostate';
+
+const [track, update] = pulse();
+
+syncEffect(() => {
+  track();
+  console.log('Refreshed at', Date.now());
+});
+
+update(); // Logs again
 ```

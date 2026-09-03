@@ -2,8 +2,8 @@ import { ResourceNotReadyError } from '../core/suspense';
 
 export type UnwrapSignal<T> = T extends () => infer R ? R : never;
 
-type Result<T> =
-  | { type: 'pending' }
+export type Result<T> =
+  | { type: 'pending'; request: Promise<unknown> }
   | { type: 'success'; value: T }
   | { type: 'failure'; value: unknown };
 
@@ -12,7 +12,7 @@ export function toResult<T>(signal: () => T): Result<T> {
     return { type: 'success', value: signal() };
   } catch (error) {
     if (error instanceof ResourceNotReadyError) {
-      return { type: 'pending' };
+      return { type: 'pending', request: error.request };
     }
     return { type: 'failure', value: error };
   }
@@ -42,6 +42,11 @@ export type UnwrapSignals<T> = T extends [infer F, ...infer Rest]
     ? [UnwrapSignal<F>]
     : [];
 
+/**
+ * Reads every signal and only resolves once all of them have settled. Suspends
+ * while at least one of them is still pending, and throws an `AggregateError`
+ * when any of the settled signals failed.
+ */
 export function waitForAll<T extends (() => any)[]>(
   signals: T,
 ): UnwrapSignals<T> {
@@ -49,10 +54,11 @@ export function waitForAll<T extends (() => any)[]>(
 
   const values: unknown[] = [];
   const errors: unknown[] = [];
+  const pending: Promise<unknown>[] = [];
   for (let i = 0, len = results.length; i < len; i++) {
     const result = results[i];
     if (result.type === 'pending') {
-      throw new ResourceNotReadyError();
+      pending.push(result.request);
     }
     if (result.type === 'success') {
       values.push(result.value);
@@ -62,16 +68,24 @@ export function waitForAll<T extends (() => any)[]>(
     }
   }
 
+  if (pending.length > 0) {
+    throw new ResourceNotReadyError(Promise.all(pending));
+  }
   if (errors.length > 0) {
-    // TODO shim
     throw new AggregateError(errors);
   }
   return values as UnwrapSignals<T>;
 }
 
+/**
+ * Returns the value of the first signal that resolved successfully. Suspends
+ * while none of them succeeded and at least one is still pending, and throws an
+ * `AggregateError` once every signal has failed.
+ */
 export function waitForAny<T>(signals: (() => T)[]): T {
   const results = waitForNone<(() => T)[]>(signals);
   const errors: unknown[] = [];
+  const pending: Promise<unknown>[] = [];
   for (let i = 0, len = results.length; i < len; i++) {
     const result = results[i];
     if (result.type === 'success') {
@@ -80,16 +94,23 @@ export function waitForAny<T>(signals: (() => T)[]): T {
     if (result.type === 'failure') {
       errors.push(result.value);
     }
+    if (result.type === 'pending') {
+      pending.push(result.request);
+    }
   }
-  if (errors.length > 0) {
-    // TODO shim
-    throw new AggregateError(errors);
+  if (pending.length > 0) {
+    throw new ResourceNotReadyError(Promise.race(pending));
   }
-  throw new ResourceNotReadyError();
+  throw new AggregateError(errors);
 }
 
+/**
+ * Returns the value of the first signal that settled, whether it succeeded or
+ * failed. Suspends while every signal is still pending.
+ */
 export function waitForRace<T>(signals: (() => T)[]): T {
   const results = waitForNone<(() => T)[]>(signals);
+  const pending: Promise<unknown>[] = [];
   for (let i = 0, len = results.length; i < len; i++) {
     const result = results[i];
     if (result.type === 'success') {
@@ -98,6 +119,7 @@ export function waitForRace<T>(signals: (() => T)[]): T {
     if (result.type === 'failure') {
       throw result.value;
     }
+    pending.push(result.request);
   }
-  throw new ResourceNotReadyError();
+  throw new ResourceNotReadyError(Promise.race(pending));
 }

@@ -1,29 +1,27 @@
-import { defineComponent, onEffect } from 'react-compostate';
-import { ref } from 'compostate';
-import React from 'react';
+import { atom } from 'compostate';
+import { defineComponent, onEffect } from 'compostate/react';
+import type { JSX } from 'react';
 
 interface CounterMessageProps {
   value: number;
 }
 
-const CounterMessage = defineComponent<CounterMessageProps>((props) => {
+const CounterMessage = defineComponent<CounterMessageProps>(props => {
   onEffect(() => {
     console.log('Count: ', props.value);
   });
-  return () => (
-    <h1>{`Count: ${props.value}`}</h1>
-  );
+  return () => <h1>{`Count: ${props.value}`}</h1>;
 });
 
 const Counter = defineComponent(() => {
-  const count = ref(0);
+  const count = atom(0);
 
-  function increment() {
-    count.value += 1;
+  function increment(): void {
+    count(count() + 1);
   }
 
-  function decrement() {
-    count.value -= 1;
+  function decrement(): void {
+    count(count() - 1);
   }
 
   return () => (
@@ -34,7 +32,7 @@ const Counter = defineComponent(() => {
       <button type="button" onClick={decrement}>
         Decrement
       </button>
-      <CounterMessage value={count.value} />
+      <CounterMessage value={count()} />
     </>
   );
 });

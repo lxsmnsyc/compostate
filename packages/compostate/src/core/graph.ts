@@ -192,7 +192,7 @@ function cleanTrackers(node: Trackable): void {
   if (!(node.trackers && node.trackers.size)) {
     return;
   }
-  for (const tracker of [...node.trackers]) {
+  for (const tracker of node.trackers) {
     if (tracker.trackables) {
       tracker.trackables.delete(node);
     }
@@ -204,7 +204,7 @@ function cleanTrackables(node: Tracker): void {
   if (!(node.trackables && node.trackables.size)) {
     return;
   }
-  for (const trackable of [...node.trackables]) {
+  for (const trackable of node.trackables) {
     if (trackable.trackers) {
       trackable.trackers.delete(node);
     }
@@ -540,14 +540,16 @@ function updateResource<T>(node: ResourceNode<T>): void {
 function isTrackerDirty(node: Tracker): boolean {
   // Check if one of the trackables are dirty
   if (node.trackables && node.trackables.size) {
-    for (const trackable of [...node.trackables]) {
+    // Revalidating a trackable can clear this set, so walk over a snapshot.
+    const trackables = Array.from(node.trackables);
+    for (const trackable of trackables) {
       if (trackable.parent.type === NodeType.Computed) {
         revalidateComputedNode(trackable.parent);
       }
       if (trackable.parent.type === NodeType.Resource) {
         revalidateResourceNode(trackable.parent);
       }
-      if ((node as any).state === State.Dirty) {
+      if (node.state === State.Dirty) {
         return true;
       }
     }
