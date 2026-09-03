@@ -1,25 +1,24 @@
 {
   "name": "preact-compostate-vite",
   "version": "0.5.1",
+  "private": true,
+  "type": "module",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "compostate": "0.5.1",
-    "preact": "^10.7.2",
-    "preact-compostate": "0.5.1"
+    "compostate": "workspace:*",
+    "preact": "^10.29.8"
   },
   "devDependencies": {
-    "@preact/preset-vite": "^2.3.0",
-    "eslint": "^8.22.0",
-    "eslint-config-lxsmnsyc": "^0.4.8",
-    "typescript": "^4.7.4",
-    "vite": "^3.0.9"
-  },
-  "private": true,
-  "publishConfig": {
-    "access": "restricted"
+    "@preact/preset-vite": "^2.10.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.0.16"
   }
 }

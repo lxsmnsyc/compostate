@@ -1,0 +1,30 @@
+{
+  "$schema": "https://oxc.rs/schema/oxlintrc.json",
+  "plugins": ["import", "typescript", "unicorn"],
+  "options": {
+    "typeAware": true
+  },
+  "rules": {
+    "no-console": "off",
+    "eqeqeq": "error",
+    "no-implicit-coercion": "error",
+    "typescript/no-unused-vars": "off",
+    "typescript/no-explicit-any": "off",
+    "typescript/consistent-type-imports": "off",
+    "import/no-duplicates": "error",
+    "unicorn/no-null": "off",
+    "unicorn/prefer-module": "off",
+
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/await-thenable": "error",
+    "typescript/no-unnecessary-condition": "off"
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/*.d.ts"
+  ]
+}
