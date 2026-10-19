@@ -1,4 +1,7 @@
-# Concurrency
+---
+title: Concurrency
+description: Resources, suspense and the waitFor helpers for async values.
+---
 
 ## Resources
 
@@ -23,6 +26,10 @@ Reading a resource has three outcomes.
 
 The thrown `ResourceNotReadyError` carries the pending promise on its `request`
 property, so a caller can wait for it.
+
+:::demo resource
+The effect reads the resource through `toResult`, so it sees the pending state instead of a thrown error.
+:::
 
 ## Suspense
 

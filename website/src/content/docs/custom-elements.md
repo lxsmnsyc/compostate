@@ -1,4 +1,7 @@
-# Custom elements
+---
+title: Custom elements
+description: Define web components whose state lives in compostate.
+---
 
 `compostate/element` defines custom elements whose rendering is driven by
 compostate.

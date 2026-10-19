@@ -1,4 +1,7 @@
-# Concepts
+---
+title: Concepts
+description: Atoms, effects, derived values, batching, cleanups, error boundaries and contexts.
+---
 
 ## Signals and Atoms
 
@@ -140,12 +143,16 @@ message('Aloha'); // Logs nothing
 message('Bonjour'); // Length: 7
 ```
 
+:::demo computed
+The effect reruns only when `length()` returns a new number. Typing a letter in place of another changes nothing it reads.
+:::
+
 `computed` keeps track of the previously returned value and compares it with the new one, deciding if it should re-evaluate its dependents.
 
-> **INFO**
+> [!NOTE]
 > `computed` signals are lazy: it only evaluates when read and only if its dependencies has updated.
 
-> **INFO**
+> [!NOTE]
 > Errors thrown in `computed` are memoized and will be thrown every time it is read until it re-evaluates.
 
 ## Batching updates
@@ -174,6 +181,10 @@ batch(() => {
   receiver('Compostate'); // Update deferred
 }); // 'Bonjour, Compostate!'
 ```
+
+:::demo batching
+Without a batch the effect sees the first write before the second one lands. With one, it runs once with both.
+:::
 
 Do take note that in batching, writes are already applied, only the re-evaluation is deferred.
 
@@ -209,6 +220,10 @@ const stop = syncEffect(() => {
 // ...
 stop();
 ```
+
+:::demo cleanup
+Each run joins a room, and its cleanup leaves it. Stopping the effect runs the last cleanup.
+:::
 
 Tracking calls are cleanup boundaries, and tracking calls are also cleaned up by their parent cleanup boundaries, so if, for example, an effect is declared inside another effect, the nested effect is stopped when the parent effect is also stopped.
 

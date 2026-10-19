@@ -1,4 +1,7 @@
-# React and Preact
+---
+title: React and Preact
+description: Use compostate setups as React and Preact components.
+---
 
 `compostate/react` and `compostate/preact` expose the same API. Import from the
 one that matches your renderer.

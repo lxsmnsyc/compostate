@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "examples/*"
+    "examples/*",
+    "website"
   ],
   "type": "module",
   "scripts": {
@@ -16,7 +17,9 @@
     "format:check": "oxfmt --check .",
     "cs:add": "changeset add",
     "cs:ver": "changeset version",
-    "cs:pub": "pnpm run build && changeset publish"
+    "cs:pub": "pnpm run build && changeset publish",
+    "website:dev": "pnpm --filter compostate-website run dev",
+    "website:build": "pnpm run build && pnpm --filter compostate-website run build"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.1",

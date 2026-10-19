@@ -48,11 +48,11 @@ React and Preact are optional peer dependencies. Install only the one you use.
 
 ## Documentation
 
-- [Concepts](./docs/concepts.md) explains atoms, effects, cleanups, error boundaries and contexts.
-- [Concurrency](./docs/concurrency.md) covers resources, suspense and the `waitFor*` helpers.
-- [API reference](./docs/api.md) lists every export.
-- [React and Preact](./docs/react.md) covers the component bindings.
-- [Custom elements](./docs/custom-elements.md) covers the web component binding.
+- [Concepts](./website/src/content/docs/concepts.md) explains atoms, effects, cleanups, error boundaries and contexts.
+- [Concurrency](./website/src/content/docs/concurrency.md) covers resources, suspense and the `waitFor*` helpers.
+- [API reference](./website/src/content/docs/api.md) lists every export.
+- [React and Preact](./website/src/content/docs/react.md) covers the component bindings.
+- [Custom elements](./website/src/content/docs/custom-elements.md) covers the web component binding.
 
 ## Examples
 

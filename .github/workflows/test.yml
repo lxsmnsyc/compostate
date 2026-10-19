@@ -25,3 +25,5 @@ jobs:
       - run: pnpm run type-check
       - run: pnpm run build
       - run: pnpm run test
+      - run: pnpm --filter compostate-website run type-check
+      - run: pnpm --filter compostate-website run build

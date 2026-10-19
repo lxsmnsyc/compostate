@@ -1,4 +1,7 @@
-# API reference
+---
+title: API reference
+description: Every export of compostate, grouped by what it does.
+---
 
 Everything on this page is exported from `compostate`.
 
