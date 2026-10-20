@@ -1,13 +1,13 @@
-import { onEffect, useCompostateSetup } from 'react-compostate';
-import { ref } from 'compostate';
-import React from 'react';
+import { atom } from 'compostate';
+import { onEffect, useCompostateSetup } from 'compostate/react';
+import type { JSX } from 'react';
 
 interface CounterMessageProps {
   value: number;
 }
 
 function CounterMessage(props: CounterMessageProps): JSX.Element {
-  const { value } = useCompostateSetup((reactiveProps) => {
+  const { value } = useCompostateSetup(reactiveProps => {
     onEffect(() => {
       console.log('Count: ', reactiveProps.value);
     });
@@ -16,31 +16,29 @@ function CounterMessage(props: CounterMessageProps): JSX.Element {
       value: reactiveProps.value,
     });
   }, props);
-  return (
-    <h1>{`Count: ${value}`}</h1>
-  );
+  return <h1>{`Count: ${value}`}</h1>;
 }
 
 function Counter(): JSX.Element {
   const counter = useCompostateSetup(() => {
-    const count = ref(0);
+    const count = atom(0);
 
     onEffect(() => {
-      console.log('Count: ', count.value);
+      console.log('Count: ', count());
     });
 
-    function increment() {
-      count.value += 1;
+    function increment(): void {
+      count(count() + 1);
     }
 
-    function decrement() {
-      count.value -= 1;
+    function decrement(): void {
+      count(count() - 1);
     }
 
     return () => ({
       increment,
       decrement,
-      value: count.value,
+      value: count(),
     });
   }, {});
 
@@ -57,7 +55,7 @@ function Counter(): JSX.Element {
   );
 }
 
-export default function App2(): JSX.Element {
+export default function App3(): JSX.Element {
   return (
     <>
       <h1>

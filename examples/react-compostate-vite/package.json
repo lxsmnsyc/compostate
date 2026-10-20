@@ -1,28 +1,27 @@
 {
   "name": "react-compostate-vite",
   "version": "0.5.1",
+  "private": true,
+  "type": "module",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "compostate": "0.5.1",
-    "react": "^18.1.0",
-    "react-compostate": "0.5.1",
-    "react-dom": "^18.1.0"
+    "compostate": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@types/react": "^18.0.9",
-    "@types/react-dom": "^18.0.4",
-    "@vitejs/plugin-react": "^1.3.2",
-    "eslint": "^8.22.0",
-    "eslint-config-lxsmnsyc": "^0.4.8",
-    "typescript": "^4.7.4",
-    "vite": "^3.0.9"
-  },
-  "private": true,
-  "publishConfig": {
-    "access": "restricted"
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^5.1.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.0.16"
   }
 }

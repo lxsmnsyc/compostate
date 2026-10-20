@@ -6,4 +6,6 @@ render(
   <>
     <App2 />
     <App3 />
-  </>, document.getElementById('app')!);
+  </>,
+  document.getElementById('app')!,
+);

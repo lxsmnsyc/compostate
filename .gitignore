@@ -104,3 +104,5 @@ dist
 .tern-port
 .parcel-cache
 lib
+# Site source, not build output.
+!website/src/lib/
