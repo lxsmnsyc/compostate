@@ -8,8 +8,7 @@ const ts = typescript();
 const jsx = tsx();
 const shell = bash();
 
-// The JavaScript grammars are supersets of each other, so the TypeScript and
-// TSX ones cover plain JavaScript and JSX too.
+// The TypeScript and TSX grammars also highlight `js` and `jsx` code blocks.
 const LANGUAGES: Partial<Record<string, Highlighter>> = {
   js: ts,
   ts,

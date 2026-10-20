@@ -40,7 +40,7 @@ export interface SearchEntry {
 }
 
 const LANGUAGE_LABELS: Partial<Record<string, string>> = {
-  js: 'JavaScript',
+  js: 'JS',
   ts: 'TypeScript',
   jsx: 'JSX',
   tsx: 'TSX',

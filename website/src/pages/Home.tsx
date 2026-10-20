@@ -174,7 +174,7 @@ export default function Home(): JSX.Element {
           <strong>custom elements</strong>
         </p>
         <h1 class="hero-title">
-          State that knows <span class="gradient-text">what reads it.</span>
+          Fine-grained <span class="gradient-text">reactive state.</span>
         </h1>
         <p class="hero-lead">
           compostate is a small reactive core built on atoms, computed values
@@ -193,10 +193,10 @@ export default function Home(): JSX.Element {
 
       <section class="section">
         <div class="section-heading">
-          <h2>Run at build time, shown as it ran</h2>
+          <h2>What each write reruns</h2>
           <p>
-            The console output below came from running each example against
-            compostate when this page was built.
+            Each example shows its code and what it logs. Pick a tab to see how
+            computed values, batching and cleanups change what runs.
           </p>
         </div>
         <Showcase />
