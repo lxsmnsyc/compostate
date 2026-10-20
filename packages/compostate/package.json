@@ -1,6 +1,6 @@
 {
   "name": "compostate",
-  "version": "0.5.1",
+  "version": "1.0.0",
   "private": false,
   "description": "Composable and reactive state management library",
   "keywords": [
