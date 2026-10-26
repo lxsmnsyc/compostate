@@ -3,5 +3,8 @@
   "installCommand": "npm i -g pnpm@12.7.0 && pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --filter compostate build && pnpm build",
   "outputDirectory": "dist",
+  "git": {
+    "deploymentEnabled": { "**": false, "main": true }
+  },
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
