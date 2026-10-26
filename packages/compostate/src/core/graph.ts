@@ -50,23 +50,34 @@ export type ReactiveNode<T> = TrackableNode<T> | TrackerNode<T>;
 export class Trackable {
   alive = true;
   version = 0;
-  trackers: Set<Tracker> | undefined = undefined;
+  // Links to the trackers subscribed to this trackable.
+  firstTracker: Link | undefined = undefined;
+  lastTracker: Link | undefined = undefined;
   constructor(public parent: TrackableNode<any>) {}
+}
+
+// An edge between a trackable and a tracker. It sits in two lists: the
+// trackable's trackers and the tracker's trackables.
+export class Link {
+  prevTracker: Link | undefined = undefined;
+  nextTracker: Link | undefined = undefined;
+  nextTrackable: Link | undefined = undefined;
+  constructor(
+    public trackable: Trackable,
+    public tracker: Tracker,
+    // The trackable's version when the tracker last read it.
+    public version: number,
+  ) {}
 }
 
 export class Tracker {
   alive = true;
   state: State = State.Uninitialized;
   running = false;
-  // Trackables read by the last run, in read order, and the version of each
-  // one at the time it was read.
-  trackables: Trackable[] | undefined = undefined;
-  versions: number[] | undefined = undefined;
-  // While running: how many leading trackables matched the last run...
-  trackedIndex = 0;
-  // ...and the trackables read after the first mismatch.
-  newTrackables: Trackable[] | undefined = undefined;
-  newVersions: number[] | undefined = undefined;
+  // Links to the trackables read by the last run, in read order.
+  firstTrackable: Link | undefined = undefined;
+  // While running: the last link that this run has read.
+  cursor: Link | undefined = undefined;
   schedule: Cleanup | undefined = undefined;
   cleanup: CleanupBoundary | undefined = undefined;
 
@@ -170,116 +181,98 @@ export class EffectNode {
   }
 }
 
-function addTracker(node: Trackable, tracker: Tracker): void {
-  if (!node.trackers) {
-    node.trackers = new Set();
+function subscribe(link: Link): void {
+  const trackable = link.trackable;
+  link.prevTracker = trackable.lastTracker;
+  if (trackable.lastTracker) {
+    trackable.lastTracker.nextTracker = link;
+  } else {
+    trackable.firstTracker = link;
   }
-  node.trackers.add(tracker);
+  trackable.lastTracker = link;
+}
+
+function unsubscribe(link: Link): void {
+  const trackable = link.trackable;
+  // Dead trackables drop their trackers all at once.
+  if (!trackable.alive) {
+    return;
+  }
+  if (link.prevTracker) {
+    link.prevTracker.nextTracker = link.nextTracker;
+  } else {
+    trackable.firstTracker = link.nextTracker;
+  }
+  if (link.nextTracker) {
+    link.nextTracker.prevTracker = link.prevTracker;
+  } else {
+    trackable.lastTracker = link.prevTracker;
+  }
 }
 
 function addTrackable(node: Tracker, trackable: Trackable): void {
+  const cursor = node.cursor;
+  // Same trackable read twice in a row.
+  if (cursor && cursor.trackable === trackable) {
+    cursor.version = trackable.version;
+    return;
+  }
   // Most runs read the same trackables in the same order, so compare against
   // the previous run instead of resubscribing everything.
-  if (node.newTrackables) {
-    const last = node.newTrackables.length - 1;
-    if (node.newTrackables[last] === trackable) {
-      node.newVersions![last] = trackable.version;
-    } else {
-      node.newTrackables.push(trackable);
-      node.newVersions!.push(trackable.version);
-    }
-  } else if (
-    node.trackables &&
-    node.trackables[node.trackedIndex] === trackable
-  ) {
-    node.versions![node.trackedIndex++] = trackable.version;
-  } else if (
-    node.trackedIndex &&
-    node.trackables![node.trackedIndex - 1] === trackable
-  ) {
-    node.versions![node.trackedIndex - 1] = trackable.version;
-  } else {
-    node.newTrackables = [trackable];
-    node.newVersions = [trackable.version];
+  const next = cursor ? cursor.nextTrackable : node.firstTrackable;
+  if (next && next.trackable === trackable) {
+    next.version = trackable.version;
+    node.cursor = next;
+    return;
   }
+  const link = new Link(trackable, node, trackable.version);
+  link.nextTrackable = next;
+  if (cursor) {
+    cursor.nextTrackable = link;
+  } else {
+    node.firstTrackable = link;
+  }
+  node.cursor = link;
+  subscribe(link);
 }
 
 function startTracking(node: Tracker): void {
   node.running = true;
-  node.trackedIndex = 0;
-  node.newTrackables = undefined;
-  node.newVersions = undefined;
+  node.cursor = undefined;
 }
 
 function endTracking(node: Tracker): void {
-  const trackables = node.trackables;
-  const versions = node.versions;
-  const newTrackables = node.newTrackables;
-  const newVersions = node.newVersions;
-  const index = node.trackedIndex;
+  const cursor = node.cursor;
   node.running = false;
-  node.newTrackables = undefined;
-  node.newVersions = undefined;
-  let removed = false;
-  if (trackables) {
-    for (let i = index; i < trackables.length; i++) {
-      const trackers = trackables[i].trackers;
-      if (trackers) {
-        trackers.delete(node);
-        removed = true;
-      }
-    }
-    if (index < trackables.length) {
-      trackables.length = index;
-      versions!.length = index;
-    }
-    if (removed) {
-      // A removed trackable may still be read earlier in this run.
-      for (let i = 0; i < index; i++) {
-        addTracker(trackables[i], node);
-      }
-    }
-  }
-  if (newTrackables) {
-    let changed = false;
-    for (let i = 0; i < newTrackables.length; i++) {
-      addTracker(newTrackables[i], node);
-      // These were not subscribed while running, so catch writes made since
-      // they were read.
-      changed ||= newTrackables[i].version !== newVersions![i];
-    }
-    if (trackables && index) {
-      for (let i = 0; i < newTrackables.length; i++) {
-        trackables.push(newTrackables[i]);
-        versions!.push(newVersions![i]);
-      }
+  node.cursor = undefined;
+  // Links after the cursor were not read by this run.
+  let link = cursor ? cursor.nextTrackable : node.firstTrackable;
+  if (link) {
+    if (cursor) {
+      cursor.nextTrackable = undefined;
     } else {
-      node.trackables = newTrackables;
-      node.versions = newVersions;
+      node.firstTrackable = undefined;
     }
-    if (changed) {
-      batch(markTracker.bind(null, node, State.Dirty));
+    while (link) {
+      unsubscribe(link);
+      link = link.nextTrackable;
     }
   }
 }
 
 function cleanTrackers(node: Trackable): void {
-  // Trackers keep the dead trackable in their list until their next run,
+  // Trackers keep their links to the dead trackable until their next run,
   // which is harmless since dead trackables are never revalidated or tracked.
-  node.trackers = undefined;
+  node.firstTracker = undefined;
+  node.lastTracker = undefined;
 }
 
 function cleanTrackables(node: Tracker): void {
-  const trackables = node.trackables;
-  if (trackables) {
-    for (let i = 0; i < trackables.length; i++) {
-      const trackers = trackables[i].trackers;
-      if (trackers) {
-        trackers.delete(node);
-      }
-    }
-    node.trackables = undefined;
-    node.versions = undefined;
+  let link = node.firstTrackable;
+  node.firstTrackable = undefined;
+  while (link) {
+    unsubscribe(link);
+    link = link.nextTrackable;
   }
 }
 
@@ -344,11 +337,11 @@ function markTracker(tracker: Tracker, state: State): void {
 }
 
 function notifyTrackers(node: Trackable, state: State): void {
-  if (!(node.alive && node.trackers && node.trackers.size)) {
+  if (!node.alive) {
     return;
   }
-  for (const tracker of node.trackers) {
-    markTracker(tracker, state);
+  for (let link = node.firstTracker; link; link = link.nextTracker) {
+    markTracker(link.tracker, state);
   }
 }
 
@@ -632,21 +625,17 @@ function updateResource<T>(node: ResourceNode<T>): void {
 
 function isTrackerDirty(node: Tracker): boolean {
   // Check if one of the trackables are dirty
-  const trackables = node.trackables;
-  const versions = node.versions;
-  if (trackables) {
-    for (let i = 0; i < trackables.length; i++) {
-      const trackable = trackables[i];
-      const parent = trackable.parent;
-      if (parent.type === NodeType.Computed) {
-        revalidateComputedNode(parent);
-      } else if (parent.type === NodeType.Resource) {
-        revalidateResourceNode(parent);
-      }
-      if (node.state === State.Dirty || trackable.version !== versions![i]) {
-        node.state = State.Dirty;
-        return true;
-      }
+  for (let link = node.firstTrackable; link; link = link.nextTrackable) {
+    const trackable = link.trackable;
+    const parent = trackable.parent;
+    if (parent.type === NodeType.Computed) {
+      revalidateComputedNode(parent);
+    } else if (parent.type === NodeType.Resource) {
+      revalidateResourceNode(parent);
+    }
+    if (node.state === State.Dirty || trackable.version !== link.version) {
+      node.state = State.Dirty;
+      return true;
     }
   }
   node.state = State.Clean;

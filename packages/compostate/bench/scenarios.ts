@@ -196,4 +196,41 @@ export const scenarios: Scenario[] = [
       });
     },
   },
+  {
+    name: 'shared source, 1k subscribers created and disposed',
+    setup() {
+      return scoped(() => {
+        const source = atom(0);
+        return () => {
+          const dispose = batchCleanup(() => {
+            for (let i = 0; i < 1000; i++) {
+              computed(() => source() + i)();
+            }
+          });
+          dispose();
+        };
+      });
+    },
+  },
+  {
+    name: 'dynamic deps toggle (2 x 200 atoms)',
+    setup() {
+      return scoped(() => {
+        const [flag, setFlag] = signal(true);
+        const a = Array.from({ length: 200 }, (_, i) => atom(i));
+        const b = Array.from({ length: 200 }, (_, i) => atom(i));
+        const c = computed(() => {
+          let s = 0;
+          for (const x of flag() ? a : b) s += x();
+          return s;
+        });
+        syncEffect(() => {
+          c();
+        });
+        return () => {
+          setFlag(v => !v);
+        };
+      });
+    },
+  },
 ];
