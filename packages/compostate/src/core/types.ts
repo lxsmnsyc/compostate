@@ -70,7 +70,7 @@ export type Cleanup = () => void;
 
 export interface CleanupBoundary {
   alive: boolean;
-  cleanups: Set<Cleanup> | undefined;
+  cleanups: Cleanup[] | undefined;
 }
 
 export type ErrorHandler = (error: unknown) => void;
@@ -87,7 +87,7 @@ export interface SuspenseBoundary {
 }
 
 export interface BatchedUpdates {
-  effects: Set<EffectNode> | undefined;
+  effects: EffectNode[] | undefined;
 }
 
 export type Computation<T> = (prev: Ref<T> | undefined) => T;

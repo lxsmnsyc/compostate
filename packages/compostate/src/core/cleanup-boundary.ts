@@ -9,21 +9,24 @@ import type { Cleanup, CleanupBoundary, Effect } from './types';
 
 function addCleanup(instance: CleanupBoundary, cleanup: Cleanup): void {
   // so it's easier to change
-  if (!instance.cleanups) {
-    instance.cleanups = new Set();
+  if (instance.cleanups) {
+    instance.cleanups.push(cleanup);
+  } else {
+    instance.cleanups = [cleanup];
   }
-  instance.cleanups.add(cleanup);
 }
 
-function runCleanup(this: CleanupBoundary): void {
-  if (this.alive) {
-    this.alive = false;
+export function runCleanupBoundary(instance: CleanupBoundary): void {
+  if (instance.alive) {
+    instance.alive = false;
 
-    if (this.cleanups && this.cleanups.size) {
+    const cleanups = instance.cleanups;
+    if (cleanups) {
+      instance.cleanups = undefined;
       const parent = pushTracker(undefined);
       try {
-        for (const cleanup of this.cleanups) {
-          cleanup();
+        for (let i = 0; i < cleanups.length; i++) {
+          cleanups[i]();
         }
       } finally {
         popTracker(parent);
@@ -40,11 +43,15 @@ export function onCleanup(callback: Cleanup): Cleanup {
   return callback;
 }
 
-export function batchCleanup(callback: Effect): Effect {
-  const boundary: CleanupBoundary = {
+export function createCleanupBoundary(): CleanupBoundary {
+  return {
     alive: true,
     cleanups: undefined,
   };
+}
+
+export function batchCleanup(callback: Effect): Effect {
+  const boundary = createCleanupBoundary();
   const parent = pushCleanupBoundary(boundary);
   try {
     callback();
@@ -52,7 +59,7 @@ export function batchCleanup(callback: Effect): Effect {
     popCleanupBoundary(parent);
   }
 
-  return onCleanup(runCleanup.bind(boundary));
+  return onCleanup(runCleanupBoundary.bind(null, boundary));
 }
 
 export function unbatchCleanup<T>(callback: () => T): T {
