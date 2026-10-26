@@ -67,6 +67,8 @@ export class Link {
     public tracker: Tracker,
     // The trackable's version when the tracker last read it.
     public version: number,
+    // The tracker's run that last read the trackable through this link.
+    public run: number,
   ) {}
 }
 
@@ -78,6 +80,8 @@ export class Tracker {
   firstTrackable: Link | undefined = undefined;
   // While running: the last link that this run has read.
   cursor: Link | undefined = undefined;
+  // Counts the runs, so a link can tell whether the current run read it.
+  run = 0;
   schedule: Cleanup | undefined = undefined;
   cleanup: CleanupBoundary | undefined = undefined;
 
@@ -222,10 +226,19 @@ function addTrackable(node: Tracker, trackable: Trackable): void {
   const next = cursor ? cursor.nextTrackable : node.firstTrackable;
   if (next && next.trackable === trackable) {
     next.version = trackable.version;
+    next.run = node.run;
     node.cursor = next;
     return;
   }
-  const link = new Link(trackable, node, trackable.version);
+  // Same trackable read earlier in this run, with other reads in between.
+  // Only a link from this run is reused: an older one may sit after the
+  // cursor, and endTracking would unsubscribe it.
+  const last = trackable.lastTracker;
+  if (last && last.tracker === node && last.run === node.run) {
+    last.version = trackable.version;
+    return;
+  }
+  const link = new Link(trackable, node, trackable.version, node.run);
   link.nextTrackable = next;
   if (cursor) {
     cursor.nextTrackable = link;
@@ -239,6 +252,7 @@ function addTrackable(node: Tracker, trackable: Trackable): void {
 function startTracking(node: Tracker): void {
   node.running = true;
   node.cursor = undefined;
+  node.run++;
 }
 
 function endTracking(node: Tracker): void {

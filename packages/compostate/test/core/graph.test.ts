@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { atom, computed, onCleanup, syncEffect } from '../../src';
+import type { Trackable } from '../../src/core/graph';
+import { AtomNode, readAtomNode, writeAtomNode } from '../../src/core/graph';
+
+function countTrackers(trackable: Trackable): number {
+  let count = 0;
+  for (let link = trackable.firstTracker; link; link = link.nextTracker) {
+    count++;
+  }
+  return count;
+}
 
 describe('dependency graph', () => {
   it('recomputes when a direct dependency changes but an intermediate computed does not', () => {
@@ -117,5 +127,26 @@ describe('dependency graph', () => {
       }
     });
     expect(active).toBe(1);
+  });
+
+  it('keeps one link for a dependency read many times in a run', () => {
+    const config = new AtomNode(1);
+    const items = Array.from({ length: 100 }, (_, i) => new AtomNode(i));
+    let runs = 0;
+    syncEffect(() => {
+      runs++;
+      for (const item of items) {
+        readAtomNode(config);
+        readAtomNode(item);
+      }
+    });
+    expect(countTrackers(config.trackable)).toBe(1);
+    writeAtomNode(config, 2);
+    expect(runs).toBe(2);
+    expect(countTrackers(config.trackable)).toBe(1);
+    writeAtomNode(items[50], 0);
+    expect(runs).toBe(3);
+    expect(countTrackers(config.trackable)).toBe(1);
+    expect(countTrackers(items[50].trackable)).toBe(1);
   });
 });

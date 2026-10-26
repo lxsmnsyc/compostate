@@ -166,6 +166,24 @@ export const scenarios: Scenario[] = [
     },
   },
   {
+    name: 'repeated reads (1 shared atom read 1k times per run)',
+    setup() {
+      return scoped(() => {
+        const config = atom(1);
+        const items = Array.from({ length: 1000 }, (_, i) => atom(i));
+        syncEffect(() => {
+          let s = 0;
+          for (const item of items) s += config() * item();
+          return s;
+        });
+        let i = 0;
+        return () => {
+          config(++i);
+        };
+      });
+    },
+  },
+  {
     name: 'cached computed reads (no changes)',
     setup() {
       return scoped(() => {
