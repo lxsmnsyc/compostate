@@ -1,4 +1,4 @@
-import { batchCleanup } from './cleanup-boundary';
+import { createCleanupBoundary, runCleanupBoundary } from './cleanup-boundary';
 import { IS_EQUAL } from './constants';
 import { handleError } from './error-boundary';
 import {
@@ -25,6 +25,7 @@ import { ResourceNotReadyError, handleSuspense } from './suspense';
 import type {
   BatchedUpdates,
   Cleanup,
+  CleanupBoundary,
   Computation,
   ContextTree,
   Effect,
@@ -46,33 +47,43 @@ export type TrackerNode<T> = ComputedNode<T> | ResourceNode<T> | EffectNode;
 
 export type ReactiveNode<T> = TrackableNode<T> | TrackerNode<T>;
 
-let TRACKABLE_ID = 0;
-
-function getTrackableId(): number {
-  return TRACKABLE_ID++;
-}
-
 export class Trackable {
-  id = getTrackableId();
   alive = true;
   version = 0;
-  trackers: Set<Tracker> | undefined = undefined;
+  // Links to the trackers subscribed to this trackable.
+  firstTracker: Link | undefined = undefined;
+  lastTracker: Link | undefined = undefined;
   constructor(public parent: TrackableNode<any>) {}
 }
 
-let TRACKER_ID = 0;
-
-function getTrackerID(): number {
-  return TRACKER_ID++;
+// An edge between a trackable and a tracker. It sits in two lists: the
+// trackable's trackers and the tracker's trackables.
+export class Link {
+  prevTracker: Link | undefined = undefined;
+  nextTracker: Link | undefined = undefined;
+  nextTrackable: Link | undefined = undefined;
+  constructor(
+    public trackable: Trackable,
+    public tracker: Tracker,
+    // The trackable's version when the tracker last read it.
+    public version: number,
+    // The tracker's run that last read the trackable through this link.
+    public run: number,
+  ) {}
 }
 
 export class Tracker {
-  id = getTrackerID();
   alive = true;
   state: State = State.Uninitialized;
-  trackables: Set<Trackable> | undefined = undefined;
+  running = false;
+  // Links to the trackables read by the last run, in read order.
+  firstTrackable: Link | undefined = undefined;
+  // While running: the last link that this run has read.
+  cursor: Link | undefined = undefined;
+  // Counts the runs, so a link can tell whether the current run read it.
+  run = 0;
   schedule: Cleanup | undefined = undefined;
-  cleanup: Cleanup | undefined = undefined;
+  cleanup: CleanupBoundary | undefined = undefined;
 
   constructor(
     public parent: TrackerNode<any>,
@@ -174,43 +185,109 @@ export class EffectNode {
   }
 }
 
-function addTrackable(node: Tracker, trackable: Trackable): void {
-  if (!node.trackables) {
-    node.trackables = new Set();
+function subscribe(link: Link): void {
+  const trackable = link.trackable;
+  link.prevTracker = trackable.lastTracker;
+  if (trackable.lastTracker) {
+    trackable.lastTracker.nextTracker = link;
+  } else {
+    trackable.firstTracker = link;
   }
-  node.trackables.add(trackable);
+  trackable.lastTracker = link;
 }
 
-function addTracker(node: Trackable, tracker: Tracker): void {
-  if (!node.trackers) {
-    node.trackers = new Set();
+function unsubscribe(link: Link): void {
+  const trackable = link.trackable;
+  // Dead trackables drop their trackers all at once.
+  if (!trackable.alive) {
+    return;
   }
-  node.trackers.add(tracker);
+  if (link.prevTracker) {
+    link.prevTracker.nextTracker = link.nextTracker;
+  } else {
+    trackable.firstTracker = link.nextTracker;
+  }
+  if (link.nextTracker) {
+    link.nextTracker.prevTracker = link.prevTracker;
+  } else {
+    trackable.lastTracker = link.prevTracker;
+  }
+}
+
+function addTrackable(node: Tracker, trackable: Trackable): void {
+  const cursor = node.cursor;
+  // Same trackable read twice in a row.
+  if (cursor && cursor.trackable === trackable) {
+    cursor.version = trackable.version;
+    return;
+  }
+  // Most runs read the same trackables in the same order, so compare against
+  // the previous run instead of resubscribing everything.
+  const next = cursor ? cursor.nextTrackable : node.firstTrackable;
+  if (next && next.trackable === trackable) {
+    next.version = trackable.version;
+    next.run = node.run;
+    node.cursor = next;
+    return;
+  }
+  // Same trackable read earlier in this run, with other reads in between.
+  // Only a link from this run is reused: an older one may sit after the
+  // cursor, and endTracking would unsubscribe it.
+  const last = trackable.lastTracker;
+  if (last && last.tracker === node && last.run === node.run) {
+    last.version = trackable.version;
+    return;
+  }
+  const link = new Link(trackable, node, trackable.version, node.run);
+  link.nextTrackable = next;
+  if (cursor) {
+    cursor.nextTrackable = link;
+  } else {
+    node.firstTrackable = link;
+  }
+  node.cursor = link;
+  subscribe(link);
+}
+
+function startTracking(node: Tracker): void {
+  node.running = true;
+  node.cursor = undefined;
+  node.run++;
+}
+
+function endTracking(node: Tracker): void {
+  const cursor = node.cursor;
+  node.running = false;
+  node.cursor = undefined;
+  // Links after the cursor were not read by this run.
+  let link = cursor ? cursor.nextTrackable : node.firstTrackable;
+  if (link) {
+    if (cursor) {
+      cursor.nextTrackable = undefined;
+    } else {
+      node.firstTrackable = undefined;
+    }
+    while (link) {
+      unsubscribe(link);
+      link = link.nextTrackable;
+    }
+  }
 }
 
 function cleanTrackers(node: Trackable): void {
-  if (!(node.trackers && node.trackers.size)) {
-    return;
-  }
-  for (const tracker of node.trackers) {
-    if (tracker.trackables) {
-      tracker.trackables.delete(node);
-    }
-  }
-  node.trackers.clear();
+  // Trackers keep their links to the dead trackable until their next run,
+  // which is harmless since dead trackables are never revalidated or tracked.
+  node.firstTracker = undefined;
+  node.lastTracker = undefined;
 }
 
 function cleanTrackables(node: Tracker): void {
-  if (!(node.trackables && node.trackables.size)) {
-    return;
+  let link = node.firstTrackable;
+  node.firstTrackable = undefined;
+  while (link) {
+    unsubscribe(link);
+    link = link.nextTrackable;
   }
-  for (const trackable of node.trackables) {
-    if (trackable.trackers) {
-      trackable.trackers.delete(node);
-    }
-  }
-
-  node.trackables.clear();
 }
 
 export function destroyTrackable(instance: Trackable): void {
@@ -224,7 +301,7 @@ export function destroyTracker(instance: Tracker): void {
   if (instance.alive) {
     instance.alive = false;
     if (instance.cleanup) {
-      instance.cleanup();
+      runCleanupBoundary(instance.cleanup);
     }
     cleanTrackables(instance);
   }
@@ -252,28 +329,33 @@ export function destroyResourceNode<T>(this: ResourceNode<T>): void {
   destroyTrackable(this.trackable);
 }
 
+function markTracker(tracker: Tracker, state: State): void {
+  // A running tracker is being notified by a trackable it is reading right
+  // now or has already read. Only the recorded versions can tell which, so
+  // let `isTrackerDirty` decide.
+  const next = tracker.running ? State.Check : state;
+  // Never downgrade a tracker (e.g. Dirty to Check), and only propagate on
+  // the first mark: a tracker that is already marked has already notified
+  // everything downstream of it.
+  if (tracker.state < next) {
+    const wasClean = tracker.state === State.Clean;
+    tracker.state = next;
+    if (wasClean) {
+      if (tracker.parent.type === NodeType.Effect) {
+        addUpdate(tracker.parent);
+      } else {
+        notifyTrackers(tracker.parent.trackable, State.Check);
+      }
+    }
+  }
+}
+
 function notifyTrackers(node: Trackable, state: State): void {
-  if (!(node.alive && node.trackers && node.trackers.size)) {
+  if (!node.alive) {
     return;
   }
-  const trackers = [...node.trackers];
-  // Mark trackers with the new state
-  for (const tracker of trackers) {
-    tracker.state = state;
-  }
-  // 1st step, notify each tracker with the new state
-  // This is a recursive process, which defers
-  // any effects from immediately occuring
-  for (const tracker of trackers) {
-    if (tracker.parent.type !== NodeType.Effect) {
-      notifyTrackers(tracker.parent.trackable, State.Check);
-    }
-  }
-  // 2nd step, run the effects.
-  for (const tracker of trackers) {
-    if (tracker.parent.type === NodeType.Effect) {
-      addUpdate(tracker.parent);
-    }
+  for (let link = node.firstTracker; link; link = link.nextTracker) {
+    markTracker(link.tracker, state);
   }
 }
 
@@ -281,7 +363,13 @@ export function writeTrackable(node: Trackable, notify: boolean): void {
   if (node.alive) {
     node.version++;
     if (notify) {
-      notifyTrackers(node, State.Dirty);
+      if (getCurrentBatchedUpdates()) {
+        notifyTrackers(node, State.Dirty);
+      } else {
+        // Queue the effects instead of running them while the graph is still
+        // being marked.
+        batch(notifyTrackers.bind(null, node, State.Dirty));
+      }
     }
   }
 }
@@ -320,7 +408,6 @@ export function trackNode<T>(node: TrackableNode<T>): void {
     const tracker = getCurrentTracker();
     if (tracker) {
       addTrackable(tracker, node.trackable);
-      addTracker(node.trackable, tracker);
     }
   }
 }
@@ -370,33 +457,44 @@ export function readResourceNode<T>(this: ResourceNode<T>): T {
   return readNodeResult(this);
 }
 
-function writeTrackerCleanup(node: Tracker, cleanup: Cleanup): void {
+function writeTrackerCleanup<T>(
+  node: Tracker,
+  callback: (value: T) => void,
+  value: T,
+): void {
   // Clean previous cleanup boundary
   if (node.cleanup) {
-    node.cleanup();
+    runCleanupBoundary(node.cleanup);
   }
-  // Create a new cleanup boundary
-  const parent = pushCleanupBoundary(undefined);
-  node.cleanup = batchCleanup(cleanup);
-  popCleanupBoundary(parent);
+  // Create a new cleanup boundary. Assign it before running so that a rerun
+  // triggered from inside the callback cleans this run up.
+  const boundary = createCleanupBoundary();
+  node.cleanup = boundary;
+  const parent = pushCleanupBoundary(boundary);
+  try {
+    callback(value);
+  } finally {
+    popCleanupBoundary(parent);
+  }
 }
 
-function runComputedInternal<T>(this: ComputedNode<T>): void {
+function runComputedInternal<T>(node: ComputedNode<T>): void {
   // Clean the observables
-  cleanTrackables(this.tracker);
+  startTracking(node.tracker);
   // Remount owners
   const parentSuspenseBoundary = pushSuspenseBoundary(undefined);
   const parentErrorBoundary = pushErrorBoundary(undefined);
   const parentContext = pushContext(undefined);
-  const parentTracker = pushTracker(this.tracker);
+  const parentTracker = pushTracker(node.tracker);
   try {
     // Resolve computation
-    writeSuccess(this, this.compute(this.prev));
+    writeSuccess(node, node.compute(node.prev));
   } catch (error) {
     // Computation failed, memoize the error
-    writeFailure(this, error);
+    writeFailure(node, error);
   } finally {
     popTracker(parentTracker);
+    endTracking(node.tracker);
     popContext(parentContext);
     popErrorBoundary(parentErrorBoundary);
     popSuspenseBoundary(parentSuspenseBoundary);
@@ -408,35 +506,36 @@ function runComputed<T>(node: ComputedNode<T>): void {
     return;
   }
   node.tracker.state = State.Clean;
-  writeTrackerCleanup(node.tracker, (runComputedInternal<T>).bind(node));
+  writeTrackerCleanup(node.tracker, runComputedInternal<T>, node);
 }
 
-function runEffectInternal(this: EffectNode): void {
-  cleanTrackables(this.tracker);
+function runEffectInternal(node: EffectNode): void {
+  startTracking(node.tracker);
   const updates = createBatchedUpdates();
   const parentBatchedUpdates = pushBatchedUpdates(updates);
-  const parentTracker = pushTracker(this.tracker);
-  const parentSuspenseBoundary = pushSuspenseBoundary(this.suspenseBoundary);
-  const parentErrorBoundary = pushErrorBoundary(this.errorBoundary);
-  const parentContext = pushContext(this.contextTree);
+  const parentTracker = pushTracker(node.tracker);
+  const parentSuspenseBoundary = pushSuspenseBoundary(node.suspenseBoundary);
+  const parentErrorBoundary = pushErrorBoundary(node.errorBoundary);
+  const parentContext = pushContext(node.contextTree);
   try {
-    this.callback();
+    node.callback();
   } catch (error) {
     // If error is a Suspense marker, we wait
     if (error instanceof ResourceNotReadyError) {
-      handleSuspense(this.suspenseBoundary);
+      handleSuspense(node.suspenseBoundary);
     } else {
       // Pass error to the error boundary
-      handleError(this.errorBoundary, error);
+      handleError(node.errorBoundary, error);
     }
   } finally {
     popContext(parentContext);
     popErrorBoundary(parentErrorBoundary);
     popSuspenseBoundary(parentSuspenseBoundary);
     popTracker(parentTracker);
+    endTracking(node.tracker);
     popBatchedUpdates(parentBatchedUpdates);
 
-    flushUpdates(updates);
+    runBatchedUpdates(updates);
   }
 }
 
@@ -445,7 +544,7 @@ function runEffect(node: EffectNode): void {
     return;
   }
   node.tracker.state = State.Clean;
-  writeTrackerCleanup(node.tracker, runEffectInternal.bind(node));
+  writeTrackerCleanup(node.tracker, runEffectInternal, node);
 }
 
 function resolveResource<T>(
@@ -470,30 +569,31 @@ function rejectResource<T>(
   }
 }
 
-function runResourceInternal<T>(this: ResourceNode<T>): void {
-  cleanTrackables(this.tracker);
+function runResourceInternal<T>(node: ResourceNode<T>): void {
+  startTracking(node.tracker);
   const parentSuspenseBoundary = pushSuspenseBoundary(undefined);
   const parentErrorBoundary = pushErrorBoundary(undefined);
   const parentContext = pushContext(undefined);
-  const parentTracker = pushTracker(this.tracker);
+  const parentTracker = pushTracker(node.tracker);
   try {
     // Force into a Promise
-    const result = Promise.resolve(this.compute(this.prev));
+    const result = Promise.resolve(node.compute(node.prev));
     // Set node to pending state
     // TODO: do not write pending during transition state
-    writePending(this, result);
+    writePending(node, result);
     // Get current version
-    const version = this.trackable.version;
+    const version = node.trackable.version;
     // Update the node when the promise resolves
     result.then(
-      (resolveResource<T>).bind(this, version),
-      (rejectResource<T>).bind(this, version),
+      (resolveResource<T>).bind(node, version),
+      (rejectResource<T>).bind(node, version),
     );
   } catch (error) {
     // Memoize error
-    writeFailure(this, error);
+    writeFailure(node, error);
   } finally {
     popTracker(parentTracker);
+    endTracking(node.tracker);
     popContext(parentContext);
     popErrorBoundary(parentErrorBoundary);
     popSuspenseBoundary(parentSuspenseBoundary);
@@ -504,7 +604,7 @@ function runResource<T>(node: ResourceNode<T>): void {
     return;
   }
   node.tracker.state = State.Clean;
-  writeTrackerCleanup(node.tracker, (runResourceInternal<T>).bind(node));
+  writeTrackerCleanup(node.tracker, runResourceInternal<T>, node);
 }
 
 function writeTrackerSchedule(node: Tracker, callback: Effect): void {
@@ -539,19 +639,17 @@ function updateResource<T>(node: ResourceNode<T>): void {
 
 function isTrackerDirty(node: Tracker): boolean {
   // Check if one of the trackables are dirty
-  if (node.trackables && node.trackables.size) {
-    // Revalidating a trackable can clear this set, so walk over a snapshot.
-    const trackables = Array.from(node.trackables);
-    for (const trackable of trackables) {
-      if (trackable.parent.type === NodeType.Computed) {
-        revalidateComputedNode(trackable.parent);
-      }
-      if (trackable.parent.type === NodeType.Resource) {
-        revalidateResourceNode(trackable.parent);
-      }
-      if (node.state === State.Dirty) {
-        return true;
-      }
+  for (let link = node.firstTrackable; link; link = link.nextTrackable) {
+    const trackable = link.trackable;
+    const parent = trackable.parent;
+    if (parent.type === NodeType.Computed) {
+      revalidateComputedNode(parent);
+    } else if (parent.type === NodeType.Resource) {
+      revalidateResourceNode(parent);
+    }
+    if (node.state === State.Dirty || trackable.version !== link.version) {
+      node.state = State.Dirty;
+      return true;
     }
   }
   node.state = State.Clean;
@@ -590,24 +688,25 @@ export function revalidateEffectNode(node: EffectNode): void {
 }
 
 function flushUpdates(batchedUpdates: BatchedUpdates): void {
-  if (batchedUpdates.effects && batchedUpdates.effects.size) {
-    for (const effect of batchedUpdates.effects) {
+  const effects = batchedUpdates.effects;
+  if (effects) {
+    // Effects queued while flushing are appended and run in the same loop.
+    for (let i = 0; i < effects.length; i++) {
+      const effect = effects[i];
       if (canTrackerUpdate(effect.tracker)) {
         updateEffect(effect);
       }
     }
+    batchedUpdates.effects = undefined;
   }
 }
 
 function addUpdate(effect: EffectNode): void {
-  const updates = getCurrentBatchedUpdates();
-  if (updates) {
-    if (!updates.effects) {
-      updates.effects = new Set();
-    }
-    updates.effects.add(effect);
+  const updates = getCurrentBatchedUpdates()!;
+  if (updates.effects) {
+    updates.effects.push(effect);
   } else {
-    revalidateEffectNode(effect);
+    updates.effects = [effect];
   }
 }
 
@@ -626,6 +725,17 @@ function createBatchedUpdates(): BatchedUpdates {
   };
 }
 
+function runBatchedUpdates(updates: BatchedUpdates): void {
+  // Keep the batch current while flushing so that writes made by the flushed
+  // effects are queued instead of running effects re-entrantly.
+  const parent = pushBatchedUpdates(updates);
+  try {
+    flushUpdates(updates);
+  } finally {
+    popBatchedUpdates(parent);
+  }
+}
+
 export function batch<T>(callback: () => T): T {
   const current = getCurrentBatchedUpdates();
   if (current) {
@@ -637,7 +747,7 @@ export function batch<T>(callback: () => T): T {
     return callback();
   } finally {
     popBatchedUpdates(parent);
-    flushUpdates(instance);
+    runBatchedUpdates(instance);
   }
 }
 
