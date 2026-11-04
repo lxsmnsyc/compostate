@@ -142,6 +142,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "@vitest/coverage-v8": "^4.1.11",
+    "fast-check": "^4.10.2",
     "happy-dom": "^20.13.2",
     "preact": "^10.29.8",
     "react": "^19.2.8",
