@@ -12,15 +12,15 @@
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
-    "@solidjs/router": "2.0.0-next.39",
-    "@solidjs/web": "2.0.0-rc.15",
+    "@solidjs/router": "2.0.0",
+    "@solidjs/web": "2.0.0",
     "compostate": "workspace:*",
     "minisearch": "^7.2.0",
-    "solid-js": "2.0.0-rc.15",
-    "terracotta": "2.0.0-next.10"
+    "solid-js": "2.0.0",
+    "terracotta": "2.0.0"
   },
   "devDependencies": {
-    "@solidjs/vite-plugin": "3.0.0-next.50",
+    "@solidjs/vite-plugin": "3.0.0",
     "@twinkleplop/bash": "0.1.7",
     "@twinkleplop/tsx": "0.1.7",
     "@twinkleplop/typescript": "0.1.7",
